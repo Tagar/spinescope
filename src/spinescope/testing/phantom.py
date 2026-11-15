@@ -16,6 +16,7 @@ from __future__ import annotations
 import os
 import zlib
 from dataclasses import dataclass, field
+from itertools import pairwise
 from typing import Any
 
 import numpy as np
@@ -27,6 +28,8 @@ BODIES = ("T11", "T12", "L1", "L2", "L3", "L4", "L5")  # body above each disc, s
 
 # Tissue labels
 AIR, SOFT, FAT, MUSCLE, MARROW, CORTEX, ANNULUS, NUCLEUS, CSF, CORD, VESSEL, MODIC1, PSOAS = range(13)
+# Added for the robustness scenarios (ids appended so the original ids keep their values).
+OEDEMA, HARDWARE, SCHMORL, BLOOM = range(13, 17)
 TISSUES = (
     "air",
     "soft",
@@ -41,6 +44,10 @@ TISSUES = (
     "vessel",
     "modic1",
     "psoas",
+    "oedema",
+    "hardware",
+    "schmorl",
+    "bloom",
 )
 
 #: Mean signal per tissue and contrast (arbitrary units, roughly 1.5 T FSE-like ordering).
@@ -59,6 +66,10 @@ INTENSITY = {
         VESSEL: 40,
         MODIC1: 360,
         PSOAS: 330,
+        OEDEMA: 200,  # marrow oedema is T1-dark
+        HARDWARE: 0,
+        SCHMORL: 360,
+        BLOOM: 120,
     },
     "t2": {
         AIR: 0,
@@ -74,6 +85,10 @@ INTENSITY = {
         VESSEL: 40,
         MODIC1: 900,
         PSOAS: 240,
+        OEDEMA: 850,
+        HARDWARE: 0,
+        SCHMORL: 950,
+        BLOOM: 150,
     },
     "stir": {
         AIR: 0,
@@ -89,6 +104,30 @@ INTENSITY = {
         VESSEL: 40,
         MODIC1: 900,
         PSOAS: 210,
+        OEDEMA: 850,
+        HARDWARE: 0,
+        SCHMORL: 760,
+        BLOOM: 60,
+    },
+    # Proton density: fat and fluid are not suppressed or boosted much; nucleus is brighter than annulus.
+    "pd": {
+        AIR: 0,
+        SOFT: 380,
+        FAT: 800,
+        MUSCLE: 300,
+        MARROW: 500,
+        CORTEX: 40,
+        ANNULUS: 260,
+        NUCLEUS: 700,
+        CSF: 350,
+        CORD: 420,
+        VESSEL: 40,
+        MODIC1: 600,
+        PSOAS: 300,
+        OEDEMA: 650,
+        HARDWARE: 0,
+        SCHMORL: 700,
+        BLOOM: 150,
     },
 }
 
@@ -97,7 +136,13 @@ ACQ: dict[str, dict[str, Any]] = {
     "t1": {"TR": 550.0, "TE": 8.0, "TI": None, "seq": "SE", "desc": "{plane} T1"},
     "t2": {"TR": 4000.0, "TE": 95.0, "TI": None, "seq": "SE", "desc": "{plane} T2"},
     "stir": {"TR": 5000.0, "TE": 45.0, "TI": 150.0, "seq": "IR", "desc": "{plane} STIR"},
+    "pd": {"TR": 3000.0, "TE": 15.0, "TI": None, "seq": "SE", "desc": "{plane} PD"},
 }
+
+LAT0 = np.array([1.0, 0.0, 0.0])  # lateral axis of an unrotated level
+SCOLIOSIS_SIGMA_MM = 60.0  # width of the thoracolumbar curve around its apex (L2)
+TRANSITIONAL = (None, "lumbarised_s1", "sacralised_l5")
+FIELD_STRENGTHS = (1.5, 3.0)
 
 
 @dataclass
@@ -124,6 +169,35 @@ class PhantomSpec:
     )  # disc -> ('central'|'L'|'R', depth mm)
     noise: float = 0.02  # Rician noise sigma as a fraction of the brightest tissue
     seed: int = 0
+    # ---- robustness options. All off by default: the default phantom is unchanged.
+    scoliosis_mm: float = 0.0  # lateral apex displacement of the thoracolumbar column (apex at L2)
+    scoliosis_rot_deg: float = 0.0  # axial rotation of the levels at the apex, degrees
+    thoracic_top: int = 11  # top thoracic body number: 10 adds T10 and one more disc
+    transitional: str | None = None  # 'lumbarised_s1' (6 lumbar, full S1-S2 disc) | 'sacralised_l5'
+    collapsed: dict[str, float] = field(default_factory=dict)  # disc -> fraction of disc height lost
+    fracture: dict[str, float] = field(default_factory=dict)  # body -> anterior wedge fraction; oedema inside
+    schmorl: list[tuple[str, str]] = field(default_factory=list)  # (body, 'inf'|'sup') Schmorl node
+    hardware: tuple[
+        str, ...
+    ] = ()  # 'screws:<body>', 'cage:<disc>', 'rod' (posterior rod at the spinous line)
+    ribs: bool = False  # rib tubes off the thoracic bodies (visible off the midline)
+    bias_field: float = 0.0  # surface-coil intensity bias amplitude (relative; 0 = none)
+    field_strength: float = 1.5  # 1.5 or 3.0 T: intensity and noise variant (a cartoon, not a physics model)
+
+
+def _segment_distance(pts: np.ndarray, a: np.ndarray, b: np.ndarray) -> np.ndarray:
+    """Distance from each point to the segment a-b."""
+    ab = b - a
+    t = np.clip(((pts - a) @ ab) / (ab @ ab), 0, 1)
+    return np.linalg.norm(pts - (a + t[:, None] * ab), axis=1)
+
+
+def _polyline_distance(pts: np.ndarray, line: np.ndarray) -> np.ndarray:
+    """Distance from each point to the polyline ``line`` (m, 3)."""
+    best = np.full(len(pts), np.inf)
+    for i in range(len(line) - 1):
+        best = np.minimum(best, _segment_distance(pts, line[i], line[i + 1]))
+    return best
 
 
 class SpinePhantom:
@@ -134,54 +208,106 @@ class SpinePhantom:
         self._build()
 
     # ----------------------------------------------------------------- anatomy
+    def _level_names(self) -> tuple[list[str], list[str], str]:
+        """Disc names, body names (both superior -> inferior, equal length) and the sacral block name."""
+        sp = self.spec
+        if sp.transitional not in TRANSITIONAL:
+            raise ValueError(f"unknown transitional anatomy {sp.transitional!r}")
+        if sp.field_strength not in FIELD_STRENGTHS:
+            raise ValueError(f"field_strength must be one of {FIELD_STRENGTHS}")
+        n_lum = 6 if sp.transitional == "lumbarised_s1" else 5
+        bodies = [f"T{k}" for k in range(sp.thoracic_top, 13)] + [f"L{k}" for k in range(1, n_lum + 1)]
+        sacrum = "S2" if sp.transitional == "lumbarised_s1" else "S1"
+        # Disc names count up from the lowest lumbar vertebra (the SPIDER convention): the lowest disc is
+        # L5-S1, or L6-S1 when S1 is lumbarised (its anatomical name, S1-S2, is in truth["discs"][...]["anatomical"]).
+        discs = [f"{a}-{b}" for a, b in pairwise(bodies)] + [f"{bodies[-1]}-S1"]
+        return discs, bodies, sacrum
+
+    def _disc_height(self, disc: str) -> float:
+        return self.spec.disc_height * (1.0 - self.spec.collapsed.get(disc, 0.0))
+
     def _build(self) -> None:
         sp = self.spec
-        # disc tilt from axial for L5-S1 .. T11-T12 (inferior -> superior)
-        turns = list(sp.segment_lordosis)[::-1]  # L4-L5 .. T11-T12
+        disc_names, body_names, sacrum = self._level_names()
+        self._body_names, self._sacrum = body_names, sacrum
+        # disc tilt from axial, inferior -> superior. segment_lordosis is ordered T11-T12 .. L4-L5 (top first);
+        # extra thoracic discs take the top value.
+        seg = list(sp.segment_lordosis)
+        while len(seg) < len(disc_names) - 1:
+            seg.insert(0, seg[0])
+        turns = seg[: len(disc_names) - 1][::-1]  # L4-L5 .. top
         tilts = [sp.sacral_slope]
         for t in turns:
             tilts.append(tilts[-1] - t)
         p = np.array(sp.s1_top, dtype=np.float64)
         discs: dict[str, dict[str, Any]] = {}
         bodies: dict[str, dict[str, Any]] = {}
-        for disc, body, tilt, nxt in zip(
-            DISCS[::-1], BODIES[::-1], tilts, [*tilts[1:], tilts[-1]], strict=False
-        ):
+        for i, (disc, body) in enumerate(zip(disc_names[::-1], body_names[::-1], strict=True)):
+            tilt = tilts[i]
+            nxt = tilts[i + 1] if i + 1 < len(tilts) else tilts[-1]
+            h = self._disc_height(disc)
             n = self._normal(tilt)
             a = self._ap(tilt)
-            c = p + n * sp.disc_height / 2
+            c = p + n * h / 2
             discs[disc] = {
                 "center": c,
                 "normal": n,
                 "ap": a,
+                "lat": LAT0.copy(),
                 "anterior": c - a * sp.body_half_depth,
                 "posterior": c + a * sp.body_half_depth,
                 "tilt_deg": tilt,
-                "height_mm": sp.disc_height,
+                "height_mm": h,
             }
-            bottom = p + n * sp.disc_height
+            bottom = p + n * h
             tb = (tilt + nxt) / 2
             nb, ab = self._normal(tb), self._ap(tb)
             bc = bottom + nb * sp.body_height / 2
-            bodies[body] = {"center": bc, "normal": nb, "ap": ab, "tilt_deg": tb}
+            bodies[body] = {"center": bc, "normal": nb, "ap": ab, "lat": LAT0.copy(), "tilt_deg": tb}
             p = bottom + nb * sp.body_height
-        # S1 / sacrum: a block below the S1 endplate, tilted by the sacral slope
+        # Sacrum: a block below the S1 endplate, tilted by the sacral slope
         n0, a0 = self._normal(sp.sacral_slope), self._ap(sp.sacral_slope)
         s1 = np.array(sp.s1_top) - n0 * 15.0
-        bodies["S1"] = {
+        bodies[sacrum] = {
             "center": s1,
             "normal": n0,
             "ap": a0,
+            "lat": LAT0.copy(),
             "tilt_deg": sp.sacral_slope,
             "half_height": 15.0,
         }
         self.discs, self.bodies = discs, bodies
-        canal = [bodies[b]["center"] + bodies[b]["ap"] * sp.canal_offset for b in ("T11", *BODIES[1:], "S1")]
-        top = canal[0] + bodies["T11"]["normal"] * 40
-        bottom = canal[-1] - bodies["S1"]["normal"] * 30
+        for item in sp.hardware:
+            kind, _, name = item.partition(":")
+            valid = (
+                item == "rod" or (kind == "screws" and name in bodies) or (kind == "cage" and name in discs)
+            )
+            if not valid:
+                raise ValueError(f"unknown hardware {item!r}: use 'rod', 'screws:<body>' or 'cage:<disc>'")
+        if sp.scoliosis_mm or sp.scoliosis_rot_deg:
+            self._apply_scoliosis()
+        canal = [bodies[b]["center"] + bodies[b]["ap"] * sp.canal_offset for b in (*body_names, sacrum)]
+        top = canal[0] + bodies[body_names[0]]["normal"] * 40
+        bottom = canal[-1] - bodies[sacrum]["normal"] * 30
         self.canal_line = np.array([top, *canal, bottom])
+        rod = [
+            bodies[b]["center"] + bodies[b]["ap"] * (sp.canal_offset + 22.0) for b in (*body_names, sacrum)
+        ]
+        self.rod_line = np.array(rod)
         self.conus_z = float(bodies[sp.conus_body]["center"][2])
-        self.truth = {
+        findings: dict[str, Any] = {
+            "transitional": sp.transitional,
+            "lumbar_levels": [b for b in body_names if b.startswith("L")],
+            "sacrum": sacrum,
+            "collapsed": sorted(sp.collapsed),
+            "fracture_bodies": sorted(sp.fracture),
+            "schmorl": [list(x) for x in sp.schmorl],
+            "hardware": list(sp.hardware),
+            "scoliosis_mm": sp.scoliosis_mm,
+            "scoliosis_rot_deg": sp.scoliosis_rot_deg,
+            "field_strength": sp.field_strength,
+        }
+        self.truth: dict[str, Any] = {
             "discs": {
                 k: {kk: (vv.tolist() if isinstance(vv, np.ndarray) else vv) for kk, vv in v.items()}
                 for k, v in discs.items()
@@ -190,7 +316,38 @@ class SpinePhantom:
             "midline_x": float(sp.s1_top[0]),
             "conus_z": self.conus_z,
             "conus_level": sp.conus_body,
+            "transitional": sp.transitional,
+            "findings": findings,
         }
+        if sp.transitional == "sacralised_l5":
+            self.truth["discs"]["L5-S1"]["partial"] = True  # only one side of the L5-S1 disc is preserved
+        if sp.transitional == "lumbarised_s1":
+            self.truth["discs"][disc_names[-1]]["anatomical"] = (
+                "S1-S2"  # the full disc below the lumbarised S1
+            )
+
+    def _apply_scoliosis(self) -> None:
+        """C-shaped thoracolumbar curve: lateral shift and axial rotation, largest at L2, zero at the sacrum."""
+        sp = self.spec
+        apex = float(self.bodies["L2"]["center"][2])
+        rot = np.radians(sp.scoliosis_rot_deg)
+        items: list[dict[str, Any]] = [*self.discs.values()]
+        items += [v for k, v in self.bodies.items() if k != self._sacrum]
+        for v in items:
+            z = float(v["center"][2])
+            w = float(np.exp(-(((z - apex) / SCOLIOSIS_SIGMA_MM) ** 2)))
+            dx = sp.scoliosis_mm * w * np.array([1.0, 0.0, 0.0])
+            for key in ("center", "anterior", "posterior"):
+                if key in v:
+                    v[key] = v[key] + dx
+            th = rot * w
+            lat, ap = v["lat"], v["ap"]
+            v["lat"] = np.cos(th) * lat + np.sin(th) * ap
+            v["ap"] = -np.sin(th) * lat + np.cos(th) * ap
+            if "anterior" in v:  # disc endplate points follow the rotated AP axis
+                c = v["center"]
+                v["anterior"] = c - v["ap"] * sp.body_half_depth
+                v["posterior"] = c + v["ap"] * sp.body_half_depth
 
     @staticmethod
     def _normal(tilt_deg: float) -> np.ndarray:
@@ -232,35 +389,47 @@ class SpinePhantom:
         dist, _seg_t = self._canal_distance(pts)
         ring = (dist > sp.canal_radius + 1.0) & (dist < sp.canal_radius + 6.0) & (pts[:, 1] > y_canal)
         lab[ring] = MARROW
-        for b in (*BODIES, "S1"):
-            c = self.bodies[b]["center"] + self.bodies[b]["ap"] * (sp.canal_offset + 22)
+        for b in (*self._body_names, self._sacrum):
+            v = self.bodies[b]
+            c = v["center"] + v["ap"] * (sp.canal_offset + 22)
             q = pts - c
-            sproc = (q[:, 0] / 5.0) ** 2 + ((q @ self.bodies[b]["ap"]) / 14.0) ** 2 + (
-                (q @ self.bodies[b]["normal"]) / 9.0
+            sproc = (q @ v["lat"] / 5.0) ** 2 + ((q @ v["ap"]) / 14.0) ** 2 + (
+                (q @ v["normal"]) / 9.0
             ) ** 2 <= 1.0
             lab[sproc] = MARROW
         # vertebral bodies (with a thin cortical shell) and discs
-        for v in self.bodies.values():
+        for name, v in self.bodies.items():
             hh = v.get("half_height", sp.body_height / 2)
             q = pts - v["center"]
-            lr, ap, up = q[:, 0], q @ v["ap"], q @ v["normal"]
+            lr, ap, up = q @ v["lat"], q @ v["ap"], q @ v["normal"]
             rr = (np.abs(lr) / sp.body_half_width) ** 2.6 + (np.abs(ap) / sp.body_half_depth) ** 2.6
+            if name in sp.fracture:  # anterior wedge: the anterior height is lost, the posterior wall is kept
+                hh = hh * (1.0 - sp.fracture[name] * np.clip(-ap / sp.body_half_depth, 0.0, 1.0))
             inside = (rr <= 1.0) & (np.abs(up) <= hh)
             shell = inside & ((rr > 0.86) | (np.abs(up) > hh - 1.0))
             lab[inside] = MARROW
             lab[shell] = CORTEX
+            if name in sp.fracture:  # STIR/T2 bright oedema fills the fractured body
+                lab[inside & ~shell] = OEDEMA
         for d, v in self.discs.items():
             q = pts - v["center"]
-            lr, ap, up = q[:, 0], q @ v["ap"], q @ v["normal"]
+            lr, ap, up = q @ v["lat"], q @ v["ap"], q @ v["normal"]
             r2 = (lr / sp.body_half_width) ** 2 + (ap / sp.body_half_depth) ** 2
-            half = sp.disc_height / 2 * (1.0 - 0.25 * r2)
-            disc = (r2 <= 1.0) & (np.abs(up) <= half)
+            dh = v["height_mm"]
+            half = dh / 2 * (1.0 - 0.25 * r2)
+            full = (r2 <= 1.0) & (np.abs(up) <= half)
+            disc = full
+            if sp.transitional == "sacralised_l5" and d == "L5-S1":
+                # partial disc: the right side of the L5-S1 level is bridged by bone
+                keep = lr > -4.0
+                disc = full & keep
+                lab[full & ~keep] = MARROW
             h = sp.herniation.get(d)
             if h is not None:
                 hside, depth = h
                 cx = {"central": 0.0, "L": 8.0, "R": -8.0}[hside]
                 hern = ((lr - cx) / 7.0) ** 2 + ((ap - sp.body_half_depth) / depth) ** 2 <= 1.0
-                disc |= hern & (ap > 0) & (np.abs(up) <= half.clip(min=sp.disc_height * 0.3))
+                disc |= hern & (ap > 0) & (np.abs(up) <= half.clip(min=dh * 0.3))
             lab[disc] = ANNULUS
             nuc = disc & (r2 <= 0.35) & (np.abs(up) <= half * 0.7)
             lab[nuc] = NUCLEUS
@@ -268,15 +437,45 @@ class SpinePhantom:
         for mdisc, which, side in sp.modic1:
             v = self.discs[mdisc]
             q = pts - v["center"]
-            lr, ap, up = q[:, 0], q @ v["ap"], q @ v["normal"]
+            lr, ap, up = q @ v["lat"], q @ v["ap"], q @ v["normal"]
             r2 = (lr / sp.body_half_width) ** 2 + (ap / sp.body_half_depth) ** 2
-            lo, hi = (sp.disc_height / 2 + 1.0, sp.disc_height / 2 + 9.0)
+            lo, hi = (v["height_mm"] / 2 + 1.0, v["height_mm"] / 2 + 9.0)
             band = (r2 <= 0.8) & ((up > lo) & (up < hi) if which == "inf" else (up < -lo) & (up > -hi))
             if side == "L":
                 band &= lr > 2.0
             elif side == "R":
                 band &= lr < -2.0
             lab[band & (lab == MARROW)] = MODIC1
+        # Schmorl nodes: disc material herniated into the marrow next to an endplate (ellipsoid)
+        for body, which in sp.schmorl:
+            v = self.bodies[body]
+            hh = v.get("half_height", sp.body_height / 2)
+            sgn = -1.0 if which == "inf" else 1.0
+            ep = v["center"] + v["normal"] * sgn * hh
+            q = pts - ep
+            node = ((q @ v["lat"]) / 4.5) ** 2 + ((q @ v["ap"]) / 4.5) ** 2 + (
+                (q @ v["normal"]) / 3.0
+            ) ** 2 <= 1.0
+            lab[node & (lab == MARROW)] = SCHMORL
+        # ribs: thin tubes leaving the thoracic bodies laterally and posteriorly
+        if sp.ribs:
+            for name, v in self.bodies.items():
+                if not name.startswith("T"):
+                    continue
+                for s in (-1.0, 1.0):
+                    p0 = v["center"] + v["lat"] * s * sp.body_half_width * 0.8
+                    p1 = p0 + v["lat"] * s * 60.0 - v["ap"] * 40.0
+                    rib = _segment_distance(pts, p0, p1) <= 3.0
+                    lab[rib & np.isin(lab, (SOFT, FAT, MUSCLE, PSOAS))] = CORTEX
+        # hardware (signal voids) and blooming (a dark halo around the metal)
+        core = np.zeros(len(pts), dtype=bool)
+        halo = np.zeros(len(pts), dtype=bool)
+        for item in sp.hardware:
+            c_, h_ = self._hardware_masks(item, pts)
+            core |= c_
+            halo |= h_
+        lab[halo & ~core & (lab != AIR)] = BLOOM
+        lab[core] = HARDWARE
         # thecal sac and cord (drawn last: nothing else lives in the canal)
         csf = dist <= sp.canal_radius
         lab[csf] = CSF
@@ -299,9 +498,40 @@ class SpinePhantom:
             best_t[better] = i + t[better]
         return best, best_t
 
+    def _hardware_masks(self, item: str, pts: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+        """(metal core, blooming halo) masks of one hardware item: 'rod', 'screws:<body>' or 'cage:<disc>'."""
+        sp = self.spec
+        if item == "rod":
+            d = _polyline_distance(pts, self.rod_line)
+            return d <= 3.0, d <= 7.0
+        kind, _, name = item.partition(":")
+        if kind == "screws":  # two pedicle screws, 12 mm either side of the midline, through the body
+            v = self.bodies[name]
+            q = pts - v["center"]
+            lr, ap, up = np.abs(q @ v["lat"]), q @ v["ap"], q @ v["normal"]
+            hh = v.get("half_height", sp.body_height / 2)
+            r2 = (lr - 12.0) ** 2 + (ap - 4.0) ** 2
+            return (r2 <= 9.0) & (np.abs(up) <= hh), (r2 <= 49.0) & (np.abs(up) <= hh + 3.0)
+        v = self.discs[name]  # cage: a block in the disc space
+        q = pts - v["center"]
+        lr, ap, up = np.abs(q @ v["lat"]), np.abs(q @ v["ap"]), np.abs(q @ v["normal"])
+        hd = v["height_mm"] / 2
+        return (lr <= 9.0) & (ap <= 9.0) & (up <= hd), (lr <= 12.0) & (ap <= 12.0) & (up <= hd + 3.0)
+
+    def _bias(self, pts: np.ndarray) -> np.ndarray:
+        """Surface-coil sensitivity: brighter near a posterior coil, falling off with depth (multiplicative)."""
+        ref = self.bodies["L3"]["center"]
+        coil = np.array([0.0, ref[1] + 90.0, ref[2]])
+        d = np.linalg.norm(pts - coil, axis=1)
+        return 1.0 + self.spec.bias_field * (np.exp(-((d / 140.0) ** 2)) - 0.5)
+
+    def _table(self, contrast: str) -> dict[int, float]:
+        gain = 0.85 if contrast == "t2" and self.spec.field_strength == 3.0 else 1.0  # cartoon 3 T variant
+        return {k: float(v) * gain for k, v in INTENSITY[contrast].items()}
+
     # ----------------------------------------------------------------- images
     def intensity(self, labels: np.ndarray, contrast: str, pts: np.ndarray | None = None) -> np.ndarray:
-        table = INTENSITY[contrast]
+        table = self._table(contrast)
         img = np.zeros(labels.shape, dtype=np.float64)
         for t, val in table.items():
             img[labels == t] = val
@@ -329,8 +559,15 @@ class SpinePhantom:
         normal: Any = None,
         row_dir: Any = None,
         key: str = "",
+        ghost: float = 0.0,
+        wrap_rows: int = 0,
     ) -> Stack:
-        """Render a stack. ``plane`` picks default directions; override with ``normal``/``row_dir``."""
+        """Render a stack. ``plane`` picks default directions; override with ``normal``/``row_dir``.
+
+        ``ghost`` adds motion ghosts (copies shifted along the row/phase axis, relative amplitude).
+        ``wrap_rows`` folds that many rows of anatomy beyond the far edge back onto the near edge
+        (phase wrap-around aliasing); the FOV and geometry are unchanged.
+        """
         defaults = {
             "sag": ((0, 1, 0), (0, 0, -1)),
             "ax": ((1, 0, 0), (0, 1, 0)),
@@ -351,13 +588,26 @@ class SpinePhantom:
         rng = np.random.default_rng(self.spec.seed + zlib.crc32(f"{plane}{contrast}".encode()) % 1000)
         offs = (np.arange(n) - (n - 1) / 2) * spacing
         ipps, imgs = [], []
-        rr, cc = np.mgrid[0:rows, 0:cols]
+        rr, cc = np.mgrid[0 : rows + wrap_rows, 0:cols]
+        table = self._table(contrast)
+        noise_scale = 0.7 if self.spec.field_strength == 3.0 else 1.0  # higher SNR at 3 T
         for o in offs:
             ipp = center + o * nrm - ((cols - 1) / 2) * px * rd - ((rows - 1) / 2) * px * cd
             pts = ipp + np.outer(cc.ravel() * px, rd) + np.outer(rr.ravel() * px, cd)
             lab = self.labels(pts)
             img = self.intensity(lab, contrast, pts)
-            sigma = self.spec.noise * max(INTENSITY[contrast].values())
+            if self.spec.bias_field:
+                img = img * self._bias(pts)
+            img2 = img.reshape(rows + wrap_rows, cols)
+            if ghost:
+                s = max(1, rows // 12)  # ghosts repeat along the phase (row) axis
+                img2 = img2 + ghost * (np.roll(img2, s, axis=0) + np.roll(img2, -s, axis=0))
+            if wrap_rows:
+                folded = img2[:rows].copy()
+                folded[:wrap_rows] += img2[rows:]
+                img2 = folded
+            img = img2.ravel()
+            sigma = self.spec.noise * max(table.values()) * noise_scale
             img = np.sqrt((img + rng.normal(0, sigma, img.shape)) ** 2 + rng.normal(0, sigma, img.shape) ** 2)
             ipps.append(ipp)
             imgs.append(img.reshape(rows, cols).astype(np.float32))
@@ -370,6 +620,7 @@ class SpinePhantom:
                 "EchoTime": acq["TE"],
                 "ScanningSequence": acq["seq"],
                 "SliceThickness": thickness,
+                "MagneticFieldStrength": self.spec.field_strength,
             },
             "phantom": True,
         }
@@ -464,7 +715,7 @@ def write_dicom_series(
         ds.Modality = "MR"
         ds.Manufacturer = "SPINESCOPE"
         ds.ManufacturerModelName = "PHANTOM"
-        ds.MagneticFieldStrength = 1.5
+        ds.MagneticFieldStrength = float(stack.meta.get("dicom", {}).get("MagneticFieldStrength", 1.5))
         ds.SeriesNumber = series_number
         ds.InstanceNumber = start_instance + k
         ds.SeriesDescription = description or stack.description
