@@ -152,6 +152,45 @@ class Config:
     conus_xc_agree_factor: float = 1.0  # confidence factor: second contrast agrees within conus_agree_mm
     conus_xc_disagree_factor: float = 0.5  # second contrast disagrees
     conus_xc_absent_factor: float = 0.9  # no second contrast in the study
+    # ---- neural axis (analysis/neural_axis.py, dx14). Every value is a judgement or a cited literature value; none was
+    # tuned on validation. Outputs are capped and marked experimental (see neural_axis_max_confidence).
+    # Low-lying conus reuses conus_low_lying_disc (L2-L3) and conus_low_lying_min_confidence (0.6).
+    # Perineural (Tarlov) cysts, sagittal STIR/T2 in the sacral canal below the L5-S1 disc.
+    neural_axis_cyst_min_mm: float = (
+        5.0  # judgement: about 5 sagittal pixels; below this the 4-5 mm slice spacing gives no reliable size
+    )
+    neural_axis_cyst_large_mm: float = 20.0  # judgement: Paulsen RD et al. AJNR 1994;15:293 (PMID 8192075) treated symptomatic cysts 16-30 mm
+    neural_axis_cyst_csf_tol_frac: float = 0.08  # judgement: CSF-likeness within this share of the window span (window-relative, offsets carried)
+    neural_axis_cyst_min_contrast_frac: float = 0.15  # judgement: CSF must differ from sacral marrow by this share of the window, or cysts are not assessed
+    neural_axis_cyst_canal_margin_mm: float = 1.0  # judgement: exclude the sac wall and its partial volume
+    neural_axis_sac_area_frac: float = 0.6  # judgement (as conus_sac_area_frac): slices whose canal area reaches this share of the peak carry the sac
+    neural_axis_cyst_min_solidity: float = (
+        0.8  # judgement: pixel area over convex hull area (blob, not a streak)
+    )
+    neural_axis_cyst_min_aspect: float = 0.3  # judgement: minor over major axis of the blob
+    neural_axis_cyst_link_mm: float = (
+        6.0  # judgement: candidates on adjacent sagittal slices linked within this distance
+    )
+    # Dural sac ratio (Oosterhof N, et al. Spine 2001, PMID 11477262; derived in Marfan vs control adults): midsagittal
+    # AP diameter of the thecal sac over the AP diameter of the vertebral body at the same level. Limits from that study.
+    neural_axis_dsr_l5: float = 0.48
+    neural_axis_dsr_s1: float = 0.57
+    # Filum terminale on axial images at L5-S1. Normal filum <= 2 mm, thickened > 2 mm (Raghavan N, et al. AJNR
+    # 1989;10(1):27-36, no PMID checked; the 2 mm limit is the one usually cited).
+    neural_axis_filum_thick_mm: float = 2.0
+    neural_axis_filum_search_mm: float = (
+        8.0  # judgement: radius searched around the canal centre on the axial slice
+    )
+    neural_axis_filum_csf_radius_mm: float = 6.0  # judgement: CSF reference disc around the canal centre (sac, not filum: a thick filum fills 3 mm)
+    neural_axis_filum_centre_mm: float = (
+        3.0  # judgement: a filum candidate's centroid lies within this of the canal centre
+    )
+    neural_axis_fatty_relative_frac: float = 0.7  # judgement: on T1 the fatty filum reaches this share of the slice's fat level above CSF (cord does not)
+    neural_axis_fatty_contrast_frac: float = (
+        0.2  # judgement: a T1-bright focus must exceed the CSF by this share of the window (not fat-verified)
+    )
+    # Confidence cap for every neural-axis output: none is validated on a reference (see docs/analysis/neural_axis.md).
+    neural_axis_max_confidence: float = 0.5
     disc_match_mm: float = 6.0  # tolerance when matching discs between two sagittal series
     # Mid-sagittal plane by mirror symmetry (spinescope.anatomy.midline_robust). Mirror pairs of sagittal
     # slices at x0 +- d are compared; the symmetry axis is the midline. Lengths in mm.

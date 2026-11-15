@@ -239,6 +239,13 @@ class PhantomSpec:
     # a lateral band of fat signal (realised fraction is measured from the labels in the tests). Cartoon only.
     paraspinal_detail: bool = False
     multifidus_fat: dict[str, float] = field(default_factory=dict)
+    # ---- neural axis option (dx14), off by default. Cartoon realism only.
+    # Perineural (Tarlov) cysts: (lateral offset mm from the sacral canal centre, diameter mm); CSF-equivalent balls
+    # in the sacral canal at the sacrum's centre height.
+    perineural_cysts: tuple[tuple[float, float], ...] = ()
+    # Filum terminale: radius (mm) of a tube from the conus to the bottom of the thecal sac; None = no filum drawn.
+    filum_radius: float | None = None
+    filum_fat: bool = False  # True: the filum is drawn as fat (bright on T1), else as cord-like tissue
 
 
 def _segment_distance(pts: np.ndarray, a: np.ndarray, b: np.ndarray) -> np.ndarray:
@@ -676,6 +683,21 @@ class SpinePhantom:
             lab[hern_full] = ANNULUS
         cord = (dist <= sp.cord_radius) & (pts[:, 2] > self.conus_z)
         lab[cord] = CORD
+        # neural axis options (dx14): Tarlov cysts in the sacral canal, filum terminale below the conus
+        if sp.perineural_cysts:
+            sac_v = self.bodies[self._sacrum]
+            # 12 mm down the sacral axis from the sacral canal centre: the sacral canal, below the L5-S1 disc
+            base = sac_v["center"] + sac_v["ap"] * sp.canal_offset - sac_v["normal"] * 12.0
+            for lat_mm, diam_mm in sp.perineural_cysts:
+                ball = np.linalg.norm(pts - (base + sac_v["lat"] * lat_mm), axis=1) <= diam_mm / 2
+                lab[ball & (lab != AIR)] = CSF
+        if sp.filum_radius is not None:
+            # the filum follows the canal from the conus body centre down to the bottom of the sac
+            idx = (
+                self._body_names.index(sp.conus_body) + 1
+            )  # canal_line[0] is the top point, then one per body
+            filum = _polyline_distance(pts, self.canal_line[idx:]) <= sp.filum_radius
+            lab[filum & np.isin(lab, (CSF, CORD, SOFT, MARROW))] = FAT if sp.filum_fat else CORD
         return lab
 
     def _lf_and_fat(
