@@ -136,6 +136,8 @@ class Anchors:
     warnings: list[str] = field(default_factory=list)
     # Applicability record (spinescope.anatomy.ood): verdict, region, labelled, factor, coverage, cues. Additive.
     applicability: dict[str, Any] = field(default_factory=dict)
+    # Transitional-vertebra check (spinescope.anatomy.lstv): suspicion, kind, Castellvi, naming suggestion. Additive.
+    lstv: dict[str, Any] | None = None
     schema_version: str = SCHEMA_VERSION
 
     # ---------------------------------------------------------------- queries

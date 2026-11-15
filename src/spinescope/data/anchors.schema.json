@@ -54,6 +54,10 @@
     "posterior_elements": {
       "$ref": "#/$defs/PosteriorElements"
     },
+    "lstv": {
+      "type": ["object", "null"],
+      "description": "Lumbosacral transitional vertebra check (lab28): status suspected, possible, not_suspected or not_assessed; kind; probabilities; evidence; Castellvi grade only from a supplied record; count and suggested names (never applied). Research use only."
+    },
     "numbering": {
       "$ref": "#/$defs/Numbering"
     },
