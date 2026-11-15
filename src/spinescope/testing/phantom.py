@@ -86,6 +86,7 @@ INTENSITY = {
         HARDWARE: 0,
         SCHMORL: 360,
         BLOOM: 120,
+        LIGAMENT: 260,  # dx09: intermediate-dark on T1
     },
     "t2": {
         AIR: 0,
@@ -105,6 +106,7 @@ INTENSITY = {
         HARDWARE: 0,
         SCHMORL: 950,
         BLOOM: 150,
+        LIGAMENT: 200,  # dx09: dark on T2 (between bright epidural fat and marrow)
     },
     "stir": {
         AIR: 0,
@@ -124,6 +126,7 @@ INTENSITY = {
         HARDWARE: 0,
         SCHMORL: 760,
         BLOOM: 60,
+        LIGAMENT: 90,  # dx09: dark on STIR
     },
     # Proton density: fat and fluid are not suppressed or boosted much; nucleus is brighter than annulus.
     "pd": {
@@ -218,6 +221,12 @@ class PhantomSpec:
     # along that body's anterior-posterior axis. Positive = posterior (retrolisthesis), negative = anterior
     # (anterolisthesis). The disc at the slip level takes half the shift (it shears between the two bodies).
     slip: dict[str, float] = field(default_factory=dict)
+    # ---- ligamentum flavum and dorsal epidural fat (dx09). Cartoon only; off by default (empty / 0 = unchanged).
+    # disc -> ('L' | 'R' | 'both', thickness mm): a band of ligamentum flavum posterior to the dural sac, in the
+    # disc's z-range, on the given side of the canal (L = patient left = +x in LPS).
+    lf: dict[str, tuple[str, float]] = field(default_factory=dict)
+    # Midline dorsal epidural fat (mm, between the dura and the ligamentum) at every level; 0 = none.
+    epidural_fat_mm: float = 0.0
 
 
 def _segment_distance(pts: np.ndarray, a: np.ndarray, b: np.ndarray) -> np.ndarray:
@@ -628,6 +637,7 @@ class SpinePhantom:
         lab[halo & ~core & (lab != AIR)] = BLOOM
         lab[core] = HARDWARE
         # thecal sac and cord (drawn last: nothing else lives in the canal)
+        lab = self._lf_and_fat(pts, lab, dist, y_canal)
         csf = dist <= sp.canal_radius
         lab[csf] = CSF
         # herniated disc in the canal is drawn over the sac (option, see PhantomSpec)
@@ -635,6 +645,34 @@ class SpinePhantom:
             lab[hern_full] = ANNULUS
         cord = (dist <= sp.cord_radius) & (pts[:, 2] > self.conus_z)
         lab[cord] = CORD
+        return lab
+
+    def _lf_and_fat(
+        self, pts: np.ndarray, lab: np.ndarray, dist: np.ndarray, y_canal: np.ndarray
+    ) -> np.ndarray:
+        """Dorsal epidural fat and ligamentum flavum bands (cartoon; see PhantomSpec.lf / epidural_fat_mm)."""
+        sp = self.spec
+        if not sp.lf and sp.epidural_fat_mm <= 0:
+            return lab
+        cz = self.canal_line
+        x_canal = np.interp(pts[:, 2], cz[::-1, 2], cz[::-1, 0])
+        posterior = pts[:, 1] > y_canal
+        lateral = pts[:, 0] - x_canal
+        r0, fat = sp.canal_radius, sp.epidural_fat_mm
+        for d, v in self.discs.items():
+            # z-range of the level, with a margin for the disc tilt (the normal tilts, so posterior points drift off it)
+            zone = np.abs(pts[:, 2] - v["center"][2]) <= v["height_mm"] / 2 + 4.0
+            if fat > 0:
+                dorsal = zone & posterior & (dist > r0) & (dist <= r0 + fat) & (np.abs(lateral) <= 6.0)
+                lab[dorsal] = FAT
+            if d in sp.lf:
+                side, thk = sp.lf[d]
+                band = zone & posterior & (dist > r0 + fat) & (dist <= r0 + fat + thk)
+                if side == "L":
+                    band &= lateral > 2.0
+                elif side == "R":
+                    band &= lateral < -2.0
+                lab[band] = LIGAMENT
         return lab
 
     def _labels_cached(self, pts: np.ndarray) -> np.ndarray:
