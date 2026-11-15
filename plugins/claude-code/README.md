@@ -82,6 +82,7 @@ The command line does the same setup work without Claude Code:
 
 ```
 spinescope inspect STUDY --json
+spinescope label STUDY --out anchors.json --overlay qa.png   # status, applicability, levels, warnings
 spinescope brief STUDY --out brief.txt
 spinescope tasks STUDY --outdir tasks/          # tasks.json and prompts/<reader>.txt
 spinescope viewer STUDY viewer-out/

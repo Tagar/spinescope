@@ -18,6 +18,8 @@ if TYPE_CHECKING:
 def _cmd_inspect(args: argparse.Namespace) -> int:
     from .study import load_study
 
+    if getattr(args, "label", False):
+        return _inspect_with_labels(args)
     study = load_study(args.path, load_pixels=False)
     if args.json:
         out = {
@@ -42,6 +44,90 @@ def _cmd_inspect(args: argparse.Namespace) -> int:
         print()
     else:
         print(study.summary())
+    return 0
+
+
+def _inspect_with_labels(args: argparse.Namespace) -> int:
+    """``inspect --label``: the series table plus the one-line labelling summary (labels are computed)."""
+    from .anatomy import label_spine
+    from .anatomy.summary import labelling_summary, one_line
+    from .study import load_study
+
+    study = load_study(args.path)
+    anchors = label_spine(study)
+    if args.json:
+        out = {
+            "info": study.info,
+            "stacks": {
+                k: {"role": s.meta.get("role", {}), "plane": s.plane, "slices": s.n}
+                for k, s in study.stacks.items()
+            },
+            "labelling": labelling_summary(anchors),
+        }
+        json.dump(out, sys.stdout, indent=1, default=str)
+        print()
+    else:
+        print(study.summary())
+        print(one_line(anchors))
+    return 0
+
+
+def _label_table(anchors: Anchors) -> str:
+    """Plain-text report of a labelling run: the status banner, the applicability, the levels table, warnings."""
+    from .anatomy.summary import labelling_summary, summary_lines
+
+    s = labelling_summary(anchors)
+    lines = summary_lines(anchors)
+    lines.append("")
+    if s["levels"]:
+        head = (
+            "Disc levels (level names are unconfirmed: positions only)"
+            if s["status"] == "unconfirmed"
+            else ("Disc levels (level names to be confirmed)" if s["status"] == "probable" else "Disc levels")
+        )
+        lines.append(head + ", superior to inferior:")
+        rows = [("Level", "z (mm)", "Height (mm)", "Confidence", "Tier")]
+        for r in s["levels"]:
+            h = "n/a" if r["height_mm"] is None else f"{r['height_mm']:g}"
+            rows.append((r["level"], f"{r['z_mm']:+.1f}", h, f"{r['confidence']:.2f}", r["tier"]))
+        widths = [max(len(row[i]) for row in rows) for i in range(len(rows[0]))]
+        for row in rows:
+            lines.append("  " + "  ".join(cell.ljust(widths[i]) for i, cell in enumerate(row)).rstrip())
+    else:
+        lines.append("No disc levels were labelled.")
+    lines.append("")
+    if s["warnings"]:
+        lines.append("Warnings:")
+        lines += [f"  - {w}" for w in s["warnings"]]
+    else:
+        lines.append("Warnings: none")
+    return "\n".join(lines)
+
+
+def _cmd_label(args: argparse.Namespace) -> int:
+    from pathlib import Path
+
+    from .anatomy import label_spine
+    from .anatomy.qa import overlay
+    from .render.window import save_png
+    from .study import load_study
+
+    study = load_study(args.path)
+    anchors = label_spine(study, backend=args.backend)
+    doc = anchors.to_dict()
+    if args.out:
+        Path(args.out).write_text(json.dumps(doc, indent=1) + "\n", encoding="utf-8")
+    if args.overlay:
+        save_png(overlay(study, anchors), args.overlay)
+    if args.json:
+        json.dump(doc, sys.stdout, indent=1, default=str)
+        print()
+    else:
+        print(_label_table(anchors))
+        if args.out:
+            print(f"Anchors JSON written to {args.out}")
+        if args.overlay:
+            print(f"QA overlay written to {args.overlay}")
     return 0
 
 
@@ -162,7 +248,26 @@ def build_parser() -> argparse.ArgumentParser:
     s = sub.add_parser("inspect", help="list the series of a study and how they were classified")
     s.add_argument("path", help="DICOM directory (any layout) or a NIfTI/MetaImage file")
     s.add_argument("--json", action="store_true", help="machine-readable output")
+    s.add_argument(
+        "--label", action="store_true", help="also label the levels and print a one-line labelling summary"
+    )
     s.set_defaults(func=_cmd_inspect)
+
+    s = sub.add_parser(
+        "label",
+        help="label the disc levels: status, applicability, warnings; write anchors JSON and a QA overlay",
+    )
+    s.add_argument("path", help="DICOM directory or volume file")
+    s.add_argument("--json", action="store_true", help="print the anchors JSON instead of the table")
+    s.add_argument("--out", help="write the anchors JSON to this file")
+    s.add_argument("--overlay", help="write the QA overlay (mid-sagittal discs, confidences) as a PNG here")
+    s.add_argument(
+        "--backend",
+        choices=("auto", "ml", "classical"),
+        default="auto",
+        help="labeller: auto (learned if available, else classical), ml (learned) or classical",
+    )
+    s.set_defaults(func=_cmd_label)
 
     s = sub.add_parser("brief", help="reading brief for an AI reader (conventions, anchors, findings format)")
     s.add_argument("path", help="DICOM directory or volume file")

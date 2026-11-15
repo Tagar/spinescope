@@ -66,6 +66,7 @@ from ..render.window import grey_rgb, series_window
 from ..study import Study
 from . import qa
 from .anchors import VERTEBRA_NAMES, Anchors, split_disc
+from .numbering import STATUS_PROBABLE, STATUS_UNCONFIRMED, numbering_status
 
 log = logging.getLogger(__name__)
 
@@ -430,6 +431,21 @@ def _lowest_action(work: Anchors, target: str, why: str, who: str, source: str) 
         raise AnswerError(f"lowest_disc_is {target} does not fit the displayed bottom disc {bottom}")
 
 
+def review_status(anchors: Anchors, source: str) -> str:
+    """The numbering status after a reviewed correction, consistent with the applicability record.
+
+    A review that cannot see the bone (``applicability.unconfirmed_reasons``, e.g. no sacrum in view) stays
+    ``unconfirmed``. An AI reader's answer is never enough for ``confirmed``: it is at most ``probable``. A human
+    review may reach ``confirmed`` when its confidence does.
+    """
+    if anchors.applicability.get("unconfirmed_reasons"):
+        return STATUS_UNCONFIRMED
+    status = numbering_status(float(anchors.numbering.get("confidence", 0.0) or 0.0))
+    if source != "human" and status != STATUS_UNCONFIRMED:
+        return STATUS_PROBABLE
+    return status
+
+
 def apply_answer(
     anchors: Anchors,
     answer: str | Mapping[str, Any] | LabelAnswer,
@@ -472,6 +488,7 @@ def apply_answer(
             confidence=cfg.review_unsure_confidence,
             warning="label review: reader unsure of the lowest disc; levels are unverified",
         )
+        anchors.numbering["status"] = STATUS_UNCONFIRMED
         return anchors
 
     work = Anchors.from_dict(anchors.to_dict())
@@ -528,6 +545,7 @@ def apply_answer(
             work.warnings.append("label review: reader says not transitional but the lowest disc was moved")
     conf = max(0.0, review_conf - cfg.review_unplaced_penalty * len(unplaced))
     work.record_correction("review", who=who, source=source, why=why, detail=detail, confidence=conf)
+    work.numbering["status"] = review_status(work, source)
     anchors.__dict__.update(work.__dict__)
     return anchors
 

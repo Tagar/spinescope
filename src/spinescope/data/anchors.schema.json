@@ -1,0 +1,819 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Tagar/spinescope/blob/main/src/spinescope/data/anchors.schema.json",
+  "title": "spinescope anchors 1.1: automatic spine anatomy (levels, geometry, numbering status, applicability)",
+  "description": "The JSON written by spinescope label / Anchors.to_json and returned by the MCP get_anchors tool. Coordinates are LPS mm. Every anchor carries a confidence in [0, 1] and free-text evidence. numbering.status is confirmed, probable or unconfirmed; anything other than confirmed means the level names are not settled (abstain policy: docs/labeling/lab19_surface.md). The conus is experimental. Schema 1.0 documents (no canal, posterior_elements, vertebra body) still validate. Research use only; not a diagnosis. No file paths and no patient attributes are part of this document.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "discs",
+    "vertebrae"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "enum": [
+        "1.0",
+        "1.1"
+      ]
+    },
+    "discs": {
+      "type": "object",
+      "description": "Disc levels keyed by label (L4-L5, T12-L1, L5-S1). Superior to inferior order is given by centre z.",
+      "propertyNames": {
+        "pattern": "^[TLS]\\d{1,2}-[TLS]\\d{1,2}$"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/Disc"
+      }
+    },
+    "vertebrae": {
+      "type": "object",
+      "description": "Vertebral bodies keyed by name (L5, S1, L6 after a lumbarized S1).",
+      "propertyNames": {
+        "pattern": "^[TLS]\\d{1,2}$"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/Vertebra"
+      }
+    },
+    "midline_x": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "description": "Mid-sagittal plane x (LPS mm)."
+    },
+    "conus": {
+      "$ref": "#/$defs/Conus"
+    },
+    "canal": {
+      "$ref": "#/$defs/Canal"
+    },
+    "posterior_elements": {
+      "$ref": "#/$defs/PosteriorElements"
+    },
+    "numbering": {
+      "$ref": "#/$defs/Numbering"
+    },
+    "method": {
+      "type": "string"
+    },
+    "source_stack": {
+      "type": "string",
+      "description": "Series key of the stack the labels were measured on (never a path)."
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "applicability": {
+      "$ref": "#/$defs/Applicability"
+    }
+  },
+  "$defs": {
+    "LPS": {
+      "type": "array",
+      "items": {
+        "type": "number"
+      },
+      "minItems": 3,
+      "maxItems": 3
+    },
+    "Confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "Strings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "Disc": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "center",
+        "normal"
+      ],
+      "properties": {
+        "center": {
+          "$ref": "#/$defs/LPS"
+        },
+        "normal": {
+          "$ref": "#/$defs/LPS",
+          "description": "Unit normal, pointing superior."
+        },
+        "anterior": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/LPS"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "posterior": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/LPS"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "height_mm": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "confidence": {
+          "$ref": "#/$defs/Confidence"
+        },
+        "evidence": {
+          "$ref": "#/$defs/Strings"
+        }
+      }
+    },
+    "Endplate": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "anterior": {
+          "$ref": "#/$defs/LPS"
+        },
+        "posterior": {
+          "$ref": "#/$defs/LPS"
+        },
+        "angle_deg": {
+          "type": "number"
+        }
+      }
+    },
+    "Vertebra": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "center"
+      ],
+      "properties": {
+        "center": {
+          "$ref": "#/$defs/LPS"
+        },
+        "confidence": {
+          "$ref": "#/$defs/Confidence"
+        },
+        "evidence": {
+          "$ref": "#/$defs/Strings"
+        },
+        "body": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Body"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "Body": {
+      "type": "object",
+      "description": "Vertebral body geometry (learned labeller only). Measured, not validated against ground truth.",
+      "additionalProperties": false,
+      "properties": {
+        "level": {
+          "type": "string"
+        },
+        "slice": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "discs_below": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "centre": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/LPS"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "centre_plane": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/LPS"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "superior_endplate": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Endplate"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "inferior_endplate": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/Endplate"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "height_mm": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "anterior": {
+                  "type": "number"
+                },
+                "middle": {
+                  "type": "number"
+                },
+                "posterior": {
+                  "type": "number"
+                },
+                "mean": {
+                  "type": "number"
+                }
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "ap_depth_mm": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "width_mm": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "complete": {
+          "type": "boolean"
+        },
+        "confidence": {
+          "$ref": "#/$defs/Confidence"
+        },
+        "evidence": {
+          "$ref": "#/$defs/Strings"
+        }
+      }
+    },
+    "Conus": {
+      "description": "Conus locator: EXPERIMENTAL (uncalibrated, not validated). An empty object or null means not located. The confidence is capped by config.conus_max_confidence.",
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "z": {
+              "type": "number"
+            },
+            "xyz": {
+              "$ref": "#/$defs/LPS"
+            },
+            "center": {
+              "$ref": "#/$defs/LPS"
+            },
+            "level": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "position": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "confidence": {
+              "$ref": "#/$defs/Confidence"
+            },
+            "low_lying": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "fov_end": {
+              "type": "boolean"
+            },
+            "slices": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "agreeing_slices": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "contrast": {
+              "type": "string"
+            },
+            "evidence": {
+              "$ref": "#/$defs/Strings"
+            },
+            "experimental": {
+              "type": "boolean"
+            }
+          }
+        }
+      ]
+    },
+    "Canal": {
+      "description": "Spinal canal centreline and AP diameters (learned labeller only). Not validated.",
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "points": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/LPS"
+              }
+            },
+            "per_level": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "z_mm": {
+                    "type": "number"
+                  },
+                  "ap_mm": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "disc",
+                      "mid_body"
+                    ]
+                  },
+                  "slice": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                }
+              }
+            },
+            "confidence": {
+              "$ref": "#/$defs/Confidence"
+            },
+            "method": {
+              "type": "string"
+            },
+            "evidence": {
+              "$ref": "#/$defs/Strings"
+            }
+          }
+        }
+      ]
+    },
+    "PosteriorElements": {
+      "description": "Posterior-element approximations (lamina proxy, spinous tip). Unvalidated; see limits.",
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "lamina_proxy": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "object"
+              }
+            },
+            "spinous_tip": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "object"
+              }
+            },
+            "confidence": {
+              "$ref": "#/$defs/Confidence"
+            },
+            "limits": {
+              "$ref": "#/$defs/Strings"
+            },
+            "method": {
+              "type": "string"
+            },
+            "evidence": {
+              "$ref": "#/$defs/Strings"
+            }
+          }
+        }
+      ]
+    },
+    "Vote": {
+      "type": "object",
+      "description": "One cue's vote over the lowest-disc offsets. weight 0 means a consistency check, not a vote.",
+      "additionalProperties": false,
+      "required": [
+        "method",
+        "best",
+        "probs",
+        "weight"
+      ],
+      "properties": {
+        "method": {
+          "type": "string"
+        },
+        "best": {
+          "type": "integer",
+          "minimum": -1,
+          "maximum": 1
+        },
+        "probs": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        },
+        "weight": {
+          "type": "number",
+          "minimum": 0
+        },
+        "evidence": {
+          "$ref": "#/$defs/Strings"
+        }
+      }
+    },
+    "Correction": {
+      "description": "One provenance record of a correction or review. Programmatic corrections carry source programmatic; reader answers ai_reader; viewer edits human.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "action",
+        "who",
+        "source",
+        "why",
+        "detail",
+        "labels_after"
+      ],
+      "properties": {
+        "action": {
+          "type": "string"
+        },
+        "who": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "source": {
+          "type": "string",
+          "enum": [
+            "programmatic",
+            "ai_reader",
+            "human"
+          ]
+        },
+        "why": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "detail": {
+          "type": "object"
+        },
+        "labels_after": {
+          "$ref": "#/$defs/Strings"
+        },
+        "what": {
+          "type": "string"
+        },
+        "when": {
+          "type": "string"
+        }
+      }
+    },
+    "Numbering": {
+      "description": "How the levels were numbered from the sacrum, and the status that says whether the names may be used.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "confirmed",
+            "probable",
+            "unconfirmed"
+          ]
+        },
+        "confidence": {
+          "$ref": "#/$defs/Confidence",
+          "description": "Probability that the numbering is right (calibrated when calibrated is true)."
+        },
+        "confidence_raw": {
+          "type": "number"
+        },
+        "confidence_before_applicability": {
+          "type": "number"
+        },
+        "applicability_factor": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "calibrated": {
+          "type": "boolean"
+        },
+        "labelled": {
+          "type": "boolean"
+        },
+        "method": {
+          "type": "string"
+        },
+        "notes": {
+          "type": "string"
+        },
+        "offset": {
+          "type": "integer"
+        },
+        "applied_offset": {
+          "type": "integer"
+        },
+        "relabelled": {
+          "type": "boolean"
+        },
+        "posterior": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        },
+        "votes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Vote"
+          }
+        },
+        "sacrum_below": {
+          "type": "boolean"
+        },
+        "second_series": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "second_series_agreement": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "classical": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "transitional": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "transitional_kind": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "sacralized",
+            "lumbarized",
+            null
+          ]
+        },
+        "transitional_candidate": {
+          "type": "boolean",
+          "description": "A transitional anatomy candidate was seen (not applied by itself)."
+        },
+        "midline_confidence": {
+          "type": "number"
+        },
+        "midline_evidence": {
+          "type": "string"
+        },
+        "lumbosacral": {
+          "description": "Sacral-disc check (learned labeller). keep: no change; drop: sacral discs removed; unsure: the status is capped at unconfirmed; not_assessed: no model or no candidates.",
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "status": {
+              "type": "string",
+              "enum": [
+                "keep",
+                "drop",
+                "unsure",
+                "not_assessed"
+              ]
+            },
+            "drop": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "applied_drop": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "p_l5s1": {
+              "type": "array",
+              "items": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              }
+            },
+            "candidates": {
+              "$ref": "#/$defs/Strings"
+            },
+            "evidence": {
+              "$ref": "#/$defs/Strings"
+            },
+            "warnings": {
+              "$ref": "#/$defs/Strings"
+            }
+          }
+        },
+        "corrections": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Correction"
+          }
+        }
+      }
+    },
+    "Region": {
+      "type": "string",
+      "enum": [
+        "lumbar",
+        "thoracolumbar",
+        "whole_spine",
+        "uncertain",
+        "not_lumbar",
+        "not_spine",
+        "no_sagittal",
+        "not_usable"
+      ]
+    },
+    "Applicability": {
+      "description": "When not to label: verdict, region, whether levels are labelled, the confidence factor, the reasons that force unconfirmed, and the field-of-view coverage. Technical cues only.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "verdict": {
+          "$ref": "#/$defs/Region"
+        },
+        "region": {
+          "type": "string"
+        },
+        "labelled": {
+          "type": "boolean"
+        },
+        "summary": {
+          "type": "string"
+        },
+        "factor": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "cap": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "capped": {
+          "$ref": "#/$defs/Strings"
+        },
+        "dropped": {
+          "$ref": "#/$defs/Strings"
+        },
+        "sacrum_covered": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "unconfirmed_reasons": {
+          "$ref": "#/$defs/Strings"
+        },
+        "reasons": {
+          "$ref": "#/$defs/Strings"
+        },
+        "warnings": {
+          "$ref": "#/$defs/Strings"
+        },
+        "coverage": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "z_min_mm": {
+              "type": "number"
+            },
+            "z_max_mm": {
+              "type": "number"
+            },
+            "extent_mm": {
+              "type": "number"
+            },
+            "levels_in_fov": {
+              "$ref": "#/$defs/Strings"
+            },
+            "sacrum_covered": {
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
+            "bone_below_lowest_disc_mm": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "superior_cut": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "superior_margin_mm": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "top_level_in_view": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "disc_regions": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "cues": {
+          "type": "object"
+        }
+      }
+    }
+  }
+}

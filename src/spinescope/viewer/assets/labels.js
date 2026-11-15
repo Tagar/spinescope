@@ -239,23 +239,55 @@ var SSLabels = (function () {
   function tier(c, policy) {
     return c >= policy.confHigh ? 'high' : c >= policy.confLow ? 'medium' : 'low';
   }
-  // Banner for the review panel. level: 'none' | 'confirmed' | 'unconfirmed' | 'ok'
+  // True when a reader or a human reviewed the levels (a provenance record from a reviewer).
+  function reviewed(a) {
+    var cs = (a.numbering && a.numbering.corrections) || [];
+    for (var i = 0; i < cs.length; i++) {
+      if (cs[i] && (cs[i].source === 'ai_reader' || cs[i].source === 'human')) return true;
+    }
+    return false;
+  }
+  // Banner for the review panel. level: 'none' | 'confirmed' | 'probable' | 'unconfirmed' | 'ok'.
+  // Same policy as anatomy/summary.py: confirmed = use the names; probable = names to be confirmed;
+  // unconfirmed = positions only until a reviewer confirms.
   function banner(a, policy) {
     if (!a) return { level: 'none', text: 'No labels in this study. Automatic labelling (label_spine) gave none.' };
     var num = a.numbering || {}, c = Number(num.confidence || 0), status = num.status;
-    if (status === 'confirmed') return { level: 'confirmed', text: 'Levels confirmed by a reviewer.' };
+    if (status === 'confirmed') {
+      return { level: 'confirmed', text: reviewed(a) ? 'Levels confirmed by a reviewer.'
+        : 'Numbering status: confirmed (automatic). Use the level names.' };
+    }
+    if (status === 'probable') {
+      return { level: 'probable', text: 'LEVELS PROBABLE (numbering confidence ' + c.toFixed(2) +
+        '): the level names are to be confirmed; mark them so in any output.' };
+    }
     if (c < policy.confLow || status === 'unconfirmed') {
       return { level: 'unconfirmed', text: 'LABELS UNCONFIRMED. Numbering confidence ' + c.toFixed(2) +
-        ' (below ' + policy.confLow.toFixed(2) + '). Check the lowest disc against the sacrum and correct the ' +
-        'levels before using them.' };
+        ' (below ' + policy.confLow.toFixed(2) + '). Use disc positions only; check the lowest disc against the ' +
+        'sacrum and confirm the levels before using their names.' };
     }
     return { level: 'ok', text: status ? 'Numbering status: ' + status + '.' : '' };
+  }
+  // One line for the review panel: applicability verdict, sacrum and top level in view, conus (experimental).
+  function applicabilityLine(a) {
+    var ap = (a && a.applicability) || {};
+    if (!a || !ap.verdict) return 'Applicability: not assessed.';
+    var cov = ap.coverage || {}, s = 'Applicability: ' + ap.verdict +
+      (ap.labelled ? ' (levels labelled).' : ' (levels NOT labelled).');
+    if (cov.sacrum_covered === true) s += ' Sacrum in view.';
+    else if (cov.sacrum_covered === false) s += ' Sacrum NOT in view.';
+    if (cov.top_level_in_view) s += ' Top level in view: ' + cov.top_level_in_view + '.';
+    var cn = a.conus;
+    s += ' Conus: ' + (cn && cn.z !== undefined && cn.z !== null ? 'near ' + (cn.level || 'unknown') : 'not located') +
+      ' (experimental).';
+    return s;
   }
 
   return {
     NAMES: NAMES, isDiscLabel: isDiscLabel, splitDisc: splitDisc, shiftLevel: shiftLevel,
     discOrder: discOrder, discsOf: discsOf, clone: clone, shift: shift, relabel: relabel, drop: drop,
-    add: add, confirm: confirm, exportAnchors: exportAnchors, tier: tier, banner: banner
+    add: add, confirm: confirm, exportAnchors: exportAnchors, tier: tier, banner: banner,
+    applicabilityLine: applicabilityLine
   };
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = SSLabels;

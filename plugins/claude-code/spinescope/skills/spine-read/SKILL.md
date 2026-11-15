@@ -43,6 +43,18 @@ The orchestrator validates, merges, verifies the strongest findings, and reports
 2. **Open and label.** Call `open_study` with `STUDY`. Keep the `study_id`. Call `list_series`; check the series
    and their roles. Call `get_anchors`; note the levels and their confidences and any warnings. If there are no
    sagittal series or no anchors, say so: the read then has no level tasks.
+   Read `labelling` and `summary` from the response: `labelling.status` (`confirmed`, `probable` or `unconfirmed`),
+   the abstain policy, the applicability verdict, the field-of-view coverage (is the sacrum in view?) and the conus
+   line (always experimental). Carry these into the brief and the final report.
+
+## Abstain policy for the level names (applies to every step and every reader)
+
+The numbering status decides what a reader may do with the level names:
+
+- `confirmed`: use the level names.
+- `probable`: use the level names, each marked "to be confirmed" in its notes.
+- `unconfirmed`: positions only. No level name goes into any finding until `verify_labels` has been applied and the
+  status is `confirmed` or `probable`. If it stays `unconfirmed`, keep the disc positions and say so in notes.
 
 ## 2a. Verify the level labels before fan-out
 
@@ -50,8 +62,11 @@ The automatic labels are often wrong: the count from the sacrum can be off by on
 or invented. Readers take their level names from the prompts, so verify the labels first. You are the reader for
 this step.
 
+**When this step is required:** whenever the status is `probable` or `unconfirmed`, call `verify_labels` (MCP) or
+run the packet below before fan-out. For `confirmed` it is optional; say in the report that it was skipped.
+
 1. Build the packet: `spinescope verify-labels "<STUDY>" --outdir "<OUT>/verify/packet"`. (MCP: `verify_labels`
-   returns the images and the question inline.) It writes `packet.json` (question, rules, answer format, predicted
+   returns the images and the question inline, with the status and its policy in its metadata.) It writes `packet.json` (question, rules, answer format, predicted
    levels) and PNGs: the mid-sagittal T2 and T1 with the predicted discs, the localizer with the predicted levels
    when there is one, and a zoom on the sacrum below the lowest disc.
 2. Look at each PNG (Read it). Count from the sacrum upward, as the question in `packet.json` asks. Do not
@@ -65,6 +80,8 @@ this step.
    the label and the body, and that the label is not on bowel or muscle. When in doubt, answer `"unsure"`.
 4. Apply it: `spinescope verify-labels "<STUDY>" --answer "<OUT>/verify/answer.json" --out "<OUT>/verify/anchors.json"`
    (MCP: `apply_label_verification(study_id, answer_json)`). A rejected answer says why; fix the file and rerun.
+   The response carries the new `status`. An AI answer is at most `probable`, and `unsure` keeps the status
+   `unconfirmed`. Give the readers that new status, not the automatic one, when you set the policy in fan-out step 4.
    Missing discs are placed between their neighbours and marked as not measured, with low confidence.
 5. Every later step uses the verified anchors. Pass `--anchors "<OUT>/verify/anchors.json"` to `spinescope tasks`,
    `brief` and `viewer`. Subagents open the study with `open_study(STUDY, anchors_path="<OUT>/verify/anchors.json")`.
@@ -91,6 +108,10 @@ this step.
    `kind` other than `verify`). Run at most **4 at a time**: send up to 4 Agent calls in one message, wait for
    all of them, then send the next batch. Use a general-purpose subagent. Each subagent prompt must:
    - Include the guardrails above (research only, no upload, PHI rules).
+   - Include the abstain policy for the study's status (from `labelling.status`), in these words: confirmed = use the
+     level names; probable = use them, each marked "to be confirmed"; unconfirmed = positions only, and call
+     `verify_labels` before writing any level name. A reader that cannot call `verify_labels` must not write level
+     names for an unconfirmed study.
    - Give the path of its prompt file, `OUT/tasks/prompts/<reader>.txt`, and say: read it in full and follow it
      exactly. Its reader name is `<reader>`, and it must write exactly one file, `OUT/findings/<reader>.json`.
    - Give `STUDY` and the verified anchors file `OUT/verify/anchors.json`, and say: open it with
@@ -126,6 +147,8 @@ this step.
 8. **Final report.** Give the user, in chat:
    - The study in one line (technical only: modality, field strength, number of series, levels found) and the
      `OUT` path. No file paths of the input, no patient attributes.
+   - The labelling status (`confirmed`, `probable` or `unconfirmed`), the abstain policy it implied, the
+     applicability verdict, whether the sacrum is in view, and that the conus is experimental.
    - The reader count: launched, valid, dropped, and why.
    - The consensus: the main findings per level and the global findings, each with agreement across readers and
      the confidence. Show the disagreements explicitly.
