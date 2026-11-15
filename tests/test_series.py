@@ -139,3 +139,17 @@ def test_display_orientation_is_canonical_and_exact(plane, transpose, flip_r, fl
     for xyz, val in probe:
         k, r, c = (round(v) for v in out.lps_to_pix(xyz))
         assert out.vol[k, r, c] == pytest.approx(val)
+
+
+def test_posdisp_position_display_copy_is_a_localizer():
+    # Siemens "PosDisp" images are 1-3 copies of a planned slice with the acquisition's TR/TE (not an
+    # acquisition): they must not be keyed as sag_t2 / cor_t1 etc.
+    stack = _stack(
+        "sag",
+        SeriesDescription="PosDisp: [4] t2_tse_tra_384",
+        RepetitionTime=3500,
+        EchoTime=94,
+    )
+    role = classify(stack)
+    assert role.localizer and role.base_key() == "loc_sag"
+    assert any("localizer" in e for e in role.evidence)
