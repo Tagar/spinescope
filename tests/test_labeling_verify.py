@@ -216,10 +216,38 @@ def test_extra_disc_is_dropped_and_unsure_changes_no_structure(phantom):
 
 def test_unplaceable_missing_disc_is_reported_and_costs_confidence():
     a = _chain([("L4-L5", 33.0)])
+    prior = a.numbering.get("confidence")
     out = apply_answer(a, {"lowest_disc_is": "L5-S1", "missing": ["T11-T12"]})
     assert "T11-T12" not in out.discs
-    assert out.numbering["confidence"] == pytest.approx(0.85 - 0.1)
+    expected = 0.85 - 0.1 if prior is None else min(0.85 - 0.1, float(prior))  # an AI review never raises it
+    assert out.numbering["confidence"] == pytest.approx(expected)
     assert any("could not be placed" in w for w in out.warnings)
+
+
+def test_ai_review_never_raises_trust(phantom):
+    a = _truth_anchors(phantom)
+    a.numbering["confidence"] = 0.2
+    a.numbering["status"] = "unconfirmed"
+    out = apply_answer(a, {"lowest_disc_is": "L5-S1"})  # AI agrees with the labels
+    assert out.numbering["confidence"] <= 0.2 + 1e-9
+    assert out.numbering["status"] == "unconfirmed"
+
+
+def test_ai_relabel_is_a_suggestion_left_unconfirmed(phantom):
+    a = _truth_anchors(phantom)
+    a.numbering["confidence"] = 0.97
+    a.numbering["status"] = "probable"
+    out = apply_answer(a, {"lowest_disc_is": "L4-L5"})  # AI proposes a one-level shift
+    assert out.numbering["status"] == "unconfirmed"
+    assert any("AI reader changed the level names" in w for w in out.warnings)
+
+
+def test_human_review_can_still_raise_trust(phantom):
+    a = _truth_anchors(phantom)
+    a.numbering["confidence"] = 0.2
+    a.numbering["status"] = "unconfirmed"
+    out = apply_answer(a, {"lowest_disc_is": "L5-S1"}, who="dr", source="human")
+    assert out.numbering["confidence"] == pytest.approx(0.95)
 
 
 def test_human_source_uses_the_human_confidence(phantom):

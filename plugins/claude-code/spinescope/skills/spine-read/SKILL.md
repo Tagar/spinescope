@@ -53,8 +53,9 @@ The numbering status decides what a reader may do with the level names:
 
 - `confirmed`: use the level names.
 - `probable`: use the level names, each marked "to be confirmed" in its notes.
-- `unconfirmed`: positions only. No level name goes into any finding until `verify_labels` has been applied and the
-  status is `confirmed` or `probable`. If it stays `unconfirmed`, keep the disc positions and say so in notes.
+- `unconfirmed`: positions only. No level name goes into any finding until a HUMAN reviewer has confirmed the
+  numbering (viewer correction tools or `apply_label_verification` with source `human`). An AI review can never
+  raise the status (see 2a). If it stays `unconfirmed`, keep the disc positions and say so in notes.
 
 ## 2a. Verify the level labels before fan-out
 
@@ -62,8 +63,14 @@ The automatic labels are often wrong: the count from the sacrum can be off by on
 or invented. Readers take their level names from the prompts, so verify the labels first. You are the reader for
 this step.
 
-**When this step is required:** whenever the status is `probable` or `unconfirmed`, call `verify_labels` (MCP) or
-run the packet below before fan-out. For `confirmed` it is optional; say in the report that it was skipped.
+**What this step can and cannot do (measured):** in a blinded experiment on 196 public cases
+(docs/labeling/lab24_ai_verify.md) an AI reader fixed 0 of 49 wrong numberings and miscorrected 0 of 147 right
+ones, while flagging some cases as unsure. So an AI review is a way to surface doubt, not to confirm names:
+applying an AI answer can only LOWER the status/confidence (an AI-proposed relabel is kept as a suggestion and the
+status becomes `unconfirmed`). Only a human review can raise it.
+
+**When to run it:** optional. Run it when the status is `probable` or `unconfirmed` and you want a second look that
+may downgrade the status; never present an AI "confirmation" as confirmation in the report.
 
 1. Build the packet: `spinescope verify-labels "<STUDY>" --outdir "<OUT>/verify/packet"`. (MCP: `verify_labels`
    returns the images and the question inline, with the status and its policy in its metadata.) It writes `packet.json` (question, rules, answer format, predicted

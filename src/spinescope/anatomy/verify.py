@@ -67,7 +67,7 @@ from ..render.window import grey_rgb, series_window
 from ..study import Study
 from . import qa
 from .anchors import VERTEBRA_NAMES, Anchors, split_disc
-from .numbering import STATUS_PROBABLE, STATUS_UNCONFIRMED, numbering_status
+from .numbering import STATUS_CONFIRMED, STATUS_PROBABLE, STATUS_UNCONFIRMED, numbering_status
 
 log = logging.getLogger(__name__)
 
@@ -535,6 +535,11 @@ def apply_answer(
     if source not in ("ai_reader", "human"):
         raise ValueError("a reviewed correction needs source 'ai_reader' or 'human'")
     review_conf = cfg.review_confidence_human if source == "human" else cfg.review_confidence_ai
+    prior_labels = anchors.disc_labels()
+    _pc = anchors.numbering.get("confidence")
+    prior_conf = float(_pc) if isinstance(_pc, (int, float)) else None
+    _ps = anchors.numbering.get("status")
+    prior_status = str(_ps) if isinstance(_ps, str) else None
     detail: dict[str, Any] = {"answer": ans.to_dict()}
     if not anchors.discs:
         anchors.record_correction(
@@ -612,10 +617,36 @@ def apply_answer(
         if ans.transitional is False and moved:
             work.warnings.append("label review: reader says not transitional but the lowest disc was moved")
     conf = max(0.0, review_conf - cfg.review_unplaced_penalty * len(unplaced))
+    relabelled = work.disc_labels() != prior_labels
+    # An AI reader's answer may only LOWER trust, never raise it: in a blinded experiment
+    # (docs/labeling/lab24_ai_verify.md) AI confirmations lifted wrong numberings from unconfirmed to
+    # probable, while AI-proposed shifts were never right. So keep the prior confidence as a ceiling,
+    # never exceed the prior status, and treat any AI relabelling as a suggestion awaiting a human.
+    if source != "human" and prior_conf is not None:
+        conf = min(conf, prior_conf)
     work.record_correction("review", who=who, source=source, why=why, detail=detail, confidence=conf)
-    work.numbering["status"] = review_status(work, source)
+    status = review_status(work, source)
+    if source != "human":
+        status = _min_status(status, prior_status)
+        if relabelled:
+            status = STATUS_UNCONFIRMED
+            work.warnings.append(
+                "label review: an AI reader changed the level names; treat them as unconfirmed until a human "
+                "reviewer confirms"
+            )
+    work.numbering["status"] = status
     anchors.__dict__.update(work.__dict__)
     return anchors
+
+
+_STATUS_RANK = {STATUS_UNCONFIRMED: 0, STATUS_PROBABLE: 1, STATUS_CONFIRMED: 2}
+
+
+def _min_status(a: str, b: str | None) -> str:
+    """The less trusted of two numbering statuses (``b`` None or unknown: ``a``)."""
+    if b not in _STATUS_RANK:
+        return a
+    return a if _STATUS_RANK.get(a, 0) <= _STATUS_RANK[b] else str(b)
 
 
 def verify_labels(
