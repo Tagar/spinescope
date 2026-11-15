@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- One-command labelling benchmark (`tools/benchmark.py`, `spinescope benchmark`): SPIDER validation, Sudirman, qx5rt and
+  the phantom robustness suites, cached and parallel, with a golden file (`benchmarks/golden.json`) and a regression
+  check (`--check`). Numbers and protocol in `docs/benchmarks.md`.
 - Numbering evidence before the calibrated decision (lab22): the S1 body below the lowest disc is measured before
   numbering, so `confirmed` is reachable (shipped calibration v2 on the new order: precision 1.00 on held-out sets).
   Geometry and the conus tip are set before the fusion votes; applicability no longer undoes the status caps.

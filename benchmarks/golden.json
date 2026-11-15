@@ -1,0 +1,661 @@
+{
+  "description": "Golden numbers of the labelling benchmark (docs/benchmarks.md). Regenerate with tools/benchmark.py --update-golden benchmarks/golden.json only after reviewing the change.",
+  "labeller_fingerprint": "f37cf61ff4276b23",
+  "schema": 1,
+  "sections": {
+    "phantom_cartoon": {
+      "cases": 23,
+      "metrics": {
+        "announced_coverage": {
+          "direction": "higher",
+          "tol": 0.02,
+          "unit": "rate",
+          "value": 0.086957
+        },
+        "announced_precision": {
+          "direction": "higher",
+          "tol": 0.005,
+          "unit": "rate",
+          "value": 0.5
+        },
+        "centre_err_median_mm": {
+          "direction": "lower",
+          "tol": 0.5,
+          "unit": "mm",
+          "value": 0.917772
+        },
+        "centre_err_p90_mm": {
+          "direction": "lower",
+          "tol": 1.0,
+          "unit": "mm",
+          "value": 5.383146
+        },
+        "confirmed_precision": {
+          "direction": "higher",
+          "tol": 0.005,
+          "unit": "rate",
+          "value": 1.0
+        },
+        "disc_auroc": {
+          "direction": "higher",
+          "tol": 0.01,
+          "unit": "decimal",
+          "value": 0.578488
+        },
+        "disc_ece": {
+          "direction": "lower",
+          "tol": 0.01,
+          "unit": "decimal",
+          "value": 0.183309
+        },
+        "errors": {
+          "direction": "count",
+          "tol": 0.0,
+          "unit": "count",
+          "value": 0
+        },
+        "fully_correct": {
+          "direction": "higher",
+          "tol": 0.005,
+          "unit": "rate",
+          "value": 0.304348
+        },
+        "label_accuracy": {
+          "direction": "higher",
+          "tol": 0.005,
+          "unit": "rate",
+          "value": 0.727273
+        },
+        "label_accuracy_all_truth": {
+          "direction": "higher",
+          "tol": 0.005,
+          "unit": "rate",
+          "value": 0.57971
+        },
+        "midline_err_median_mm": {
+          "direction": "lower",
+          "tol": 1.0,
+          "unit": "mm",
+          "value": 0.002012
+        },
+        "numbering_auroc": {
+          "direction": "higher",
+          "tol": 0.02,
+          "unit": "decimal",
+          "value": 0.785714
+        },
+        "numbering_ece": {
+          "direction": "lower",
+          "tol": 0.02,
+          "unit": "decimal",
+          "value": 0.446596
+        },
+        "precision": {
+          "direction": "higher",
+          "tol": 0.005,
+          "unit": "rate",
+          "value": 0.894309
+        },
+        "probable_precision": {
+          "direction": "higher",
+          "tol": 0.005,
+          "unit": "rate",
+          "value": 0.0
+        },
+        "recall": {
+          "direction": "higher",
+          "tol": 0.005,
+          "unit": "rate",
+          "value": 0.797101
+        },
+        "silent_error": {
+          "direction": "count",
+          "tol": 0.0,
+          "unit": "count",
+          "value": 19
+        },
+        "wrong_announced": {
+          "direction": "count",
+          "tol": 0.0,
+          "unit": "count",
+          "value": 1
+        }
+      },
+      "scenarios": {
+        "aliasing_wrap": {
+          "outcome": "silent_error"
+        },
+        "baseline": {
+          "outcome": "silent_error"
+        },
+        "bias_field": {
+          "outcome": "silent_error"
+        },
+        "collapsed_discs": {
+          "outcome": "silent_error"
+        },
+        "compression_fracture_L2": {
+          "outcome": "pass"
+        },
+        "dark_discs": {
+          "outcome": "silent_error"
+        },
+        "few_slices_7": {
+          "outcome": "pass"
+        },
+        "field_3T": {
+          "outcome": "silent_error"
+        },
+        "fov_L1_coccyx": {
+          "outcome": "pass"
+        },
+        "fov_L2_S1": {
+          "outcome": "silent_error"
+        },
+        "fov_T10_sacrum": {
+          "outcome": "silent_error"
+        },
+        "hardware_cage_screws": {
+          "outcome": "silent_error"
+        },
+        "iso_1mm_3d": {
+          "outcome": "silent_error"
+        },
+        "lumbarised_S1": {
+          "outcome": "silent_error"
+        },
+        "motion_ghosting": {
+          "outcome": "silent_error"
+        },
+        "pd_only": {
+          "outcome": "unsure"
+        },
+        "sacralised_L5": {
+          "outcome": "silent_error"
+        },
+        "schmorl_nodes": {
+          "outcome": "silent_error"
+        },
+        "scoliosis": {
+          "outcome": "silent_error"
+        },
+        "stir_only": {
+          "outcome": "silent_error"
+        },
+        "t1_only": {
+          "outcome": "silent_error"
+        },
+        "t2_only": {
+          "outcome": "silent_error"
+        },
+        "thick_6mm": {
+          "outcome": "silent_error"
+        }
+      }
+    },
+    "phantom_realistic": {
+      "cases": 23,
+      "metrics": {
+        "announced_coverage": {
+          "direction": "higher",
+          "tol": 0.02,
+          "unit": "rate",
+          "value": 0.0
+        },
+        "centre_err_median_mm": {
+          "direction": "lower",
+          "tol": 0.5,
+          "unit": "mm",
+          "value": 1.520769
+        },
+        "centre_err_p90_mm": {
+          "direction": "lower",
+          "tol": 1.0,
+          "unit": "mm",
+          "value": 2.758678
+        },
+        "disc_auroc": {
+          "direction": "higher",
+          "tol": 0.01,
+          "unit": "decimal",
+          "value": 0.650149
+        },
+        "disc_ece": {
+          "direction": "lower",
+          "tol": 0.01,
+          "unit": "decimal",
+          "value": 0.198547
+        },
+        "errors": {
+          "direction": "count",
+          "tol": 0.0,
+          "unit": "count",
+          "value": 0
+        },
+        "fully_correct": {
+          "direction": "higher",
+          "tol": 0.005,
+          "unit": "rate",
+          "value": 0.043478
+        },
+        "label_accuracy": {
+          "direction": "higher",
+          "tol": 0.005,
+          "unit": "rate",
+          "value": 0.62963
+        },
+        "label_accuracy_all_truth": {
+          "direction": "higher",
+          "tol": 0.005,
+          "unit": "rate",
+          "value": 0.615942
+        },
+        "midline_err_median_mm": {
+          "direction": "lower",
+          "tol": 1.0,
+          "unit": "mm",
+          "value": 0.0
+        },
+        "numbering_auroc": {
+          "direction": "higher",
+          "tol": 0.02,
+          "unit": "decimal",
+          "value": 0.380952
+        },
+        "numbering_ece": {
+          "direction": "lower",
+          "tol": 0.02,
+          "unit": "decimal",
+          "value": 0.073157
+        },
+        "precision": {
+          "direction": "higher",
+          "tol": 0.005,
+          "unit": "rate",
+          "value": 0.733696
+        },
+        "recall": {
+          "direction": "higher",
+          "tol": 0.005,
+          "unit": "rate",
+          "value": 0.978261
+        },
+        "silent_error": {
+          "direction": "count",
+          "tol": 0.0,
+          "unit": "count",
+          "value": 0
+        },
+        "wrong_announced": {
+          "direction": "count",
+          "tol": 0.0,
+          "unit": "count",
+          "value": 0
+        }
+      },
+      "scenarios": {
+        "aliasing_wrap": {
+          "outcome": "unsure"
+        },
+        "baseline": {
+          "outcome": "unsure"
+        },
+        "bias_field": {
+          "outcome": "unsure"
+        },
+        "collapsed_discs": {
+          "outcome": "unsure"
+        },
+        "compression_fracture_L2": {
+          "outcome": "unsure"
+        },
+        "dark_discs": {
+          "outcome": "unsure"
+        },
+        "few_slices_7": {
+          "outcome": "unsure"
+        },
+        "field_3T": {
+          "outcome": "unsure"
+        },
+        "fov_L1_coccyx": {
+          "outcome": "unsure"
+        },
+        "fov_L2_S1": {
+          "outcome": "unsure"
+        },
+        "fov_T10_sacrum": {
+          "outcome": "unsure"
+        },
+        "hardware_cage_screws": {
+          "outcome": "pass"
+        },
+        "iso_1mm_3d": {
+          "outcome": "unsure"
+        },
+        "lumbarised_S1": {
+          "outcome": "unsure"
+        },
+        "motion_ghosting": {
+          "outcome": "unsure"
+        },
+        "pd_only": {
+          "outcome": "unsure"
+        },
+        "sacralised_L5": {
+          "outcome": "unsure"
+        },
+        "schmorl_nodes": {
+          "outcome": "unsure"
+        },
+        "scoliosis": {
+          "outcome": "unsure"
+        },
+        "stir_only": {
+          "outcome": "unsure"
+        },
+        "t1_only": {
+          "outcome": "unsure"
+        },
+        "t2_only": {
+          "outcome": "unsure"
+        },
+        "thick_6mm": {
+          "outcome": "unsure"
+        }
+      }
+    },
+    "qx5rt": {
+      "cases": 55,
+      "metrics": {
+        "announced_coverage": {
+          "direction": "higher",
+          "tol": 0.02,
+          "unit": "rate",
+          "value": 0.4
+        },
+        "announced_precision": {
+          "direction": "higher",
+          "tol": 0.005,
+          "unit": "rate",
+          "value": 1.0
+        },
+        "centre_err_median_mm": {
+          "direction": "lower",
+          "tol": 0.5,
+          "unit": "mm",
+          "value": 0.781871
+        },
+        "centre_err_p90_mm": {
+          "direction": "lower",
+          "tol": 1.0,
+          "unit": "mm",
+          "value": 2.597772
+        },
+        "confirmed_precision": {
+          "direction": "higher",
+          "tol": 0.005,
+          "unit": "rate",
+          "value": 1.0
+        },
+        "errors": {
+          "direction": "count",
+          "tol": 0.0,
+          "unit": "count",
+          "value": 0
+        },
+        "fully_correct": {
+          "direction": "higher",
+          "tol": 0.005,
+          "unit": "rate",
+          "value": 0.854545
+        },
+        "label_accuracy": {
+          "direction": "higher",
+          "tol": 0.005,
+          "unit": "rate",
+          "value": 0.861751
+        },
+        "label_accuracy_all_truth": {
+          "direction": "higher",
+          "tol": 0.005,
+          "unit": "rate",
+          "value": 0.861751
+        },
+        "numbering_auroc": {
+          "direction": "higher",
+          "tol": 0.02,
+          "unit": "decimal",
+          "value": 0.912234
+        },
+        "numbering_ece": {
+          "direction": "lower",
+          "tol": 0.02,
+          "unit": "decimal",
+          "value": 0.046362
+        },
+        "probable_precision": {
+          "direction": "higher",
+          "tol": 0.005,
+          "unit": "rate",
+          "value": 1.0
+        },
+        "recall": {
+          "direction": "higher",
+          "tol": 0.005,
+          "unit": "rate",
+          "value": 1.0
+        },
+        "wrong_announced": {
+          "direction": "count",
+          "tol": 0.0,
+          "unit": "count",
+          "value": 0
+        }
+      }
+    },
+    "spider": {
+      "cases": 87,
+      "metrics": {
+        "announced_coverage": {
+          "direction": "higher",
+          "tol": 0.02,
+          "unit": "rate",
+          "value": 0.678161
+        },
+        "announced_precision": {
+          "direction": "higher",
+          "tol": 0.005,
+          "unit": "rate",
+          "value": 1.0
+        },
+        "centre_err_median_mm": {
+          "direction": "lower",
+          "tol": 0.5,
+          "unit": "mm",
+          "value": 0.604459
+        },
+        "centre_err_p90_mm": {
+          "direction": "lower",
+          "tol": 1.0,
+          "unit": "mm",
+          "value": 1.981949
+        },
+        "confirmed_precision": {
+          "direction": "higher",
+          "tol": 0.005,
+          "unit": "rate",
+          "value": 1.0
+        },
+        "disc_auroc": {
+          "direction": "higher",
+          "tol": 0.01,
+          "unit": "decimal",
+          "value": 0.796704
+        },
+        "disc_ece": {
+          "direction": "lower",
+          "tol": 0.01,
+          "unit": "decimal",
+          "value": 0.061118
+        },
+        "errors": {
+          "direction": "count",
+          "tol": 0.0,
+          "unit": "count",
+          "value": 0
+        },
+        "fully_correct": {
+          "direction": "higher",
+          "tol": 0.005,
+          "unit": "rate",
+          "value": 0.942529
+        },
+        "label_accuracy": {
+          "direction": "higher",
+          "tol": 0.005,
+          "unit": "rate",
+          "value": 0.980831
+        },
+        "label_accuracy_all_truth": {
+          "direction": "higher",
+          "tol": 0.005,
+          "unit": "rate",
+          "value": 0.976153
+        },
+        "midline_err_median_mm": {
+          "direction": "lower",
+          "tol": 1.0,
+          "unit": "mm",
+          "value": 0.0
+        },
+        "numbering_auroc": {
+          "direction": "higher",
+          "tol": 0.02,
+          "unit": "decimal",
+          "value": 1.0
+        },
+        "numbering_ece": {
+          "direction": "lower",
+          "tol": 0.02,
+          "unit": "decimal",
+          "value": 0.064067
+        },
+        "precision": {
+          "direction": "higher",
+          "tol": 0.005,
+          "unit": "rate",
+          "value": 0.992076
+        },
+        "probable_precision": {
+          "direction": "higher",
+          "tol": 0.005,
+          "unit": "rate",
+          "value": 1.0
+        },
+        "recall": {
+          "direction": "higher",
+          "tol": 0.005,
+          "unit": "rate",
+          "value": 0.995231
+        },
+        "wrong_announced": {
+          "direction": "count",
+          "tol": 0.0,
+          "unit": "count",
+          "value": 0
+        }
+      }
+    },
+    "sudirman": {
+      "cases": 515,
+      "metrics": {
+        "announced_coverage": {
+          "direction": "higher",
+          "tol": 0.02,
+          "unit": "rate",
+          "value": 0.601942
+        },
+        "announced_precision": {
+          "direction": "higher",
+          "tol": 0.005,
+          "unit": "rate",
+          "value": 0.964516
+        },
+        "centre_err_median_mm": {
+          "direction": "lower",
+          "tol": 0.5,
+          "unit": "mm",
+          "value": 2.130647
+        },
+        "centre_err_p90_mm": {
+          "direction": "lower",
+          "tol": 1.0,
+          "unit": "mm",
+          "value": 3.828448
+        },
+        "confirmed_precision": {
+          "direction": "higher",
+          "tol": 0.005,
+          "unit": "rate",
+          "value": 1.0
+        },
+        "errors": {
+          "direction": "count",
+          "tol": 0.0,
+          "unit": "count",
+          "value": 0
+        },
+        "fully_correct": {
+          "direction": "higher",
+          "tol": 0.005,
+          "unit": "rate",
+          "value": 0.891262
+        },
+        "label_accuracy": {
+          "direction": "higher",
+          "tol": 0.005,
+          "unit": "rate",
+          "value": 0.924282
+        },
+        "label_accuracy_all_truth": {
+          "direction": "higher",
+          "tol": 0.005,
+          "unit": "rate",
+          "value": 0.919094
+        },
+        "numbering_auroc": {
+          "direction": "higher",
+          "tol": 0.02,
+          "unit": "decimal",
+          "value": 0.812072
+        },
+        "numbering_ece": {
+          "direction": "lower",
+          "tol": 0.02,
+          "unit": "decimal",
+          "value": 0.019052
+        },
+        "probable_precision": {
+          "direction": "higher",
+          "tol": 0.005,
+          "unit": "rate",
+          "value": 0.949074
+        },
+        "recall": {
+          "direction": "higher",
+          "tol": 0.005,
+          "unit": "rate",
+          "value": 0.991586
+        },
+        "wrong_announced": {
+          "direction": "count",
+          "tol": 0.0,
+          "unit": "count",
+          "value": 11
+        }
+      }
+    }
+  },
+  "spinescope": "0.1.0.dev0"
+}

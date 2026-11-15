@@ -241,6 +241,12 @@ def _cmd_mcp(args: argparse.Namespace) -> int:
     return mcp_main(argv)
 
 
+def _cmd_benchmark(argv: Sequence[str]) -> int:
+    from .benchmark import main as benchmark_main
+
+    return benchmark_main(argv)
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="spinescope", description=__doc__)
     p.add_argument("--version", action="version", version=f"spinescope {__version__}")
@@ -319,11 +325,22 @@ def build_parser() -> argparse.ArgumentParser:
     s = sub.add_parser("mcp", help="run the MCP server on stdio (for AI assistants)")
     s.add_argument("--output-dir", help="also save rendered PNGs here")
     s.set_defaults(func=_cmd_mcp)
+
+    s = sub.add_parser(
+        "benchmark",
+        add_help=False,
+        help="run every labelling benchmark and check them against the golden file (--check, --update-golden; "
+        "see docs/benchmarks.md)",
+    )
+    s.set_defaults(func=None)
     return p
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    args = build_parser().parse_args(argv)
+    raw = list(sys.argv[1:] if argv is None else argv)
+    if raw[:1] == ["benchmark"]:  # forwarded verbatim: its own options, help and exit codes
+        return _cmd_benchmark(raw[1:])
+    args = build_parser().parse_args(raw)
     return int(args.func(args))
 
 
