@@ -23,11 +23,20 @@ from .geometry import Stack, unit
 _LOCALIZER_RE = re.compile(r"\b(LOC|LOCALI[SZ]ER|SCOUT|SURVEY|TRI-?PILOT|3-?PL(ANE)?|AAHSCOUT|PLANNING)\b")
 _STIR_RE = re.compile(r"\b(STIR|TIRM|IR|T2 ?IR|SPAIR-?IR)\b")
 _FLAIR_RE = re.compile(r"\bFLAIR\b")
-_FS_RE = re.compile(r"(\bFS\b|FAT ?SAT|FATSAT|\bSPAIR\b|\bSPIR\b|\bCHESS\b|\bFSAT\b)")
-_POST_RE = re.compile(r"(\+C\b|\bC\+|\bPOST\b|\bGAD|\bGD\b|\bCONTRAST\b|\bENHANC)")
-_T1_RE = re.compile(r"\bT1")
+# Fat suppression: FS / FatSat / SPAIR / SPIR / CHESS, and T2FS / T1FS compounds (vendors differ).
+_FS_RE = re.compile(r"(\bFS\b|FAT ?SAT|FATSAT|\bSPAIR\b|\bSPIR\b|\bCHESS\b|\bFSAT\b|\bT[12]W?FS\b)")
+_POST_RE = re.compile(r"(\+C\b|\bC\+|\bPOST\b|\bGAD|\bGD\b|\bCONTRAST\b|\bPOST ?ENHANC|\bCE\b)")
+# "NON-CONTRAST", "WITHOUT CONTRAST", "UNENHANCED" and "NON-ENHANCED" are pre-contrast images.
+_PRE_CONTRAST_RE = re.compile(
+    r"(\bNON[ -]?(CONTRAST|ENHANC)|\bWITHOUT CONTRAST\b|\bUN ?ENHANC|\bPRE ?CONTRAST\b)"
+)
+_T1_RE = re.compile(r"\bT1|\bMPRAGE\b|\bBRAVO\b")
 _T2_RE = re.compile(r"\bT2")
 _PD_RE = re.compile(r"\bPD\b|PROTON")
+# Gradient-echo sequence names. Strong names (MEDIC, T2* / T2STAR, SWI) are T2*-type GRE regardless of
+# other tokens; weak names (GRE, FFE, SPGR, VIBE, LAVA, FLASH...) only when no T1/T2/PD token is present.
+_GRE_STRONG_RE = re.compile(r"\b(MEDIC|SWI|T2 ?STAR)\b")
+_GRE_WEAK_RE = re.compile(r"\b(GRE|FFE|SPGR|FSPGR|VIBE|LAVA|THRIVE|FLASH)\b")
 _DWI_RE = re.compile(r"\b(DWI|DIFF|ADC|TRACE|EP2D_DIFF|RESOLVE)\b")
 _DIXON = {
     "w": ("WATER", "W"),
@@ -38,7 +47,7 @@ _DIXON = {
 _DIXON_DESC = {
     "w": r"(\bW\b|\bWATER\b)",
     "f": r"(\bF\b|\bFAT\b(?! ?SAT))",
-    "ip": r"(\bIN\b|\bIN ?PHASE\b)",
+    "ip": r"(\bIN\b|\bIN ?PHASE\b|\bIP\b)",
     "op": r"(\bOPP?\b|\bOUT ?PHASE\b)",
 }
 
@@ -81,6 +90,7 @@ def _text(meta: dict[str, Any]) -> str:
     """Upper-cased description/protocol/sequence names with separators turned into spaces."""
     d = meta.get("dicom", {})
     raw = " ".join(str(d.get(k, "")) for k in ("SeriesDescription", "ProtocolName", "SequenceName")).upper()
+    raw = re.sub(r"T2\s*\*", " T2STAR ", raw)  # keep T2* before separators are stripped
     raw = raw.replace("F/S", " FS ")
     return " ".join(re.sub(r"[_\-/.,;:()\[\]*#]+", " ", raw).split())
 
@@ -135,12 +145,17 @@ def classify(stack: Stack, *, n_orientations_in_series: int = 1) -> Role:
             role.dixon = comp
             ev.append(f"dixon {comp}: ImageType")
             break
-    if role.dixon is None and "DIXON" in text:
+    if role.dixon is None and ("DIXON" in text or "IDEAL" in text):
         for comp, rx in _DIXON_DESC.items():
             if re.search(rx, text):
                 role.dixon = comp
                 ev.append(f"dixon {comp}: description")
                 break
+
+    gre_name = bool(_GRE_STRONG_RE.search(text))
+    if gre_name and role.contrast == "unknown":
+        role.contrast = "gre"
+        ev.append("gre: MEDIC/T2* sequence name")
 
     if role.contrast == "unknown":
         is_ir = "IR" in seq or (ti is not None and ti > 0)
@@ -178,17 +193,34 @@ def classify(stack: Stack, *, n_orientations_in_series: int = 1) -> Role:
             elif _PD_RE.search(text):
                 role.contrast = "pd"
                 ev.append("pd: description")
+            elif role.contrast == "unknown" and _GRE_WEAK_RE.search(text):
+                role.contrast = "gre"
+                ev.append("gre: sequence name")
 
     if role.contrast != "stir" and (
         any(o in ("FS", "FAT_SAT", "FATSAT", "SFS", "SPECTRAL_SAT") for o in opts) or _FS_RE.search(text)
     ):
         role.fat_suppressed = True
         ev.append("fat-suppressed: ScanOptions/description")
-    if d.get("ContrastBolusAgent") or _POST_RE.search(text):
+    if d.get("ContrastBolusAgent") or (_POST_RE.search(text) and not _PRE_CONTRAST_RE.search(text)):
         role.post_contrast = True
         ev.append("post-contrast: ContrastBolusAgent/description")
     role.evidence = ev
     return role
+
+
+def apply_display_ops(vol: np.ndarray, ops: list[str]) -> np.ndarray:
+    """Apply the in-plane operations recorded by :func:`to_display_orientation` to a volume."""
+    for op in ops:
+        if op == "transpose":
+            vol = vol.transpose(0, 2, 1)
+        elif op == "flip_columns":
+            vol = vol[:, :, ::-1]
+        elif op == "flip_rows":
+            vol = vol[:, ::-1, :]
+        else:
+            raise ValueError(f"unknown display operation {op!r}")
+    return vol
 
 
 def to_display_orientation(stack: Stack) -> Stack:
@@ -196,7 +228,8 @@ def to_display_orientation(stack: Stack) -> Stack:
 
     Sagittal: anterior on screen left, head up. Axial: anterior up, patient left on screen right.
     Coronal: head up, patient left on screen right. Geometry stays exact (``ipp`` and direction
-    vectors are updated), so patient coordinates of every voxel are unchanged.
+    vectors are updated), so patient coordinates of every voxel are unchanged. Lazy stacks (pixels
+    not yet read, see ``io.dicom``) only get the geometry and the recorded operations.
     """
     tr, tc = DISPLAY_AXES[stack.plane]
     vol, ipp = stack.vol, stack.ipp.copy()
@@ -222,9 +255,10 @@ def to_display_orientation(stack: Stack) -> Stack:
         return stack
     meta = dict(stack.meta)
     meta["display_transform"] = ops
+    lazy = bool(stack.meta.get("_lazy"))
     return Stack(
         key=stack.key,
-        vol=np.ascontiguousarray(vol),
+        vol=vol if lazy else np.ascontiguousarray(vol),
         ipp=ipp,
         row_dir=rd,
         col_dir=cd,
@@ -248,7 +282,9 @@ def assign_keys(stacks: list[Stack]) -> dict[str, Stack]:
         group_roles = [(st, classify(st, n_orientations_in_series=len(orients))) for st in group]
         # multi-slab series: several non-localizer orientations (e.g. axial slabs angled per disc)
         nonloc = [(s, r) for s, r in group_roles if not r.localizer]
-        if len({tuple(np.round(s.normal, 2)) for s, _ in nonloc}) > 1:
+        # (only one plane: several planes in one series are separate views, e.g. sag + ax in an Enhanced object)
+        same_plane = len({s.plane for s, _ in nonloc}) == 1
+        if same_plane and len({tuple(np.round(s.normal, 2)) for s, _ in nonloc}) > 1:
             nonloc.sort(key=lambda sr: -float(sr[0].ipp[:, 2].mean()))
             for i, (_, r) in enumerate(nonloc, 1):
                 r.slab_index, r.slab_count = i, len(nonloc)

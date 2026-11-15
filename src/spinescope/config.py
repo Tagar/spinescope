@@ -110,6 +110,12 @@ class Config:
     axial_canal_window_mm: float = 24.0  # axial window around the canal for the CSF-blob midline check
     conus_min_contrast: float = 0.08  # cord-vs-CSF contrast (0..1) on the canal centreline
     disc_match_mm: float = 6.0  # tolerance when matching discs between two sagittal series
+    # Slice geometry (io). Spacing is judged against the median slice spacing: deviations above the
+    # relative tolerance make a series non-uniform, and a spacing of >= gap_factor x median is a gap
+    # (missing slice). Judgement defaults: well above DICOM position rounding (1e-3 mm), well below a
+    # missing slice (2 x spacing).
+    slice_spacing_rel_tol: float = 0.1
+    slice_gap_factor: float = 1.5
 
 
 DEFAULT = Config()

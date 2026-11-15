@@ -113,15 +113,31 @@ def _read_any(path: str) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray
     raise ImportError(f"reading {path} needs SimpleITK (pip install 'spinescope[volumes]')")
 
 
-def read_volume(path: str, *, key: str = "", meta: dict[str, Any] | None = None) -> Stack:
-    """Read a volume file as a stack sliced along its through-plane (largest-spacing) axis."""
-    arr, spacing, origin, direction = _read_any(path)
-    arr = np.asarray(arr, dtype=np.float32)  # [k, j, i]
+def _stack_layout(spacing: np.ndarray) -> tuple[int, int, int, list[int]]:
+    """(slice axis, row axis, column axis, transpose permutation) for array indices [k, j, i]."""
     # index axes: i (x), j (y), k (z) -> array axes 2, 1, 0
     slice_axis = int(np.argmax(spacing))  # 0=i, 1=j, 2=k
     inplane = [a for a in (0, 1, 2) if a != slice_axis]
     a_r, a_c = inplane[1], inplane[0]  # rows follow the slower in-plane axis
-    perm = [2 - slice_axis, 2 - a_r, 2 - a_c]
+    return slice_axis, a_r, a_c, [2 - slice_axis, 2 - a_r, 2 - a_c]
+
+
+def read_label_volume(path: str) -> np.ndarray:
+    """Read a volume as a label/intensity array ``[slice, row, col]`` in the same order as :func:`read_volume`.
+
+    Integer dtypes are kept (e.g. segmentation masks), so the array can be indexed with the same
+    voxel coordinates as the stack read from the matching image file.
+    """
+    arr, spacing, _origin, _direction = _read_any(path)
+    _sa, _ar, _ac, perm = _stack_layout(spacing)
+    return np.ascontiguousarray(np.transpose(np.asarray(arr), perm))
+
+
+def read_volume(path: str, *, key: str = "", meta: dict[str, Any] | None = None) -> Stack:
+    """Read a volume file as a stack sliced along its through-plane (largest-spacing) axis."""
+    arr, spacing, origin, direction = _read_any(path)
+    arr = np.asarray(arr, dtype=np.float32)  # [k, j, i]
+    slice_axis, a_r, a_c, perm = _stack_layout(spacing)
     vol = np.transpose(arr, perm)
     d = np.asarray(direction, dtype=np.float64)
     row_dir, col_dir, slice_dir = d[:, a_c], d[:, a_r], d[:, slice_axis]
