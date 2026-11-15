@@ -110,6 +110,18 @@ class Config:
     axial_canal_window_mm: float = 24.0  # axial window around the canal for the CSF-blob midline check
     conus_min_contrast: float = 0.08  # cord-vs-CSF contrast (0..1) on the canal centreline
     disc_match_mm: float = 6.0  # tolerance when matching discs between two sagittal series
+    # Learned labeller (spinescope.anatomy.ml). The network was trained on a 1 mm grid (tools/train_labeller.py).
+    ml_resolution_mm: float = 1.0  # training grid of the network input; mm per pixel
+    ml_intensity_pct: tuple[float, float] = (0.5, 99.5)  # per-volume window percentiles (foreground voxels)
+    ml_prob_threshold: float = 0.5  # class probability above which a pixel belongs to the class
+    ml_disc_min_area_mm2: float = 30.0  # smallest disc component: disc_height_mm[0] (4) x canal_ap_mm[0] (8)
+    ml_disc_min_aspect: float = (
+        1.2  # discs are wider (AP) than tall: AP length / height, from anatomy (~35 x 9 mm)
+    )
+    ml_body_min_area_mm2: float = 150.0  # smallest midline vertebral body: about a fifth of a 25 x 30 mm body
+    ml_disc_slice_window: int = (
+        1  # discs also searched this many slices either side of the midline (~3-4 mm each)
+    )
 
 
 DEFAULT = Config()
