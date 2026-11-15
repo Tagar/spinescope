@@ -284,7 +284,8 @@ def tropism_flag(left_deg: float, right_deg: float, threshold_deg: float | None 
 
 # ----------------------------------------------------------------------------- analysis
 def _confidence(stack_plane: str, cfg: Config) -> float:
-    conf = 0.8  # fat-suppressed fluid call (the only kind made)
+    # fat-suppressed fluid call (the only kind made); validated on the phantom only, so capped (config source comment)
+    conf = cfg.facets_max_confidence
     if stack_plane == "sag":
         conf = min(conf, cfg.facets_sagittal_max_confidence)
     return round(conf, 3)

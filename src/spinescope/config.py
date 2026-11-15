@@ -643,6 +643,9 @@ class Config:
     # spondylolisthesis; the upper end is used to keep the flag specific. Citations as given in the wave brief,
     # not re-checked against the papers (docs/analysis/facets.md).
     facets_effusion_min_mm: float = 2.0
+    # Confidence of a facet fluid call on a fat-suppressed series. The joint site is geometric and the effusion width
+    # was validated on the phantom only (no public per-joint truth; docs/analysis/facets.md), so calls stay low.
+    facets_max_confidence: float = 0.4
     # Possible synovial cyst: a round fluid collection at least this wide (mm) and this round (min/max caliper).
     # Judgement; no validated threshold (docs/analysis/facets.md).
     facets_cyst_min_mm: float = 5.0
