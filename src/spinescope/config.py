@@ -671,6 +671,30 @@ class Config:
     # Lee foraminal grade (0 normal, 1 mild, 2 moderate, 3 severe, as written in the findings schema) at or above which a
     # foramen is listed as abnormal in the pain-evidence table. Judgement: mild narrowing is shown but not listed.
     synthesis_lee_abnormal_grade: int = 2
+    # ---- ligamentum flavum and dorsal epidural fat (analysis/ligamentum.py, dx09). Axial measurement, experimental.
+    # Thickness at or above which the LF is called thickened. Convention, not a validated cut-off: Sakamaki 2009
+    # (Arch Orthop Trauma Surg 129:1415) reports >3.0 mm at L2-3 as a level-specific marker, Altinkaya 2011 (Spine
+    # 36:E1093) associates LF thickness with stenosis without a fixed cut-off, and Abbas 2010 argues against a fixed
+    # 4 mm boundary. Pre-registered in docs/analysis/ligamentum.md before validation.
+    ligamentum_thick_mm: float = 4.0
+    # Posterior (dorsal) epidural fat above this thickness is "possible lipomatosis". Traditional thoracic rule of
+    # thumb (>= 7 mm); normal lumbar fat can exceed it (mean 7.35 mm in controls at L3-L4 in one small study), so it
+    # only prompts a look. Borre 2003 (Eur Radiol 13:1709) grades use ventral plus dorsal fat over canal diameter.
+    ligamentum_epidural_fat_mm: float = 7.0
+    # Lateral sweep of rays from the dural sac, degrees from the posterior direction (both sides). Judgement: covers the
+    # posterolateral interlaminar space where the LF lies; the midline ray is always added.
+    ligamentum_ray_deg: tuple[float, ...] = (20.0, 30.0, 40.0, 50.0)
+    # Search beyond the dural edge (mm): the LF is well under 8 mm thick, so 12 mm reaches the posterior elements.
+    ligamentum_search_mm: float = 12.0
+    # Sampling step along a ray and Gaussian smoothing (mm). Engineering: about a third of a typical pixel.
+    ligamentum_step_mm: float = 0.25
+    ligamentum_smooth_mm: float = 0.5
+    # Band depth needed, in noise sigmas, for a band to count. Same engineering value as herniation_min_contrast_sigma.
+    ligamentum_min_cnr: float = 3.0
+    # Fraction of the dural radius sampled for the CSF level. Engineering: well inside the sac.
+    ligamentum_csf_frac: float = 0.6
+    # Upper bound on any ligamentum or epidural-fat confidence. Unvalidated; see docs/analysis/ligamentum.md.
+    ligamentum_max_confidence: float = 0.3
 
 
 DEFAULT = Config()
