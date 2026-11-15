@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/Tagar/spinescope/blob/main/src/spinescope/data/anchors.schema.json",
-  "title": "spinescope anchors 1.1: automatic spine anatomy (levels, geometry, numbering status, applicability)",
+  "title": "spinescope anchors 1.2: automatic spine anatomy (levels, geometry, numbering status, applicability)",
   "description": "The JSON written by spinescope label / Anchors.to_json and returned by the MCP get_anchors tool. Coordinates are LPS mm. Every anchor carries a confidence in [0, 1] and free-text evidence. numbering.status is confirmed, probable or unconfirmed; anything other than confirmed means the level names are not settled (abstain policy: docs/labeling/lab19_surface.md). The conus is experimental. Schema 1.0 documents (no canal, posterior_elements, vertebra body) still validate. Research use only; not a diagnosis. No file paths and no patient attributes are part of this document.",
   "type": "object",
   "additionalProperties": false,
@@ -15,7 +15,8 @@
       "type": "string",
       "enum": [
         "1.0",
-        "1.1"
+        "1.1",
+        "1.2"
       ]
     },
     "discs": {
@@ -57,6 +58,11 @@
     "lstv": {
       "type": ["object", "null"],
       "description": "Lumbosacral transitional vertebra check (lab28): status suspected, possible, not_suspected or not_assessed; kind; probabilities; evidence; Castellvi grade only from a supplied record; count and suggested names (never applied). Research use only."
+    },
+    "alignment": {
+      "type": "object",
+      "description": "Lateral curvature SCREENING, unvalidated (1.2): key coronal holds the canal's lateral curve with amplitude_mm first; cobb_like_uncalibrated_deg is an uncalibrated estimate, not a Cobb angle. Empty when not measured (classical backend, no sagittal).",
+      "additionalProperties": true
     },
     "numbering": {
       "$ref": "#/$defs/Numbering"

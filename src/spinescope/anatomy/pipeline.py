@@ -863,6 +863,11 @@ def label_spine_details(
             _attach_tta(det, tta_res)
     else:
         primary = _label_classical(study, cfg)
+        # The lateral curve needs the learned labeller's canal segmentation (lab30): record that it was not measured.
+        primary.alignment.setdefault(
+            "coronal",
+            {"valid": False, "active": False, "method": "classical backend", "evidence": ["not measured"]},
+        )
         det = _finalise(study, primary, "classical", cfg, calibrate, fusion_cfg=fusion)
     # Applicability: when not to label (wrong region, unusable field of view, unseen input). Additive; see ood.py.
     app = assess_applicability(study, det.anchors, seg=seg, cfg=cfg)

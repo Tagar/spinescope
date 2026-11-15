@@ -16,6 +16,7 @@ from scipy import ndimage
 from ...config import DEFAULT, Config
 from ..anchors import Anchors, Disc, Vertebra
 from ..numbering import disc_names, vertebra_name
+from ..scoliosis import discs_on_curve, measure_curve
 from .grid import PlaneGrid, resample_slice
 from .labeller import BODY, CANAL, DISC, METHOD, SACRUM, SegmentedStack
 
@@ -406,7 +407,25 @@ def anchors_from_segmentation(seg: SegmentedStack, cfg: Config = DEFAULT, *, pla
             evidence=f"{mid.evidence}; analysed plane moved {k_new - mid.k:+d} slice(s) (test-time augmentation)",
         )
     anchors.midline_x = mid.x_lps
-    discs, warns = discs_near_midline(seg, mid.k, cfg)
+    # Lateral curvature (lab30, screening, unvalidated): the measurement is always recorded; with relocation switched on
+    # (opt-in, Config.scoliosis_relocate) a significant curve moves disc measurements onto their own planes.
+    curve = measure_curve(seg, cfg)
+    anchors.alignment["coronal"] = curve.to_dict()
+    if curve.active:  # screening only: a large canal offset can move discs off the mid-sagittal plane
+        anchors.warnings.append(
+            f"large lateral canal offset (screening, unvalidated: amplitude {curve.amplitude_mm:.0f} mm): "
+            "disc labels on the mid-sagittal plane may be affected; check the level names"
+        )
+    relocated = curve.active and cfg.scoliosis_relocate
+    if relocated:
+        discs, warns = discs_on_curve(seg, curve, cfg, mid.k)
+        if not discs:  # never worse than the single plane: fall back to the mid-sagittal discs
+            relocated = False
+            discs, fb = discs_near_midline(seg, mid.k, cfg)
+            warns.extend(fb)
+            warns.append("lateral curve: no disc measured on its own plane; mid-sagittal discs used")
+    else:
+        discs, warns = discs_near_midline(seg, mid.k, cfg)
     anchors.warnings.extend(warns)
     if not discs:
         anchors.warnings.append(f"{seg.stack.key}: no disc found on the mid-sagittal slice")
@@ -416,7 +435,8 @@ def anchors_from_segmentation(seg: SegmentedStack, cfg: Config = DEFAULT, *, pla
     discs.sort(key=lambda d: d.center[2])
     discs, caudal_warns = drop_caudal_outliers(discs, cfg)
     anchors.warnings.extend(caudal_warns)
-    discs = [refine_disc_3d(seg, mid.k, d, cfg) for d in discs]
+    if not relocated:
+        discs = [refine_disc_3d(seg, mid.k, d, cfg) for d in discs]
     discs, dup_warns = drop_duplicate_discs(discs, cfg)
     anchors.warnings.extend(dup_warns)
     discs.sort(key=lambda d: d.center[2])

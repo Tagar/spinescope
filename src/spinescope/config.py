@@ -329,6 +329,38 @@ class Config:
         0.8  # intensity power of the contrast variant, on the normalised slices (judgement default)
     )
     ml_tta_resolution_mm: float = 1.2  # grid of the resolution variant; the network was trained on 1.0 mm
+    # ---- anatomy: lateral curve and per-disc planes (spinescope.anatomy.scoliosis; lab30). The canal's lateral position
+    # x(z) is the centroid over the sagittal slices that contain the canal, binned every knot step.
+    scoliosis_knot_mm: float = (
+        5.0  # height step of the canal x(z) knots (SPIDER slices are 3.3 mm; pooling two to three)
+    )
+    scoliosis_min_slices: int = (
+        2  # a knot needs the canal on this many slices: one slice gives no lateral centre
+    )
+    scoliosis_smooth_mm: float = (
+        15.0  # Gaussian width of x(z) before its tangent and apex (a vertebra is about 25 mm)
+    )
+    # Cobb-like >= 10 degrees (the clinical scoliosis cut-off, applied to an uncalibrated estimate). Below it the curve is
+    # negligible and the single mid-sagittal plane path is kept.
+    scoliosis_min_cobb_deg: float = 10.0
+    # Apex displacement from the chord of about one SPIDER slice (3.3 mm); a smaller lateral offset is not resolved.
+    scoliosis_min_amplitude_mm: float = 4.0
+    scoliosis_min_confidence: float = (
+        0.3  # coverage x (1 - residual / slice spacing); see scoliosis.measure_curve
+    )
+    # A sagittal slice cuts a lumbar disc only within about half its transverse width (35-45 mm): a candidate further
+    # than this from the curve at its height is not the disc (far-lateral slices give partial blobs).
+    scoliosis_disc_reach_mm: float = 20.0
+    # Measure the discs on their own sagittal planes when the curve is active. Opt-in (lab30 decision): off by default,
+    # so labels are exactly the mid-plane path's. Turning it on changes calibration inputs; re-evaluate first (see
+    # docs/labeling/lab30_scoliosis.md, section 7).
+    scoliosis_relocate: bool = False
+    # Normal of a relocated disc. False (default): a disc the mid-sagittal slice shows keeps the mid-plane normal, others
+    # take the 2-D normal of their own plane. True: the 3-D pooled normal for every relocated disc. On SPIDER the 3-D
+    # normal is closer to the 3-D mask truth (curved subset, training: median 0.7 against 3.1 deg), but on the independent
+    # Sudirman axial-slab truth it is worse (curved subset median 3.6 against 2.5 deg; the disagreement behind
+    # ml_disc_normal_3d). The default follows the labeller's convention.
+    scoliosis_normal_3d: bool = False
     # ---- anatomy: applicability (spinescope.anatomy.ood: when NOT to label). Judgement defaults from anatomy
     # texts, checked on SPIDER training only (docs/labeling/lab12_ood.md). Lengths in mm, unitless otherwise.
     # Lumbar discs are ~8-12 mm high; thoracic and cervical discs ~4-6 mm.
