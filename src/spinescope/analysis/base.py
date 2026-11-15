@@ -123,7 +123,7 @@ def sagittal_stacks(study: Study) -> dict[str, Stack]:
 
 # ------------------------------------------------------------------- registry
 _REGISTRY: dict[str, AnalysisFn] = {}
-_BUILTIN_MODULES = ("discs", "endplates", "alignment")
+_BUILTIN_MODULES = ("discs", "endplates", "alignment", "herniation")
 
 
 def register(name: str) -> Callable[[AnalysisFn], AnalysisFn]:
