@@ -46,6 +46,7 @@ import numpy as np
 
 from spinescope.analysis import foramina
 from spinescope.anatomy import label_spine
+from spinescope.anatomy.anchors import Anchors
 from spinescope.config import DEFAULT
 from spinescope.datasets import sudirman as sd
 from spinescope.datasets.report_labels import parse_report
@@ -84,9 +85,9 @@ def _truth(labels: Sequence[Any]) -> dict[tuple[str, str], bool]:
     return out
 
 
-def _job(args: tuple[str, list[str], str | None]) -> dict[str, Any]:
-    """Worker: label one case, run the foramina analysis, parse its truth. Errors are recorded, not raised."""
-    patient, paths, text = args
+def _job(args: tuple[str, list[str], str | None, str]) -> dict[str, Any]:
+    """Worker: label one case (anchors cached as JSON), run the foramina analysis, parse its truth. Errors are recorded."""
+    patient, paths, text, cache = args
     rec: dict[str, Any] = {"case": patient, "rows": [], "error": None, "session_found": False}
     try:
         study = None
@@ -99,7 +100,13 @@ def _job(args: tuple[str, list[str], str | None]) -> dict[str, Any]:
             rec["error"] = "no sagittal T1 series"
             return rec
         rec["session_found"] = True
-        anchors = label_spine(study)
+        cache_path = Path(cache) / f"{patient}.json"
+        if cache_path.is_file():
+            anchors = Anchors.from_json(str(cache_path))
+        else:
+            anchors = label_spine(study)
+            cache_path.parent.mkdir(parents=True, exist_ok=True)
+            anchors.to_json(str(cache_path))
         res = foramina.analyze(study, anchors, DEFAULT)
         rec["numbering"] = anchors.numbering.get("status")
         rec["discs"] = list(anchors.discs)
@@ -234,15 +241,15 @@ def _flatten(recs: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], dict[str
     return pairs, counts
 
 
-def _sudirman_jobs(limit: int | None) -> list[tuple[str, list[str], str | None]]:
+def _sudirman_jobs(limit: int | None, cache: str) -> list[tuple[str, list[str], str | None, str]]:
     notes = sd.read_radiologist_notes()
     sess = sd.patient_sessions()
-    jobs: list[tuple[str, list[str], str | None]] = []
+    jobs: list[tuple[str, list[str], str | None, str]] = []
     for patient in sorted(sess):
         text = notes.get(int(patient))
         if text is None:
             continue  # no report for this patient: nothing to score against
-        jobs.append((patient, [str(p) for p in sess[patient]], text))
+        jobs.append((patient, [str(p) for p in sess[patient]], text, cache))
         if limit and len(jobs) >= limit:
             break
     return jobs
@@ -286,13 +293,20 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--dataset", choices=("sudirman", "spider"), default="sudirman")
     p.add_argument("--split", default="validation", choices=("training", "validation"))
     p.add_argument("--limit", type=int, help="first N cases in order (reported as subsampled)")
-    p.add_argument("--workers", type=int, default=max(1, (os.cpu_count() or 2) // 2))
+    p.add_argument("--workers", type=int, default=2, help="processes (at most 2 on the shared machine)")
     p.add_argument("--out", required=True)
+    p.add_argument(
+        "--anchors", default="/tmp/spinescope-dx07_foramina/anchors", help="anchor JSON cache folder"
+    )
     args = p.parse_args(argv)
+    # shared machine: two threads per labeller process, at most two processes
+    os.environ["SPINESCOPE_THREADS"] = "2"
+    args.workers = max(1, min(args.workers, 2))
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
+    cache = args.anchors
     if args.dataset == "sudirman":
-        jobs = _sudirman_jobs(args.limit)
+        jobs = _sudirman_jobs(args.limit, os.path.join(cache, "sudirman"))
     else:
         from spinescope.datasets.gradings import spider_dir, spider_subset_cases
 
@@ -300,7 +314,15 @@ def main(argv: list[str] | None = None) -> int:
         ids = spider_subset_cases(args.split, root)
         if args.limit:
             ids = ids[: args.limit]
-        jobs = [(str(c), [str(root / "images" / f"{c}_t1.mha")], None) for c in ids]
+        jobs = [
+            (
+                str(c),
+                [str(root / "images" / f"{c}_t1.mha")],
+                None,
+                os.path.join(cache, f"spider_{args.split}"),
+            )
+            for c in ids
+        ]
     with ProcessPoolExecutor(max_workers=args.workers) as ex:
         recs = list(ex.map(_job, jobs, chunksize=1))
     pairs, counts = _flatten(recs)

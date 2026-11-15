@@ -117,8 +117,8 @@ def _run(monkeypatch: pytest.MonkeyPatch, stack: Stack | None, anchors: Anchors 
 
 
 # ------------------------------------------------------------------------------------------- pure functions
-def test_registered_as_builtin():
-    assert "foramina" in base.available()
+def test_registered_on_import():
+    assert "foramina" in base.available()  # registered by importing the module (auto-discovery on main)
 
 
 @pytest.mark.parametrize(
