@@ -15,7 +15,7 @@ Method v2 (lab26, see docs/labeling/lab26_conus_v2.md). All geometry in LPS mm o
    CSF flank (from ``conus_flank_inner_frac`` of the half-width outwards), window-relative. Cord-like rows need
    the CSF bright on T2/STIR (dark on T1) and a contrast above ``conus_cord_contrast_min``.
 4. Tracking from the top: the first cord run (at least ``conus_min_run_mm``) is followed caudally. Gaps up to
-   ``conus_bridge_mm`` are bridged; the cord ends where a non-cord span reaches ``conus_stop_mm`` (cord width
+   ``conus_stop_mm`` are bridged; the cord ends where a non-cord span reaches ``conus_stop_mm`` (cord width
    collapses to roots and filum). Reaching the lowest canal row means the tip is a lower bound (``fov_end``).
 5. Consistency: the tip of the interpolated profile must agree (within ``conus_agree_mm``) with the sac slices'
    own tips; with a second sagittal contrast in the study (T1 next to T2), its tip must agree too.

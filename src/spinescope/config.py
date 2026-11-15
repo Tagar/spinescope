@@ -142,7 +142,6 @@ class Config:
     conus_min_agree_share: float = (
         0.5  # at most this share of sac-slice tips agreeing with the interpolated tip: not located
     )
-    conus_bridge_mm: float = 3.0  # non-cord gaps shorter than this are bridged while tracking the cord down
     conus_stop_mm: float = 8.0  # a non-cord span this long ends the cord (width collapsed to roots and filum)
     conus_cross_contrast: bool = (
         True  # also locate the conus on a second sagittal contrast (T1 with T2) if present
