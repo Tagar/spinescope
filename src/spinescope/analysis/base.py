@@ -123,7 +123,29 @@ def sagittal_stacks(study: Study) -> dict[str, Stack]:
 
 # ------------------------------------------------------------------- registry
 _REGISTRY: dict[str, AnalysisFn] = {}
-_BUILTIN_MODULES = ("discs", "endplates", "alignment")
+#: Modules of this package that are infrastructure, not analyses. Every other public module (no leading ``_``) is
+#: imported by :func:`_load_builtin`, so a new analysis registers itself just by living in ``analysis/<name>.py``
+#: with an ``@register(...)`` function (no shared list to edit, so parallel additions don't conflict).
+_INFRASTRUCTURE_MODULES = frozenset({"base", "evaluate", "findings"})
+
+
+def _builtin_modules() -> tuple[str, ...]:
+    import pkgutil
+
+    pkg = __package__ or "spinescope.analysis"
+    import importlib
+
+    path = importlib.import_module(pkg).__path__
+    return tuple(
+        sorted(
+            m.name
+            for m in pkgutil.iter_modules(path)
+            if not m.name.startswith("_") and m.name not in _INFRASTRUCTURE_MODULES
+        )
+    )
+
+
+_BUILTIN_MODULES = _builtin_modules()
 
 
 def register(name: str) -> Callable[[AnalysisFn], AnalysisFn]:
