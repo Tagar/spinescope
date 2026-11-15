@@ -47,6 +47,8 @@ from spinescope.anatomy._validate import (
 from spinescope.anatomy.calibration import (
     DISC_FEATURES,
     SIGNAL_FEATURES,
+    TARGET_PRECISION_V3,
+    UNREACHABLE_THRESHOLD,
     VOLUME_FEATURES,
     VOLUME_FEATURES_V2,
     Calibration,
@@ -175,6 +177,12 @@ def _record_common(det: Any, score: VolumeScore) -> dict[str, Any]:
         "signals": {k: float(v) for k, v in det.signals.items()},
         "volume_feature_dict": {k: float(v) for k, v in det.volume_feature_dict.items()},
         "lumbosacral": det.anchors.numbering.get("lumbosacral"),
+        # version 3 (lab22): the conus tip (weak vote, experimental) and the applicability verdict, for the report
+        "conus": None
+        if not isinstance(a.conus, dict)
+        else {k: a.conus.get(k) for k in ("level", "confidence", "confidence_raw", "low_lying")},
+        "applicability": (a.applicability or {}).get("verdict"),
+        "s1_below_mm": a.numbering.get("s1_below_mm"),
     }
     return out
 
@@ -791,6 +799,175 @@ def cmd_fit_v2(args: argparse.Namespace) -> int:
     return 0
 
 
+# ---------------------------------------------------------------- version 3 protocol (lab22)
+
+#: Version 3 candidate volume feature sets, fixed before the fit. The version 2 set is the control. ``sacrum_below``
+#: is the S1 presence from the geometry in version 3 (it was a constant 0 in version 2, with weight 0).
+V3_CANDIDATES: dict[str, tuple[str, ...]] = {
+    "v2_selected": VOLUME_FEATURES_V2,
+    "v2+s1_below": (*VOLUME_FEATURES_V2, "s1_below_mm"),
+    "v2+morph": (*VOLUME_FEATURES_V2, "s1_ap_ratio"),
+    "v2+t1t2_bottom": (*VOLUME_FEATURES_V2, "t1t2_bottom"),
+    "v2+all_v3": (*VOLUME_FEATURES_V2, "s1_below_mm", "s1_ap_ratio", "t1t2_bottom"),
+}
+#: Acceptance on the held-out sets (fixed before the evaluation; see docs/labeling/lab22_confirmed.md).
+V3_WRONG_ANNOUNCED_MAX = {"spider_validation": 0, "sudirman_half_b": 1, "qx5rt": 1}
+V3_CONFIRMED_PRECISION_MIN = 0.99
+V3_CONFIRMED_MIN_POOLED = 20
+
+
+def _status_v3(rec: dict[str, Any], conf: float, thr: dict[str, float]) -> str:
+    """Status with every pipeline cap (no bone below the lowest disc, relabelling, second series, lumbosacral)."""
+    from spinescope.anatomy.pipeline import _apply_status_caps
+
+    second = (rec.get("fusion") or {}).get("second_series") or {}
+    lumbo = rec.get("lumbosacral") or {}
+    return _apply_status_caps(
+        numbering_status(conf, thr),
+        sacrum_below=bool(rec.get("sacrum_below")),
+        applied=bool(rec.get("relabelled")),
+        second_extra=bool(second.get("extra_below", False)),
+        lumbo_status=str(lumbo.get("status", "not_assessed")),
+    )
+
+
+def _v3_status_block(recs: list[dict[str, Any]], conf: np.ndarray, thr: dict[str, float]) -> dict[str, Any]:
+    """Per status: studies (coverage), numbering precision and wrong counts; announced = confirmed or probable."""
+    st = np.asarray([_status_v3(r, float(c), thr) for r, c in zip(recs, conf, strict=True)])
+    ok = _v2_y(recs).astype(bool)
+    n = len(recs)
+    per: dict[str, Any] = {}
+    for s in (STATUS_CONFIRMED, STATUS_PROBABLE, "unconfirmed"):
+        sel = st == s
+        k = int(sel.sum())
+        per[s] = {
+            "studies": k,
+            "coverage": round(k / n, 3) if n else None,
+            "precision": round(float(ok[sel].mean()), 4) if k else None,
+            "wrong": int((~ok[sel]).sum()),
+        }
+    announced = np.isin(st, [STATUS_CONFIRMED, STATUS_PROBABLE])
+    return {
+        "studies": n,
+        "per_status": per,
+        "announced": int(announced.sum()),
+        "announced_precision": round(float(ok[announced].mean()), 4) if announced.any() else None,
+        "wrong_announced": int((announced & ~ok).sum()),
+        "wrong_total": int((~ok).sum()),
+        "thresholds": {k: round(float(v), 4) for k, v in thr.items()},
+    }
+
+
+def _v3_criteria(sets: dict[str, Any]) -> dict[str, Any]:
+    """The acceptance rules of lab22, evaluated on the version 3 block of every held-out set."""
+    wrong_ok = {}
+    for name, cap in V3_WRONG_ANNOUNCED_MAX.items():
+        blk = sets.get(name, {}).get("after_v3")
+        wrong_ok[name] = blk is not None and blk["wrong_announced"] <= cap
+    conf_n = 0
+    conf_w = 0
+    per_set_ok = {}
+    for name in V3_WRONG_ANNOUNCED_MAX:
+        blk = sets.get(name, {}).get("after_v3")
+        if blk is None:
+            continue
+        c = blk["per_status"][STATUS_CONFIRMED]
+        conf_n += c["studies"]
+        conf_w += c["wrong"]
+        per_set_ok[name] = c["precision"] is None or c["precision"] >= V3_CONFIRMED_PRECISION_MIN
+    pooled = ((conf_n - conf_w) / conf_n) if conf_n else None
+    confirmed_ok = (
+        conf_n >= V3_CONFIRMED_MIN_POOLED
+        and pooled is not None
+        and pooled >= V3_CONFIRMED_PRECISION_MIN
+        and all(per_set_ok.values())
+    )
+    return {
+        "wrong_announced_not_worse": wrong_ok,
+        "confirmed_pooled_studies": conf_n,
+        "confirmed_pooled_precision": None if pooled is None else round(pooled, 4),
+        "confirmed_precision_ok_per_set": per_set_ok,
+        "confirmed_reachable_at_0.99": bool(confirmed_ok),
+        "ship": bool(all(wrong_ok.values()) and confirmed_ok),
+    }
+
+
+def cmd_fit_v3(args: argparse.Namespace) -> int:
+    """Version 3 protocol (lab22): fit on SPIDER training + Sudirman half A only; select by fit-set OOF log-loss;
+    thresholds from the fit set (confirmed target 0.99, probable 0.97; an unreachable target is reported, never
+    replaced by a default); one evaluation of SPIDER validation, Sudirman half B and qx5rt. ``--write`` ships
+    ``calibration_v3.json`` only when the acceptance rules pass (:func:`_v3_criteria`); otherwise nothing is written.
+    """
+    _V2_OUT[0] = args.out
+    out = Path(args.out)
+    fit, evals = _v2_sets()
+    if not fit:
+        log.error("no fit records under %s", out)
+        return 2
+    y_fit = _v2_y(fit)
+    cands: dict[str, Any] = {}
+    best: tuple[float, str, float] | None = None
+    for cname, names in V3_CANDIDATES.items():
+        for l2 in V2_L2_GRID:
+            p = _v2_oof(fit, names, l2)
+            ll = _logloss(p, y_fit)
+            cands[f"{cname}|l2={l2:g}"] = {"oof_logloss": round(ll, 4), "oof_auroc": _auc(p, y_fit)}
+            if best is None or ll < best[0]:
+                best = (ll, cname, l2)
+    assert best is not None
+    _, chosen, l2 = best
+    names = V3_CANDIDATES[chosen]
+    p_oof = _v2_oof(fit, names, l2)
+    thr = choose_thresholds(p_oof, y_fit, targets=TARGET_PRECISION_V3, fallback=_unreachable())
+    volume = Logistic.fit(_v2_x(fit, names), y_fit, names, l2=l2)
+    v2 = load_calibration(version=2)
+    assert v2 is not None, "calibration_v2.json is needed as the 'before' reference"
+    cal = Calibration(
+        disc=v2.disc,
+        volume=volume,
+        thresholds=thr,
+        source=f"volume: SPIDER training + Sudirman half A ({len(fit)} studies, lab22 protocol); disc: v2 (= v1)",
+        version=3,
+    )
+    report: dict[str, Any] = {
+        "fit": {"studies": len(fit), "wrong": int((y_fit == 0).sum()), "candidates": cands},
+        "selected": {"set": chosen, "names": list(names), "l2": l2},
+        "thresholds_oof": {k: round(float(v), 4) for k, v in thr.items()},
+        "targets": TARGET_PRECISION_V3,
+        "volume_weights": dict(zip(names, [round(w, 4) for w in volume.weights], strict=True)),
+        "volume_bias": round(volume.bias, 4),
+        "sets": {},
+    }
+    for name, recs in evals.items():
+        if not recs:
+            continue
+        conf_v2 = v2.volume.predict(_v2_x(recs, v2.volume.names))
+        conf_v3 = cal.volume.predict(_v2_x(recs, names))
+        report["sets"][name] = {
+            "studies": len(recs),
+            "numbering_correct_rate": round(float(_v2_y(recs).mean()), 4),
+            "after_v2": _v3_status_block(recs, conf_v2, v2.thresholds),
+            "after_v3": _v3_status_block(recs, conf_v3, thr),
+        }
+    crit = _v3_criteria(report["sets"])
+    report["acceptance"] = crit
+    (out / "calibration_report_v3.json").write_text(json.dumps(report, indent=1), encoding="utf-8")
+    print(json.dumps(report, indent=1))
+    if args.write:
+        if not crit["ship"]:
+            log.error(
+                "acceptance rules not met: calibration_v3.json not written (see calibration_report_v3.json)"
+            )
+            return 3
+        cal.save(calibration_path(3))
+        log.info("wrote %s", calibration_path(3))
+    return 0
+
+
+def _unreachable() -> dict[str, float]:
+    return {STATUS_CONFIRMED: UNREACHABLE_THRESHOLD, STATUS_PROBABLE: UNREACHABLE_THRESHOLD}
+
+
 def _auc(p: np.ndarray, y: np.ndarray) -> float | None:
     from scipy.stats import rankdata
 
@@ -834,6 +1011,15 @@ def build_parser() -> argparse.ArgumentParser:
     v.add_argument("--out", required=True)
     v.add_argument("--write", action="store_true", help="write calibration_v2.json")
     v.set_defaults(func=cmd_fit_v2)
+    t = sub.add_parser(
+        "fit-v3",
+        help="version 3 protocol (lab22): S1 geometry signals; writes calibration_v3.json only if accepted",
+    )
+    t.add_argument("--out", required=True)
+    t.add_argument(
+        "--write", action="store_true", help="write calibration_v3.json when the acceptance rules pass"
+    )
+    t.set_defaults(func=cmd_fit_v3)
     return p
 
 

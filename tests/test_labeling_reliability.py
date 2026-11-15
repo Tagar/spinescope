@@ -15,6 +15,7 @@ import pytest
 from spinescope.anatomy.anchors import Anchors, Disc
 from spinescope.anatomy.calibration import (
     SIGNAL_FEATURES,
+    SIGNAL_FEATURES_V3,
     VOLUME_FEATURES,
     VOLUME_FEATURES_V1,
     VOLUME_FEATURES_V2,
@@ -140,7 +141,7 @@ def test_v1_file_round_trips_and_stays_loadable() -> None:
 
 
 def test_packaged_v2_is_consistent() -> None:
-    cal = load_calibration()
+    cal = load_calibration(version=2)  # the lab18 file stays loadable (the default is v3 since lab22)
     if cal is None:
         pytest.skip("no packaged v2 calibration")
     assert cal.version == 2
@@ -158,6 +159,6 @@ def test_label_spine_details_carry_signals_on_a_phantom(phantom_study) -> None: 
     det = label_spine_details(phantom_study, calibrate=False)
     if not det.anchors.discs:
         pytest.skip("phantom not labelled by this backend")
-    assert set(det.signals) == set(SIGNAL_FEATURES)
+    assert set(det.signals) == set(SIGNAL_FEATURES_V3)  # v2 keys plus the lab22 sacral signals
     assert set(VOLUME_FEATURES) <= set(det.volume_feature_dict)
     assert all(math.isfinite(v) for v in det.signals.values())

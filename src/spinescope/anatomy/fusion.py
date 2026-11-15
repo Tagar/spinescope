@@ -420,8 +420,11 @@ def relabel_anchors(anchors: Anchors, offset: int) -> dict[str, str]:
     bottom_up = list(reversed(order))
     new_bottom_up = relabel_discs(bottom_up, offset)
     mapping = dict(zip(bottom_up, new_bottom_up, strict=True))
+    vert_map = {name: shift_vertebra_name(name, offset) for name in anchors.vertebrae}
     anchors.discs = {mapping[lab]: anchors.discs[lab] for lab in order}
-    anchors.vertebrae = {shift_vertebra_name(name, offset): v for name, v in anchors.vertebrae.items()}
+    anchors.vertebrae = {vert_map[name]: v for name, v in anchors.vertebrae.items()}
+    # Geometry measured before the numbering (body levels, canal and posterior-element keys) follows the names.
+    anchors._sync_geometry(mapping, vert_map)
     if anchors.conus and anchors.conus.get("level"):
         lvl = str(anchors.conus["level"])
         anchors.conus["level"] = mapping.get(lvl, shift_vertebra_name(lvl, offset))

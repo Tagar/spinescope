@@ -46,6 +46,7 @@ from numpy.typing import NDArray
 from scipy.optimize import minimize
 from scipy.special import expit
 
+from ..config import DEFAULT
 from .anchors import Anchors
 from .numbering import DEFAULT_STATUS_THRESHOLDS, STATUS_CONFIRMED, STATUS_PROBABLE
 
@@ -71,11 +72,20 @@ VOLUME_FEATURES: tuple[str, ...] = (
 #: "probable" admitted almost every study. Version 2 uses 0.97 (lab18, fixed before the held-out sets were scored).
 TARGET_PRECISION_V1: dict[str, float] = {STATUS_CONFIRMED: 0.98, STATUS_PROBABLE: 0.9}
 TARGET_PRECISION: dict[str, float] = {STATUS_CONFIRMED: 0.98, STATUS_PROBABLE: 0.97}
+#: Version 3 (lab22): ``confirmed`` needs out-of-fold precision 0.99 (a confirmed numbering is a claim about bone
+#: below the lowest disc, so it is held to a stricter target than ``probable``). Fixed before any held-out set was scored.
+TARGET_PRECISION_V3: dict[str, float] = {STATUS_CONFIRMED: 0.99, STATUS_PROBABLE: 0.97}
+#: Threshold of a status whose target precision cannot be reached on the fit set: no study reaches it.
+UNREACHABLE_THRESHOLD = 1.01
 MIN_VOLUMES_ABOVE = 20
 CALIBRATION_FILE = "calibration_v2.json"  # packaged calibration (lab18); v1 below
 CALIBRATION_FILE_V1 = (
     "calibration_v1.json"  # lab08 calibration, still loadable (``load_calibration(version=1)``)
 )
+CALIBRATION_FILE_V3 = "calibration_v3.json"  # lab22: numbering after the geometry (S1 body, conus vote)
+#: Calibration version loaded when none is asked for. Stays 2: the version 3 candidate (lab22) met the held-out rule but
+#: moved the realistic T1-only phantom to a silent error (see docs/labeling/lab22_confirmed.md); it is not shipped.
+DEFAULT_CALIBRATION_VERSION = 2
 #: Volume features of version 1 (names of the calibration's volume model in v1 files).
 VOLUME_FEATURES_V1: tuple[str, ...] = VOLUME_FEATURES
 #: Numbering signals of version 2 (see :func:`numbering_signals`), in the order of the returned dict.
@@ -97,6 +107,15 @@ SIGNAL_FEATURES: tuple[str, ...] = (
 #: the lowest two discs against the study median). Selected by out-of-fold log-loss on SPIDER training plus
 #: Sudirman half A only (docs/labeling/lab18_reliability.md); the other signals are computed and recorded but not used.
 VOLUME_FEATURES_V2: tuple[str, ...] = (*VOLUME_FEATURES, "lumbo_margin", "gap_bottom_dev")
+#: Numbering signals added in version 3 (lab22). They need the vertebral geometry, which is measured before the
+#: numbering is calibrated: ``s1_below_mm`` the bone below the lowest disc on the mid-sagittal slice (the S1 body),
+#: ``s1_present`` that it reaches ``sacrum_min_visible_mm``, ``s1_ap_ratio`` the AP depth of that body over the
+#: body above the lowest disc (sacral morphology: sacral segments are narrower), ``t1t2_bottom`` the lowest disc is
+#: confirmed by the second sagittal series.
+SACRAL_FEATURES_V3: tuple[str, ...] = ("s1_present", "s1_below_mm", "s1_ap_ratio", "t1t2_bottom")
+SIGNAL_FEATURES_V3: tuple[str, ...] = (*SIGNAL_FEATURES, *SACRAL_FEATURES_V3)
+#: Neutral values of the version 3 signals when the geometry (or a second series) is missing.
+S1_AP_RATIO_NEUTRAL = 1.0
 
 
 def logit(p: float) -> float:
@@ -218,9 +237,7 @@ def numbering_signals(
     * ``vote_shift_frac``: share of the fusion's cue votes that favour a non-zero offset; ``p_shift``: posterior of
       any non-zero offset.
     * ``n_discs``: number of discs after the sacral check.
-
-    Not used (the S1 body and the conus are attached after numbering, so they are not available here): see
-    docs/labeling/lab18_reliability.md.
+    The version 3 signals (:func:`sacral_signals`) are separate, so that this dict keeps the version 2 keys.
     """
     discs = sorted(anchors.discs.values(), key=lambda d: float(d.center[2]))  # bottom-up
     n = len(discs)
@@ -256,6 +273,30 @@ def numbering_signals(
         "vote_shift_frac": float(vote_frac),
         "p_shift": float(p_shift),
         "n_discs": float(n),
+    }
+
+
+def sacral_signals(
+    *,
+    s1_below_mm: float | None,
+    s1_ap_ratio: float | None,
+    t1t2_bottom: bool,
+    min_visible_mm: float = DEFAULT.sacrum_min_visible_mm,
+) -> dict[str, float]:
+    """Version 3 numbering signals (the four keys of :data:`SACRAL_FEATURES_V3`; lab22).
+
+    From the vertebral geometry measured before numbering: ``s1_below_mm`` bone below the lowest disc (0 when not
+    measured), ``s1_present`` 1 when it reaches ``min_visible_mm`` (the same test as ``sacrum_below``),
+    ``s1_ap_ratio`` AP depth of that body over the body above the lowest disc (1 when unknown), ``t1t2_bottom`` 1
+    when the lowest disc is confirmed by the second series.
+    """
+    below = float(s1_below_mm) if s1_below_mm is not None else 0.0
+    ratio = float(s1_ap_ratio) if s1_ap_ratio is not None else S1_AP_RATIO_NEUTRAL
+    return {
+        "s1_present": 1.0 if below >= min_visible_mm else 0.0,
+        "s1_below_mm": below,
+        "s1_ap_ratio": ratio,
+        "t1t2_bottom": 1.0 if t1t2_bottom else 0.0,
     }
 
 
@@ -340,12 +381,21 @@ class Logistic:
         )
 
 
-def choose_thresholds(p_volume: NDArray[np.float64], correct: NDArray[np.float64]) -> dict[str, float]:
-    """Lowest threshold per status whose training precision reaches :data:`TARGET_PRECISION`.
+def choose_thresholds(
+    p_volume: NDArray[np.float64],
+    correct: NDArray[np.float64],
+    *,
+    targets: dict[str, float] | None = None,
+    fallback: dict[str, float] | None = None,
+) -> dict[str, float]:
+    """Lowest threshold per status whose training precision reaches ``targets`` (default :data:`TARGET_PRECISION`).
 
     Searched on a 0.005 grid; a threshold needs at least :data:`MIN_VOLUMES_ABOVE` volumes above it.
-    Falls back to :data:`DEFAULT_STATUS_THRESHOLDS` when no threshold qualifies.
+    When no threshold qualifies the status gets ``fallback`` (default :data:`DEFAULT_STATUS_THRESHOLDS`; version 3
+    passes :data:`UNREACHABLE_THRESHOLD`, so an unreachable status is never announced).
     """
+    tg = targets or TARGET_PRECISION
+    fb = fallback or DEFAULT_STATUS_THRESHOLDS
     out: dict[str, float] = {}
     grid = np.round(np.arange(0.5, 1.0001, 0.005), 3)
     for status in (STATUS_CONFIRMED, STATUS_PROBABLE):
@@ -354,10 +404,10 @@ def choose_thresholds(p_volume: NDArray[np.float64], correct: NDArray[np.float64
             sel = p_volume >= thr
             if int(sel.sum()) < MIN_VOLUMES_ABOVE:
                 continue
-            if float(correct[sel].mean()) >= TARGET_PRECISION[status]:
+            if float(correct[sel].mean()) >= tg[status]:
                 chosen = float(thr)
                 break
-        out[status] = chosen if chosen is not None else DEFAULT_STATUS_THRESHOLDS[status]
+        out[status] = chosen if chosen is not None else fb[status]
     if out[STATUS_PROBABLE] > out[STATUS_CONFIRMED]:
         out[STATUS_PROBABLE] = out[STATUS_CONFIRMED]
     return out
@@ -408,17 +458,20 @@ class Calibration:
 
 
 def calibration_path(version: int = 2) -> Path:
-    """Packaged calibration file of ``version`` (2 is the default; 1 is the lab08 file)."""
+    """Packaged calibration file of ``version``: 1 (lab08), 2 (lab18, default) or 3 (lab22)."""
+    if version >= 3:
+        return Path(__file__).with_name(CALIBRATION_FILE_V3)
     return Path(__file__).with_name(CALIBRATION_FILE if version >= 2 else CALIBRATION_FILE_V1)
 
 
 @lru_cache(maxsize=4)
 def load_calibration(path: str | None = None, version: int | None = None) -> Calibration | None:
-    """The packaged calibration (v2 by default, v1 with ``version=1``), or the file at ``path``.
+    """The packaged calibration (:data:`DEFAULT_CALIBRATION_VERSION` by default; ``version=1`` or ``3`` for the others),
+    or the file at ``path``.
 
     None when the file is missing (the caller then uses the uncalibrated fallback).
     """
-    p = Path(path) if path else calibration_path(2 if version is None else version)
+    p = Path(path) if path else calibration_path(DEFAULT_CALIBRATION_VERSION if version is None else version)
     if not p.is_file():
         return None
     return Calibration.from_dict(json.loads(p.read_text(encoding="utf-8")))
@@ -426,10 +479,15 @@ def load_calibration(path: str | None = None, version: int | None = None) -> Cal
 
 __all__ = [
     "CALIBRATION_FILE",
+    "CALIBRATION_FILE_V3",
+    "DEFAULT_CALIBRATION_VERSION",
     "DISC_FEATURES",
     "SIGNAL_FEATURES",
+    "SIGNAL_FEATURES_V3",
     "TARGET_PRECISION",
     "TARGET_PRECISION_V1",
+    "TARGET_PRECISION_V3",
+    "UNREACHABLE_THRESHOLD",
     "VOLUME_FEATURES",
     "VOLUME_FEATURES_V1",
     "VOLUME_FEATURES_V2",
@@ -441,6 +499,7 @@ __all__ = [
     "load_calibration",
     "logit",
     "numbering_signals",
+    "sacral_signals",
     "spacing_deviation",
     "volume_feature_map",
     "volume_feature_vector",

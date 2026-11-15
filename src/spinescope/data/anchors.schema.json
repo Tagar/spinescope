@@ -288,6 +288,22 @@
         },
         "evidence": {
           "$ref": "#/$defs/Strings"
+        },
+        "extent_mm": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "description": "lab22: z extent of the body on its mid-sagittal slice (mm)."
+        },
+        "below_lowest_disc_mm": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "description": "lab22: bone below the lowest disc's inferior margin (S1 body only, mm)."
         }
       }
     },

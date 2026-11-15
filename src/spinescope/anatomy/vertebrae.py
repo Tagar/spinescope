@@ -130,6 +130,14 @@ def _body_mask(seg: SegmentedStack, k: int, zone: NDArray[np.intp], j: int, cfg:
     return largest_component(m)
 
 
+def _largest_body_pixels(
+    seg: SegmentedStack, k: int, zone: NDArray[np.intp], j: int, cfg: Config
+) -> BoolArray:
+    """Body pixels of body ``j`` on slice ``k``, largest component, without the area floor of :func:`_body_mask`."""
+    m = (seg.probs[k, BODY] > cfg.ml_prob_threshold) & (zone == j)
+    return largest_component(m) if m.any() else np.zeros_like(m, dtype=bool)
+
+
 def _slice_zones(seg: SegmentedStack, disc_z: FloatArray) -> list[NDArray[np.intp]]:
     """Per slice, the number of discs (ascending ``disc_z``) lying below each pixel centre."""
     out = []
@@ -359,14 +367,29 @@ def measure_geometry(seg: SegmentedStack, anchors: Anchors, cfg: Config = DEFAUL
             continue
         u_c = float((pts @ normal).mean())
         kb = int(np.argmin(np.abs(positions - u_c)))  # the sagittal slice through this body
+        if j == 0 and pooled[3]:
+            # Bone below the lowest disc is thin: measure it on the slice that holds most of it (no area floor).
+            kb = max(pooled[3], key=lambda k: pooled[3][k])
         grid = seg.grids[kb]
-        m_plane = _body_mask(seg, kb, zones[kb], j, cfg)
+        if j == 0:
+            m_plane = _largest_body_pixels(seg, kb, zones[kb], j, cfg)
+        else:
+            m_plane = _body_mask(seg, kb, zones[kb], j, cfg)
         sup, inf = j < n, j >= 1
         plane = body_plane_geometry(m_plane, grid, sup, inf, cfg) if m_plane.any() else None
         rec = _body_record(name, j, plane, grid, pooled, normal, seg, cfg)
         if rec is None:
             continue
         rec["slice"] = kb
+        zr = _plane_z_range(m_plane, grid) if m_plane.any() else None
+        rec["extent_mm"] = None if zr is None else round(zr[1] - zr[0], 3)
+        rec["below_lowest_disc_mm"] = None
+        if j == 0:
+            # Bone below the inferior margin of the lowest disc, over every slice: the 2nd percentile of the pooled
+            # body points, so that a few stray pixels do not count as a sacrum.
+            h0 = float(anchors.discs[order[0]].height_mm or 8.0)
+            z_low = float(np.percentile(pts[:, 2], 2.0))
+            rec["below_lowest_disc_mm"] = round(max(0.0, float(disc_z_sorted[0]) - 0.5 * h0 - z_low), 3)
         if plane is not None:
             rec["centre_plane"] = _plane_point_lps(grid, [float(v) for v in _plane_centre(m_plane, grid)])
         if rec["complete"]:
@@ -390,6 +413,16 @@ def measure_geometry(seg: SegmentedStack, anchors: Anchors, cfg: Config = DEFAUL
     )
     anchors.posterior_elements = posterior_elements(seg, body_mids, cfg)
     return anchors
+
+
+def _plane_z_range(mask: BoolArray, grid: PlaneGrid) -> tuple[float, float] | None:
+    """Lowest and highest LPS z of the pixels of ``mask`` on ``grid`` (None when empty)."""
+    ii, jj = np.nonzero(mask)
+    if ii.size == 0:
+        return None
+    down, post = grid.mm_of_index(ii, jj)
+    z = np.asarray(grid.to_lps(down, post), dtype=np.float64)[:, 2]
+    return float(np.min(z)), float(np.max(z))
 
 
 def _plane_centre(mask: BoolArray, grid: PlaneGrid) -> FloatArray:

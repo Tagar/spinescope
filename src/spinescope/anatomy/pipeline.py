@@ -40,6 +40,7 @@ from .calibration import (
     disc_feature_rows,
     load_calibration,
     numbering_signals,
+    sacral_signals,
     volume_feature_map,
     volume_feature_vector,
 )
@@ -408,11 +409,11 @@ def _classical_discs_of(stack: Stack, cfg: Config, study: Study) -> Anchors | No
     return a
 
 
-def _ml_discs_of(stack: Stack, cfg: Config) -> Anchors:
-    """Learned-labeller disc set of one sagittal stack (run on the stack itself, not ``study.best``)."""
+def _ml_discs_of(stack: Stack, cfg: Config, seg: SegmentedStack | None = None) -> Anchors:
+    """Learned-labeller disc set of one sagittal stack. ``seg``: its network output, when already computed."""
     from .ml import anchors_from_segmentation, segment_stack
 
-    return anchors_from_segmentation(segment_stack(stack, cfg), cfg)
+    return anchors_from_segmentation(seg if seg is not None else segment_stack(stack, cfg), cfg)
 
 
 def _second_sagittal(study: Study, primary_key: str) -> Stack | None:
@@ -464,6 +465,56 @@ def _lumbosacral_step(
     return dec, n
 
 
+def _geometry_step(primary: Anchors, seg: SegmentedStack, cfg: Config) -> None:
+    """Vertebral bodies, canal and posterior elements from the labeller's own segmentation (lab22: before numbering).
+
+    Measured with the disc names of this stage; :func:`~spinescope.anatomy.fusion.relabel_anchors` carries them
+    through the numbering offset. A failure adds a warning and leaves the labels unchanged.
+    """
+    from .vertebrae import measure_geometry
+
+    try:
+        measure_geometry(seg, primary, cfg)
+    except Exception as exc:  # the geometry is an addition: it must never sink the labels
+        log.warning("vertebral geometry failed: %s", exc)
+        primary.warnings.append(f"vertebral geometry not measured ({type(exc).__name__})")
+
+
+def _s1_signals(primary: Anchors) -> tuple[float | None, float | None]:
+    """Bone below the lowest disc (mm, mid-sagittal S1 body) and the S1 / L5 AP depth ratio, from the geometry."""
+    bodies: dict[int, dict[str, Any]] = {}
+    for v in primary.vertebrae.values():
+        b = v.body
+        if isinstance(b, dict) and b.get("discs_below") is not None:
+            bodies[int(b["discs_below"])] = b
+    s1 = bodies.get(0)
+    below = (
+        None if s1 is None or s1.get("below_lowest_disc_mm") is None else float(s1["below_lowest_disc_mm"])
+    )
+    ratio: float | None = None
+    if s1 is not None and 1 in bodies:
+        ap0, ap1 = s1.get("ap_depth_mm"), bodies[1].get("ap_depth_mm")
+        if ap0 and ap1:
+            ratio = float(ap0) / float(ap1)
+    return below, ratio
+
+
+def _conus_stage(study: Study, anchors: Anchors, cfg: Config, seg: SegmentedStack | None) -> None:
+    """Locate the conus before the numbering fusion (experimental; its tip is a weak vote). A failure keeps the
+    labels and warns. The final names and the status factor are set by :func:`refresh_conus` after numbering."""
+    from .conus import attach_conus
+
+    try:
+        attach_conus(study, anchors, cfg, seg=seg)  # reuses the primary network output
+    except Exception as exc:  # the conus is additional: it must never sink the labels
+        log.warning("conus locator failed: %s", exc)
+        anchors.warnings.append(f"conus not located (locator failed: {type(exc).__name__})")
+        anchors.conus = None
+        return
+    if isinstance(anchors.conus, dict):
+        anchors.conus["experimental"] = True
+
+
 def _finalise(
     study: Study,
     primary: Anchors,
@@ -473,9 +524,17 @@ def _finalise(
     seg: SegmentedStack | None = None,
     lumbosacral: bool = True,
     fusion_cfg: FusionConfig | None = None,
+    segs: dict[str, SegmentedStack] | None = None,
 ) -> LabelDetails:
-    """Second series, classical opinion, numbering fusion, relabelling, calibration and status."""
+    """Every stage that precedes the calibrated numbering decision, in this order (lab22):
+
+    lumbosacral check -> vertebral geometry (bodies incl. the bone below the lowest disc, canal) -> conus (weak vote)
+    -> second series and classical opinion -> numbering fusion -> calibrated confidence and status.
+
+    ``segs`` maps stack keys to network outputs already computed for the study (reused, never recomputed).
+    """
     fcfg = fusion_cfg or DEFAULT_FUSION
+    segs = segs if segs is not None else {}
     det = LabelDetails(anchors=primary, backend=kind)
     if not primary.discs:
         primary.numbering = {**primary.numbering, "status": STATUS_UNCONFIRMED, "calibrated": False}
@@ -489,24 +548,32 @@ def _finalise(
     det.raw_numbering_confidence = raw_num
     # The labeller's output before any numbering change (the "before" of every evaluation).
     det.unfused = Anchors.from_dict(primary.to_dict())
+
+    # 1. lumbosacral check (drops sacral candidates from the bottom of the chain)
     lumbo_dec: LumbosacralDecision | None = None
     lumbo_drop = 0
     if kind == "ml" and lumbosacral:
         lumbo_dec, lumbo_drop = _lumbosacral_step(primary, seg, cfg)
-    sacrum_below = (
-        "S1" in primary.vertebrae and primary.vertebrae["S1"].confidence >= 0.5
-        if kind == "ml"
-        else raw_num
-        >= 0.8  # classical: the sacrum check (>= 9 mm of bone below the lowest disc) is confident
-    )
 
+    # 2. vertebral geometry and 3. conus, both before the numbering fusion
+    if kind == "ml" and seg is not None:
+        _geometry_step(primary, seg, cfg)
+    s1_below, s1_ratio = _s1_signals(primary) if kind == "ml" else (None, None)
+    if kind == "ml":
+        _conus_stage(study, primary, cfg, seg)
+    if kind == "ml":
+        sacrum_below = s1_below is not None and s1_below >= cfg.sacrum_min_visible_mm
+    else:
+        sacrum_below = raw_num >= 0.8  # classical: the sacrum check (>= 9 mm of bone below the lowest disc)
+
+    # 4. second sagittal series and the classical opinion (both optional; never sink the primary labels)
     second: Anchors | None = None
     second_stack = _second_sagittal(study, primary.source_stack)
     warn: list[str] = []
     if second_stack is not None:
         try:
             second = (
-                _ml_discs_of(second_stack, cfg)
+                _ml_discs_of(second_stack, cfg, segs.get(second_stack.key))
                 if kind == "ml"
                 else _classical_discs_of(second_stack, cfg, study)
             )
@@ -517,14 +584,14 @@ def _finalise(
             warn.append(f"second sagittal series {second_stack.key}: no disc chain")
             second = None
     classical: Anchors | None = None
-    if kind == "ml" and cfg.classical_second_opinion:
+    if kind == "ml" and cfg.classical_second_opinion:  # opt-in (lab14_perf): off by default
         try:
             classical = _label_classical(study, cfg)
         except Exception as exc:  # the classical opinion is optional: never let it sink the learned labels
             log.warning("classical second opinion failed: %s", exc)
             warn.append(f"classical second opinion failed ({type(exc).__name__}): not used")
 
-    # Axial T1 slabs: computed only when the cue is on, so the default path is unchanged (see fusion.FusionConfig).
+    # 5. numbering fusion (votes: slabs, tilt, conus, classical, second series, axial when enabled)
     axial_rep = assess_axial(study, primary) if fcfg.use_axial else None
     fus = fuse_numbering(
         primary,
@@ -538,8 +605,22 @@ def _finalise(
         axial=axial_rep,
     )
     det.fusion = fus
+    low_pre = primary.disc_labels()[-1]  # the lowest disc before the names shift
+    t1t2_bottom = bool(second is not None and fus.t1t2_by_label.get(low_pre, False))
     # Features are taken before the names shift: the T1/T2 comparison is between count-based names.
     raw_pre = {lab: float(d.confidence) for lab, d in primary.discs.items()}
+    # Version 2/3 numbering signals, on the labeller's lowest discs after the sacral check (name-free geometry).
+    lumbo_p = lumbo_dec.probs[lumbo_drop:] if lumbo_dec is not None and lumbo_dec.candidates else None
+    det.signals = {
+        **numbering_signals(
+            primary,
+            lumbo_p=lumbo_p,
+            votes=fus.votes,
+            p_shift=float(1.0 - fus.posterior.get(0, 1.0)),
+            coverage_low_z=z_cov[0],
+        ),
+        **sacral_signals(s1_below_mm=s1_below, s1_ap_ratio=s1_ratio, t1t2_bottom=t1t2_bottom),
+    }
     mapping = relabel_anchors(primary, fus.offset if fus.applied else 0)
     det.raw_disc_confidence = {mapping[lab]: v for lab, v in raw_pre.items()}
     t1t2 = {mapping[lab]: v for lab, v in fus.t1t2_by_label.items()}
@@ -555,16 +636,6 @@ def _finalise(
         t1t2_fraction=fus.t1t2_fraction,
         classical_agree=bool(fus.classical and fus.classical["agrees"]),
     )
-    # Version 2 numbering signals, on the labeller's lowest discs after the sacral check (before relabelling). The
-    # lumbosacral probabilities are aligned with the discs that remain (the candidates above a drop are gone).
-    lumbo_p = lumbo_dec.probs[lumbo_drop:] if lumbo_dec is not None and lumbo_dec.candidates else None
-    det.signals = numbering_signals(
-        primary,
-        lumbo_p=lumbo_p,
-        votes=fus.votes,
-        p_shift=float(1.0 - fus.posterior.get(0, 1.0)),
-        coverage_low_z=z_cov[0],
-    )
     det.volume_feature_dict = {
         **volume_feature_map(
             fus.p_applied,
@@ -577,6 +648,7 @@ def _finalise(
         **det.signals,
     }
 
+    # 6. calibrated numbering confidence and status (caps as before)
     cal = load_calibration() if (calibrate and kind == "ml") else None
     fallback = fus.p_applied * (1.0 if sacrum_below else 0.9)
     if cal is not None:
@@ -639,6 +711,54 @@ def _finalise(
     return det
 
 
+def _segmentations(study: Study, seg: SegmentedStack, cfg: Config) -> dict[str, SegmentedStack]:
+    """Network outputs of this study by stack key: the primary (already computed) and the second sagittal series.
+
+    The second series is segmented once here; a failure leaves it out (its anchors are then not used).
+    """
+    from .ml import segment_stack
+
+    out: dict[str, SegmentedStack] = {seg.stack.key: seg}
+    second = _second_sagittal(study, seg.stack.key)
+    if second is not None:
+        try:
+            out[second.key] = segment_stack(second, cfg)
+        except Exception as exc:  # the second series is optional
+            log.warning("second sagittal series %s failed: %s", second.key, exc)
+    return out
+
+
+def _recap_status(anchors: Anchors) -> None:
+    """Re-apply the status caps after applicability: :func:`apply_applicability` recomputes the status from the
+    confidence alone, which would undo the caps (no bone below, relabelling, lumbosacral, second series)."""
+    num = anchors.numbering
+    if not anchors.discs or not num.get("labelled", False) or "status" not in num:
+        return
+    lumbo = num.get("lumbosacral") or {}
+    second = num.get("second_series") or {}
+    capped = _apply_status_caps(
+        str(num["status"]),
+        sacrum_below=bool(num.get("sacrum_below", False)),
+        applied=bool(num.get("relabelled", False)),
+        second_extra=bool(second.get("extra_below", False)),
+        lumbo_status=str(lumbo.get("status", "not_assessed")),
+    )
+    if capped != num["status"]:
+        reasons = []
+        if not num.get("sacrum_below", False):
+            reasons.append("no bone below the lowest disc")
+        if num.get("relabelled", False):
+            reasons.append("relabelled")
+        if second.get("extra_below", False):
+            reasons.append("second series has an extra disc below")
+        if lumbo.get("status") in ("drop", "unsure"):
+            reasons.append(f"lumbosacral check {lumbo.get('status')}")
+        num["status"] = capped
+        anchors.warnings.append(
+            f"numbering capped to {capped} after applicability: {', '.join(reasons) or 'caps'}"
+        )
+
+
 def label_spine_details(
     study: Study,
     config: Config | None = None,
@@ -649,6 +769,9 @@ def label_spine_details(
     fusion: FusionConfig | None = None,
 ) -> LabelDetails:
     """As :func:`label_spine`, but also returns the fusion record, raw confidences and calibration features.
+
+    Stage order (lab22): network segmentation (once per stack) -> anchors -> lumbosacral check -> vertebral geometry
+    -> conus (weak vote) -> second series and fusion votes -> calibrated numbering -> applicability (may still cap).
 
     ``lumbosacral=False`` skips the sacral-disc check (:mod:`.lumbosacral`): the labeller-only numbering, used as
     the "before" in evaluations. The default check is on. ``fusion`` overrides the fusion settings (e.g.
@@ -666,8 +789,17 @@ def label_spine_details(
         from .ml import label_spine_ml_segmented
 
         primary, seg = label_spine_ml_segmented(study, cfg)
+        segs = _segmentations(study, seg, cfg) if seg is not None else {}
         det = _finalise(
-            study, primary, "ml", cfg, calibrate, seg=seg, lumbosacral=lumbosacral, fusion_cfg=fusion
+            study,
+            primary,
+            "ml",
+            cfg,
+            calibrate,
+            seg=seg,
+            lumbosacral=lumbosacral,
+            fusion_cfg=fusion,
+            segs=segs,
         )
     else:
         primary = _label_classical(study, cfg)
@@ -675,19 +807,19 @@ def label_spine_details(
     # Applicability: when not to label (wrong region, unusable field of view, unseen input). Additive; see ood.py.
     app = assess_applicability(study, det.anchors, seg=seg, cfg=cfg)
     apply_applicability(det.anchors, app, thresholds=det.status_thresholds)
-    if backend == "ml" and det.anchors.discs:
-        from .vertebrae import attach_geometry  # body, canal and posterior-element geometry (additive)
-
-        attach_geometry(study, det.anchors, cfg, seg=seg)  # reuses the primary network output
+    _recap_status(det.anchors)
     if det.anchors.discs:
-        _conus_after_labels(study, det.anchors, cfg, seg=seg)
+        if backend == "ml":
+            from .conus import refresh_conus
+
+            refresh_conus(det.anchors, cfg)  # level, low-lying flag and status factor in the final names
+        else:
+            _conus_after_labels(study, det.anchors, cfg)
     return det
 
 
-def _conus_after_labels(
-    study: Study, anchors: Anchors, cfg: Config, *, seg: SegmentedStack | None = None
-) -> None:
-    """Locate the conus once the anchors are final (:mod:`.conus`); a failure keeps the labels and warns.
+def _conus_after_labels(study: Study, anchors: Anchors, cfg: Config) -> None:
+    """Classical backend: locate the conus once the anchors are final (:mod:`.conus`); a failure keeps the labels.
 
     The conus locator is EXPERIMENTAL (uncalibrated; a visual audit on public data could not verify most tips):
     its confidence is capped and the record is marked ``experimental``.
@@ -695,7 +827,7 @@ def _conus_after_labels(
     from .conus import attach_conus
 
     try:
-        attach_conus(study, anchors, cfg, seg=seg)
+        attach_conus(study, anchors, cfg)
     except Exception as exc:  # the conus is additional: it must never sink the labels
         log.warning("conus locator failed: %s", exc)
         anchors.warnings.append(f"conus not located (locator failed: {type(exc).__name__})")
