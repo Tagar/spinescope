@@ -660,5 +660,17 @@ class Config:
     # images (STIR or fat-sat T2): on plain T2 fat is as bright as fluid. Judgement: single-slice sagittal sampling.
     facets_sagittal_max_confidence: float = 0.3
 
+    # ---- report synthesis (spinescope.report.synthesis; dx17). Presentation weights, not clinical thresholds.
+    # Weight of each validation status in the pain-evidence ordering, in the order validated, weak labels only,
+    # experimental, not validated (report/validation.py). Judgement: a field whose accuracy was shown counts fully;
+    # one whose accuracy was not shown counts a quarter. The confidence weights are findings_confidence_weights.
+    synthesis_status_weights: tuple[float, float, float, float] = (1.0, 0.5, 0.25, 0.25)
+    # Pfirrmann grade at or above which a disc is listed as abnormal in the pain-evidence table. Judgement: grades 3 to 5
+    # are called degenerated here, the same split the calibration guidance in ai/briefs.py uses. Presentation only.
+    synthesis_pfirrmann_abnormal_grade: int = 3
+    # Lee foraminal grade (0 normal, 1 mild, 2 moderate, 3 severe, as written in the findings schema) at or above which a
+    # foramen is listed as abnormal in the pain-evidence table. Judgement: mild narrowing is shown but not listed.
+    synthesis_lee_abnormal_grade: int = 2
+
 
 DEFAULT = Config()

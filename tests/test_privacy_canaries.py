@@ -169,6 +169,32 @@ def _surface_analysis(study, anchors, tmp: Path) -> Blobs:
     return blobs
 
 
+def _surface_synthesis(study, anchors, tmp: Path) -> Blobs:
+    """The synthesis of every surface it produces: JSON, Markdown, HTML (with embedded thumbnails), findings JSON and
+    the AI brief section. The saved evidence PNGs are scanned too (pixels and text chunks)."""
+    from spinescope.analysis.base import run_all
+    from spinescope.report.synthesis import build_synthesis, findings_document
+    from spinescope.report.synthesis_render import brief_lines, write_bundle
+
+    res = run_all(study, anchors, names=["discs", "endplates"])
+    out = tmp / "synthesis"
+    out.mkdir(parents=True, exist_ok=True)
+    names: dict[str, dict[str, str]] = {}
+    figs: dict[str, Path] = {}
+    for name, r in res.items():
+        r.save(out)
+        names[name] = {f: f"{name}_{f}.png" for f in r.figures}
+        for f in r.figures:
+            figs[f"{name}:{f}"] = out / f"{name}_{f}.png"
+    syn = build_synthesis(study, anchors, res)
+    write_bundle(syn, findings_document(res, anchors, names), out, figure_files=figs)
+    blobs: Blobs = {f"synthesis/{k}": v for k, v in _files(out).items()}
+    blobs["synthesis.to_dict"] = _dump(syn.to_dict())
+    blobs["synthesis.brief_lines"] = "\n".join(brief_lines(syn)).encode()
+    blobs["brief+synthesis"] = brief(study, anchors, synthesis=syn).encode()
+    return blobs
+
+
 def _surface_viewer(study, anchors, tmp: Path) -> Blobs:
     path = build_viewer(study, tmp / "viewer", anchors=anchors)
     return {"viewer.html": Path(path).read_bytes()}
@@ -377,6 +403,7 @@ def test_public_text_keeps_protocol_words_and_drops_the_rest() -> None:
         "viewer",
         "report",
         "briefs",
+        "synthesis",
         "cli",
         "mcp",
         "errors",
@@ -413,6 +440,8 @@ def test_no_canary_in_surface(
         blobs = _surface_analysis(study, anchors, tmp_path)
     elif surface == "viewer":
         blobs = _surface_viewer(study, anchors, tmp_path)
+    elif surface == "synthesis":
+        blobs = _surface_synthesis(study, anchors, tmp_path)
     elif surface == "report":
         blobs = _surface_report()
     elif surface == "briefs":
