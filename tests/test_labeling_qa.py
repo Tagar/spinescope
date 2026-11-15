@@ -10,8 +10,8 @@ import numpy as np
 import pytest
 from PIL import Image
 
+from _labels import label_spine
 from spinescope import load_study
-from spinescope.anatomy import label_spine
 from spinescope.anatomy._validate import truth_from_phantom
 from spinescope.anatomy.anchors import Anchors
 from spinescope.anatomy.qa import canal_centreline, case_report, confidence_colour, midline_slice, overlay

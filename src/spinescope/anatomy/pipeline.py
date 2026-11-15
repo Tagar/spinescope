@@ -40,6 +40,7 @@ from .calibration import (
     disc_feature_rows,
     load_calibration,
     numbering_signals,
+    sacral_signals,
     volume_feature_map,
     volume_feature_vector,
 )
@@ -498,13 +499,13 @@ def _s1_signals(primary: Anchors) -> tuple[float | None, float | None]:
     return below, ratio
 
 
-def _conus_stage(study: Study, anchors: Anchors, cfg: Config, segs: dict[str, SegmentedStack]) -> None:
+def _conus_stage(study: Study, anchors: Anchors, cfg: Config, seg: SegmentedStack | None) -> None:
     """Locate the conus before the numbering fusion (experimental; its tip is a weak vote). A failure keeps the
     labels and warns. The final names and the status factor are set by :func:`refresh_conus` after numbering."""
     from .conus import attach_conus
 
     try:
-        attach_conus(study, anchors, cfg, segmentations=segs)
+        attach_conus(study, anchors, cfg, seg=seg)  # reuses the primary network output
     except Exception as exc:  # the conus is additional: it must never sink the labels
         log.warning("conus locator failed: %s", exc)
         anchors.warnings.append(f"conus not located (locator failed: {type(exc).__name__})")
@@ -559,7 +560,7 @@ def _finalise(
         _geometry_step(primary, seg, cfg)
     s1_below, s1_ratio = _s1_signals(primary) if kind == "ml" else (None, None)
     if kind == "ml":
-        _conus_stage(study, primary, cfg, segs)
+        _conus_stage(study, primary, cfg, seg)
     if kind == "ml":
         sacrum_below = s1_below is not None and s1_below >= cfg.sacrum_min_visible_mm
     else:
@@ -583,7 +584,7 @@ def _finalise(
             warn.append(f"second sagittal series {second_stack.key}: no disc chain")
             second = None
     classical: Anchors | None = None
-    if kind == "ml":
+    if kind == "ml" and cfg.classical_second_opinion:  # opt-in (lab14_perf): off by default
         try:
             classical = _label_classical(study, cfg)
         except Exception as exc:  # the classical opinion is optional: never let it sink the learned labels
@@ -610,16 +611,16 @@ def _finalise(
     raw_pre = {lab: float(d.confidence) for lab, d in primary.discs.items()}
     # Version 2/3 numbering signals, on the labeller's lowest discs after the sacral check (name-free geometry).
     lumbo_p = lumbo_dec.probs[lumbo_drop:] if lumbo_dec is not None and lumbo_dec.candidates else None
-    det.signals = numbering_signals(
-        primary,
-        lumbo_p=lumbo_p,
-        votes=fus.votes,
-        p_shift=float(1.0 - fus.posterior.get(0, 1.0)),
-        coverage_low_z=z_cov[0],
-        s1_below_mm=s1_below,
-        s1_ap_ratio=s1_ratio,
-        t1t2_bottom=t1t2_bottom,
-    )
+    det.signals = {
+        **numbering_signals(
+            primary,
+            lumbo_p=lumbo_p,
+            votes=fus.votes,
+            p_shift=float(1.0 - fus.posterior.get(0, 1.0)),
+            coverage_low_z=z_cov[0],
+        ),
+        **sacral_signals(s1_below_mm=s1_below, s1_ap_ratio=s1_ratio, t1t2_bottom=t1t2_bottom),
+    }
     mapping = relabel_anchors(primary, fus.offset if fus.applied else 0)
     det.raw_disc_confidence = {mapping[lab]: v for lab, v in raw_pre.items()}
     t1t2 = {mapping[lab]: v for lab, v in fus.t1t2_by_label.items()}
@@ -697,8 +698,6 @@ def _finalise(
         "calibrated": det.calibrated,
         "status": status,
         "sacrum_below": sacrum_below,
-        "sacrum_source": "geometry" if kind == "ml" else "classical sacrum check",
-        "s1_below_mm": None if s1_below is None else round(s1_below, 2),
         "notes": "; ".join(notes),
         "second_series_agreement": fus.second["agree"] if fus.second else 0,
         **({"lumbosacral": lumbosacral_record(lumbo_dec, lumbo_drop)} if lumbo_dec is not None else {}),
@@ -884,13 +883,38 @@ def _attach_conus(anchors: Anchors, res: StackResult) -> None:
     }
 
 
-def label_spine_cli(path: str) -> dict[str, Any]:
-    """Load a study from ``path`` (DICOM directory or volume file) and return the anchors as a dict.
+def labelling_keys(study: Study) -> list[str]:
+    """Keys of the stacks :func:`label_spine` reads: the primary sagittal, the second sagittal series, and every
+    axial stack (midline refinement and numbering cues). Localizers, coronal and other series are not needed."""
+    keys: list[str] = []
+    primary = study.best("sag")
+    if primary is not None:
+        keys.append(primary.key)
+        second = _second_sagittal(study, primary.key)
+        if second is not None:
+            keys.append(second.key)
+    keys += [st.key for st in study.stacks.values() if st.plane == "ax"]
+    return list(dict.fromkeys(keys))
 
-    Intended for the CLI and the MCP server. Output carries no file paths or patient attributes.
+
+def load_labelling_study(path: str) -> Study:
+    """Load a study from ``path`` with pixels only for the stacks :func:`label_spine` reads.
+
+    A header-only pass classifies the series; then only :func:`labelling_keys` get their voxels read, so peak
+    memory follows the labelled stacks rather than every series in the folder.
     """
     from ..study import load_study
 
-    study = load_study(path)
+    header = load_study(path, load_pixels=False)
+    return load_study(path, keys=labelling_keys(header))
+
+
+def label_spine_cli(path: str) -> dict[str, Any]:
+    """Load a study from ``path`` (DICOM directory or volume file) and return the anchors as a dict.
+
+    Intended for the CLI and the MCP server. Loads only the stacks the labeller reads
+    (:func:`load_labelling_study`). Output carries no file paths or patient attributes.
+    """
+    study = load_labelling_study(path)
     d = label_spine(study).to_dict()
     return d

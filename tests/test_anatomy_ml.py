@@ -16,8 +16,8 @@ from pathlib import Path
 import numpy as np
 import pytest
 
+from _labels import label_spine_ml
 from spinescope import load_study
-from spinescope.anatomy import label_spine_ml
 from spinescope.anatomy.anchors import Anchors
 from spinescope.anatomy.ml import model_path
 from spinescope.anatomy.ml.grid import intensity_window, normalise, plane_grid, resample_slice
@@ -259,6 +259,7 @@ def _spider_root() -> Path | None:
 
 
 @pytest.mark.dataset
+@pytest.mark.slow
 def test_spider_validation_sample_runs_ml_backend() -> None:
     pytest.importorskip("onnxruntime")
     pytest.importorskip("SimpleITK")

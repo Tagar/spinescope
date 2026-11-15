@@ -29,7 +29,6 @@ from __future__ import annotations
 
 import itertools
 import logging
-from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -42,6 +41,7 @@ from ..geometry import Stack
 from ..study import Study
 from .anchors import Anchors, split_disc
 from .ml.grid import PlaneGrid
+from .ml.labeller import SegmentedStack
 from .numbering import VERTEBRA_NAMES
 
 log = logging.getLogger(__name__)
@@ -199,6 +199,8 @@ def _slice_tip(
     row_end = int(r_idx[i1])
     col_end = float(c_r[i1])
     xyz = np.asarray(grid.lps_of_index(float(row_end), col_end), dtype=np.float64)
+    if not np.all(np.isfinite(xyz)):  # a tip outside the grid: no position, so it cannot vote on the conus
+        return None
     reached = i1 >= len(r_idx) - 1 - round(2.0 / res)
     return SliceTip(
         k=int(grid.k),
@@ -400,11 +402,13 @@ def conus_from_segmentation(
     zs = np.array([t.z for t in tips])
     z_med = float(np.median(zs))
     agree = [t for t in tips if abs(t.z - z_med) <= cfg.conus_agree_mm]
-    if not agree:
-        # Tips split into two clusters around an even-count median: take the tips around the tip nearest to it
-        # (lab22 fix; before, the empty set gave a NaN mean and an exception on the item assignment below).
-        nearest = min(tips, key=lambda t: abs(t.z - z_med))
-        agree = [t for t in tips if abs(t.z - nearest.z) <= cfg.conus_agree_mm] or [nearest]
+    if not agree:  # tips spread over more than conus_agree_mm around their median: no consensus tip
+        return ConusResult(
+            found=False,
+            contrast=contrast,
+            n_slices=len(ks),
+            warnings=[f"conus not located on {contrast or 'sagittal'}: cord tips disagree in z"],
+        )
     z = float(np.mean([t.z for t in agree]))
     xyz = np.mean([t.xyz for t in agree], axis=0)
     xyz[2] = z
@@ -486,15 +490,11 @@ def pick_conus_stack(study: Study) -> Stack | None:
 
 
 def locate_conus(
-    study: Study,
-    anchors: Anchors,
-    cfg: Config = DEFAULT,
-    segmentations: Mapping[str, Any] | None = None,
+    study: Study, anchors: Anchors, cfg: Config = DEFAULT, *, seg: SegmentedStack | None = None
 ) -> ConusResult:
     """Locate the conus on the study's sagittal series (see module doc). Missing inputs give warnings.
 
-    ``segmentations`` maps stack keys to network output already computed for this study (a
-    :class:`~spinescope.anatomy.ml.labeller.SegmentedStack`); the network is run only for a stack that is not in it.
+    ``seg`` is reused when it is the network output of the picked stack; otherwise the network runs here.
     """
     from ..render.window import contrast_of
     from .ml.labeller import segment_stack
@@ -503,25 +503,21 @@ def locate_conus(
     if stack is None:
         return ConusResult(found=False, warnings=["conus not located: no sagittal series"])
     contrast = contrast_of(stack)
-    seg = (segmentations or {}).get(stack.key)
-    if seg is None:
+    if seg is None or seg.stack is not stack:
         seg = segment_stack(stack, cfg)
     res = conus_from_segmentation(seg, anchors, cfg, contrast=contrast)
     return res
 
 
 def attach_conus(
-    study: Study,
-    anchors: Anchors,
-    cfg: Config = DEFAULT,
-    segmentations: Mapping[str, Any] | None = None,
+    study: Study, anchors: Anchors, cfg: Config = DEFAULT, *, seg: SegmentedStack | None = None
 ) -> ConusResult:
     """Locate the conus and write it to ``anchors.conus`` with its warnings.
 
     A failed search keeps an existing conus (for example the classical tip) and says so; otherwise the
-    conus is ``None`` and a warning is added. ``segmentations``: see :func:`locate_conus`.
+    conus is ``None`` and a warning is added. ``seg`` is passed on to :func:`locate_conus`.
     """
-    res = locate_conus(study, anchors, cfg, segmentations)
+    res = locate_conus(study, anchors, cfg, seg=seg)
     if res.found:
         anchors.conus = res.to_dict()
         anchors.warnings.extend(res.warnings)

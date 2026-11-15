@@ -66,6 +66,7 @@ def test_packaged_calibration_is_loaded_and_consistent() -> None:
 
 
 @pytest.mark.dataset
+@pytest.mark.slow
 def test_spider_validation_sample_is_calibrated_and_labelled() -> None:
     root = spider_root()
     if root is None:
@@ -110,6 +111,7 @@ def test_spider_validation_sample_is_calibrated_and_labelled() -> None:
 
 
 @pytest.mark.dataset
+@pytest.mark.slow
 def test_calibration_applies_only_with_the_learned_backend() -> None:
     root = spider_root()
     if root is None:

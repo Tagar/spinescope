@@ -26,6 +26,7 @@ from typing import Any
 
 import numpy as np
 
+from ..config import Config
 from ..datasets.registry import REGISTRY
 from ..geometry import Stack
 from ..io.volumes import read_label_volume, read_volume
@@ -194,7 +195,7 @@ def score_levels(
 
 
 def evaluate_session(
-    session: Session, *, backend: str = "auto"
+    session: Session, *, backend: str = "auto", threads: int | None = None
 ) -> tuple[SessionResult, Anchors | None, Stack | None]:
     """Run the labeller on the session's T1 and score it. Returns the result plus anchors and stack (for renders)."""
     res = SessionResult(key=session.key, vendor=session.vendor, model=session.model)
@@ -203,7 +204,8 @@ def evaluate_session(
         truths = truth_levels(session, stack)
         res.n_levels = len(truths)
         study = from_stacks([stack])
-        anchors = label_spine(study, backend=backend)
+        cfg = Config(ml_intra_op_threads=threads) if threads is not None else None
+        anchors = label_spine(study, cfg, backend=backend)
         res.warnings = list(anchors.warnings)
         res.rows = score_levels(anchors, truths, session)
         return res, anchors, stack
@@ -268,9 +270,10 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--root", default=None, help="raw/ folder (default: the registered dataset)")
     ap.add_argument("--out", required=True, help="write the summary JSON here (no paths inside)")
     ap.add_argument("--backend", default="auto")
+    ap.add_argument("--threads", type=int, default=None, help="ONNX Runtime threads (0 = ORT default)")
     args = ap.parse_args(argv)
     sessions = discover(args.root)
-    results = [evaluate_session(s, backend=args.backend)[0] for s in sessions]
+    results = [evaluate_session(s, backend=args.backend, threads=args.threads)[0] for s in sessions]
     summary = summarise_by(results)
     with open(args.out, "w", encoding="utf-8") as f:
         json.dump(summary, f, indent=1)

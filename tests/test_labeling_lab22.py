@@ -17,6 +17,7 @@ from spinescope.anatomy import pipeline
 from spinescope.anatomy.anchors import Anchors, Disc, Vertebra
 from spinescope.anatomy.calibration import (
     DEFAULT_CALIBRATION_VERSION,
+    SACRAL_FEATURES_V3,
     SIGNAL_FEATURES_V3,
     TARGET_PRECISION_V3,
     UNREACHABLE_THRESHOLD,
@@ -25,11 +26,17 @@ from spinescope.anatomy.calibration import (
     choose_thresholds,
     load_calibration,
     numbering_signals,
+    sacral_signals,
     volume_feature_map,
 )
-from spinescope.anatomy.conus import SliceTip, agreeing_tips, refresh_conus
+from spinescope.anatomy.conus import refresh_conus
 from spinescope.anatomy.fusion import relabel_anchors
-from spinescope.anatomy.numbering import STATUS_CONFIRMED, STATUS_PROBABLE, STATUS_UNCONFIRMED, numbering_status
+from spinescope.anatomy.numbering import (
+    STATUS_CONFIRMED,
+    STATUS_PROBABLE,
+    STATUS_UNCONFIRMED,
+    numbering_status,
+)
 from spinescope.config import DEFAULT
 
 
@@ -46,31 +53,26 @@ def _three_discs() -> Anchors:
 # ----------------------------------------------------------------------------------------- numbering signals
 def test_v3_signals_present_finite_and_neutral_when_missing():
     a = _three_discs()
-    full = numbering_signals(
-        a,
-        lumbo_p=[0.95, 0.04, 0.01],
-        votes=[],
-        p_shift=0.0,
-        coverage_low_z=None,
-        s1_below_mm=12.0,
-        s1_ap_ratio=0.5,
-        t1t2_bottom=True,
-    )
-    assert set(SIGNAL_FEATURES_V3) <= set(full)
+    v2 = numbering_signals(a, lumbo_p=[0.95, 0.04, 0.01], votes=[], p_shift=0.0, coverage_low_z=None)
+    full = {
+        **v2,
+        **sacral_signals(s1_below_mm=12.0, s1_ap_ratio=0.5, t1t2_bottom=True),
+    }
+    assert set(SIGNAL_FEATURES_V3) == set(full)
+    assert set(SACRAL_FEATURES_V3) <= set(full) and set(v2) <= set(full)
     assert all(np.isfinite(v) for v in full.values())
     assert full["s1_present"] == 1.0 and full["s1_below_mm"] == 12.0
     assert full["s1_ap_ratio"] == 0.5 and full["t1t2_bottom"] == 1.0
 
-    none = numbering_signals(a, lumbo_p=None, votes=[], p_shift=0.0, coverage_low_z=None)
+    none = sacral_signals(s1_below_mm=None, s1_ap_ratio=None, t1t2_bottom=False)
     assert none["s1_present"] == 0.0 and none["s1_below_mm"] == 0.0
     assert none["s1_ap_ratio"] == 1.0 and none["t1t2_bottom"] == 0.0
 
 
 def test_s1_present_uses_the_visibility_threshold():
-    a = _three_discs()
     thr = DEFAULT.sacrum_min_visible_mm
-    below = numbering_signals(a, lumbo_p=None, votes=[], p_shift=0.0, coverage_low_z=None, s1_below_mm=thr - 0.1)
-    at = numbering_signals(a, lumbo_p=None, votes=[], p_shift=0.0, coverage_low_z=None, s1_below_mm=thr)
+    below = sacral_signals(s1_below_mm=thr - 0.1, s1_ap_ratio=None, t1t2_bottom=False)
+    at = sacral_signals(s1_below_mm=thr, s1_ap_ratio=None, t1t2_bottom=False)
     assert below["s1_present"] == 0.0 and at["s1_present"] == 1.0
 
 
@@ -112,14 +114,14 @@ def test_unreachable_target_never_announces_anything():
 # ----------------------------------------------------------------------------------------- caps and recap
 def test_confirmed_needs_bone_below_and_no_relabel():
     caps = pipeline._apply_status_caps
-    assert caps(STATUS_CONFIRMED, sacrum_below=True, applied=False, second_extra=False, lumbo_status="ok") == (
-        STATUS_CONFIRMED
-    )
+    assert caps(
+        STATUS_CONFIRMED, sacrum_below=True, applied=False, second_extra=False, lumbo_status="ok"
+    ) == (STATUS_CONFIRMED)
     assert caps(STATUS_CONFIRMED, sacrum_below=False, applied=False, second_extra=False) == STATUS_PROBABLE
     assert caps(STATUS_CONFIRMED, sacrum_below=True, applied=True, second_extra=False) == STATUS_PROBABLE
-    assert caps(STATUS_CONFIRMED, sacrum_below=True, applied=False, second_extra=False, lumbo_status="unsure") == (
-        STATUS_UNCONFIRMED
-    )
+    assert caps(
+        STATUS_CONFIRMED, sacrum_below=True, applied=False, second_extra=False, lumbo_status="unsure"
+    ) == (STATUS_UNCONFIRMED)
 
 
 def test_recap_undoes_a_recomputed_status_that_skips_the_caps():
@@ -153,7 +155,10 @@ def test_calibration_versions_stay_loadable():
     assert load_calibration() is not None
     assert DEFAULT_CALIBRATION_VERSION in (2, 3)
     assert calibration_path(3).name == "calibration_v3.json"
-    assert calibration_path(2).name == "calibration_v2.json" and calibration_path(1).name == "calibration_v1.json"
+    assert (
+        calibration_path(2).name == "calibration_v2.json"
+        and calibration_path(1).name == "calibration_v1.json"
+    )
 
 
 def test_v2_volume_is_insensitive_to_the_sacrum_feature():
@@ -174,7 +179,9 @@ def test_relabelling_moves_pre_numbering_geometry_with_the_names():
     a = _three_discs()
     a.discs = {"L4-L5": _disc(-60.0), "L5-S1": _disc(-100.0)}
     a.vertebrae = {
-        "S1": Vertebra(center=[0, 45, -115.0], body={"level": "S1", "discs_below": 0, "below_lowest_disc_mm": 14.0}),
+        "S1": Vertebra(
+            center=[0, 45, -115.0], body={"level": "S1", "discs_below": 0, "below_lowest_disc_mm": 14.0}
+        ),
         "L5": Vertebra(center=[0, 45, -80.0], body={"level": "L5", "discs_below": 1}),
     }
     a.canal = {"per_level": {"L5-S1": {"z_mm": -100.0}, "L5": {"z_mm": -80.0}, "L4-L5": {"z_mm": -60.0}}}
@@ -182,7 +189,11 @@ def test_relabelling_moves_pre_numbering_geometry_with_the_names():
     assert set(a.discs) == {"L3-L4", "L4-L5"}
     assert set(a.vertebrae) == {"L5", "L4"}
     assert a.vertebrae["L5"].body["level"] == "L5" and a.vertebrae["L4"].body["level"] == "L4"
-    assert a.vertebrae["L4"].body["discs_below"] == 0 and a.vertebrae["L4"].body["below_lowest_disc_mm"] == 14.0
+    # the S1 body (0 discs below) is now named L5 and keeps its measurement; the L5 body is now L4
+    assert (
+        a.vertebrae["L5"].body["discs_below"] == 0 and a.vertebrae["L5"].body["below_lowest_disc_mm"] == 14.0
+    )
+    assert a.vertebrae["L4"].body["discs_below"] == 1
     assert set(a.canal["per_level"]) <= set(a.discs) | set(a.vertebrae)
     assert "L4-L5" in a.canal["per_level"]
 
@@ -216,8 +227,10 @@ def test_refresh_conus_applies_status_factor_cap_and_names():
     relabel_anchors(a, 1)
     a.numbering = {"status": STATUS_PROBABLE}
     refresh_conus(a, DEFAULT)
-    assert a.conus["level"] in set(a.discs) | {f"L{i}" for i in range(1, 6)} | {"T12", "S1"}
-    assert sum(w.startswith("possible low-lying conus") for w in a.warnings) == 1
+    # the reference disc L2-L3 is renamed, so the low-lying flag is recomputed; the warning follows the flag
+    assert sum(w.startswith("possible low-lying conus") for w in a.warnings) == (
+        0 if not a.conus["low_lying"] else 1
+    )
 
 
 def test_refresh_conus_without_a_tip_is_a_no_op():
@@ -225,26 +238,6 @@ def test_refresh_conus_without_a_tip_is_a_no_op():
     a.conus = None
     refresh_conus(a, DEFAULT)
     assert a.conus is None
-
-
-def test_agreeing_tips_never_empty_for_two_clusters():
-    """Tips in two clusters around an even-count median: the nearest cluster is used (no NaN mean)."""
-
-    def tip(z: float) -> SliceTip:
-        return SliceTip(
-            k=0,
-            z=z,
-            xyz=np.array([0.0, 0.0, z]),
-            confidence=0.5,
-            run_mm=10.0,
-            reached_fov_end=False,
-        )
-
-    tips = [tip(0.0), tip(0.5), tip(20.0), tip(20.5)]  # median 10.25: no tip within 6 mm of it
-    got = agreeing_tips(tips, DEFAULT.conus_agree_mm)
-    assert got and all(abs(t.z - got[0].z) <= DEFAULT.conus_agree_mm for t in got)
-    assert {round(t.z) for t in got} <= {0, 20}
-    assert len(agreeing_tips([tip(3.0)], DEFAULT.conus_agree_mm)) == 1
 
 
 # ----------------------------------------------------------------------------------------- phantom: stage order

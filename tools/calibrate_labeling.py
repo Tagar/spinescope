@@ -60,6 +60,7 @@ from spinescope.anatomy.calibration import (
 from spinescope.anatomy.fusion import fusion_record
 from spinescope.anatomy.numbering import STATUS_CONFIRMED, STATUS_PROBABLE, numbering_status
 from spinescope.anatomy.pipeline import label_spine_details
+from spinescope.config import Config
 
 log = logging.getLogger("calibrate_labeling")
 SPIDER_ROOT = Path(os.environ.get("SPINESCOPE_DATA", Path.home() / "data" / "public")) / "spider"
@@ -112,16 +113,21 @@ def _match_dict(m: DiscMatch) -> dict[str, Any]:
     return {k: _finite(v) for k, v in d.items()}
 
 
-def _spider_record(job: tuple[str, str, str]) -> dict[str, Any]:
-    """Worker: label one SPIDER volume (with its T1 sibling for a T2 file) and score it against its mask."""
-    name, manu, split = job
+def _spider_record(job: tuple[str, str, str, bool]) -> dict[str, Any]:
+    """Worker: label one SPIDER volume (with its T1 sibling for a T2 file) and score it against its mask.
+
+    The last job field turns on the classical second opinion (``Config.classical_second_opinion``), off by default.
+    """
+    name, manu, split, classical = job
     rec: dict[str, Any] = {"id": name, "split": split, "vendor": manu, "error": None}
     t0 = time.perf_counter()
     try:
         study = _spider_study(name)
         truth, mx = truth_from_mask(str(SPIDER_ROOT / "masks" / f"{name}.mha"))
         rec["second_series"] = len(study.find("sag")) > 1
-        det = label_spine_details(study, backend="ml", calibrate=False)
+        det = label_spine_details(
+            study, Config(classical_second_opinion=classical), backend="ml", calibrate=False
+        )
         rec["primary"] = det.anchors.source_stack
         score = score_anchors(det.anchors, truth, mx)
         rec.update(_record_common(det, score))
@@ -297,13 +303,18 @@ def cmd_collect(args: argparse.Namespace) -> int:
             (cache).mkdir(parents=True, exist_ok=True)
             (cache / f"{rec['id']}.json").write_text(json.dumps(rec), encoding="utf-8")
         return 0
-    cache = out / args.split
+    # A separate cache folder for the classical second opinion, so the default records are never mixed with it.
+    cache = out / (args.split + ("_classical" if args.classical_second_opinion else ""))
     cache.mkdir(parents=True, exist_ok=True)
     files = _spider_files(args.split)
     if args.limit:  # evenly spaced subset, recorded so that the fit uses exactly this set
         files = [files[round(i)] for i in np.linspace(0, len(files) - 1, args.limit)]
         (out / f"{args.split}_subset.json").write_text(json.dumps([n for n, _ in files]), encoding="utf-8")
-    todo = [(name, manu, args.split) for name, manu in files if not (cache / f"{name}.json").is_file()]
+    todo = [
+        (name, manu, args.split, bool(args.classical_second_opinion))
+        for name, manu in files
+        if not (cache / f"{name}.json").is_file()
+    ]
     log.info("%s: %d volumes, %d to run", args.split, len(files), len(todo))
     for rec in _run_jobs(_spider_record, todo, args.jobs):
         (cache / f"{rec['id']}.json").write_text(json.dumps(rec), encoding="utf-8")
@@ -984,6 +995,11 @@ def build_parser() -> argparse.ArgumentParser:
     c.add_argument("--limit", type=int, default=0)
     c.add_argument("--out", required=True)
     c.add_argument("--jobs", type=int, default=3)
+    c.add_argument(
+        "--classical-second-opinion",
+        action="store_true",
+        help="label with the classical second opinion on (Config.classical_second_opinion; SPIDER split only)",
+    )
     c.set_defaults(func=cmd_collect)
     f = sub.add_parser("fit", help="fit on training records and report")
     f.add_argument("--out", required=True)

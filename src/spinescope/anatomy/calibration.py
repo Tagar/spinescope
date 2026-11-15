@@ -111,13 +111,8 @@ VOLUME_FEATURES_V2: tuple[str, ...] = (*VOLUME_FEATURES, "lumbo_margin", "gap_bo
 #: ``s1_present`` that it reaches ``sacrum_min_visible_mm``, ``s1_ap_ratio`` the AP depth of that body over the
 #: body above the lowest disc (sacral morphology: sacral segments are narrower), ``t1t2_bottom`` the lowest disc is
 #: confirmed by the second sagittal series.
-SIGNAL_FEATURES_V3: tuple[str, ...] = (
-    *SIGNAL_FEATURES,
-    "s1_present",
-    "s1_below_mm",
-    "s1_ap_ratio",
-    "t1t2_bottom",
-)
+SACRAL_FEATURES_V3: tuple[str, ...] = ("s1_present", "s1_below_mm", "s1_ap_ratio", "t1t2_bottom")
+SIGNAL_FEATURES_V3: tuple[str, ...] = (*SIGNAL_FEATURES, *SACRAL_FEATURES_V3)
 #: Neutral values of the version 3 signals when the geometry (or a second series) is missing.
 S1_AP_RATIO_NEUTRAL = 1.0
 
@@ -227,10 +222,6 @@ def numbering_signals(
     votes: list[dict[str, Any]],
     p_shift: float,
     coverage_low_z: float | None,
-    s1_below_mm: float | None = None,
-    s1_ap_ratio: float | None = None,
-    t1t2_bottom: bool = False,
-    min_visible_mm: float = DEFAULT.sacrum_min_visible_mm,
 ) -> dict[str, float]:
     """Version 2 numbering signals of one study, from the labeller's outputs (keys :data:`SIGNAL_FEATURES`).
 
@@ -245,10 +236,7 @@ def numbering_signals(
     * ``vote_shift_frac``: share of the fusion's cue votes that favour a non-zero offset; ``p_shift``: posterior of
       any non-zero offset.
     * ``n_discs``: number of discs after the sacral check.
-    * Version 3 (lab22; the vertebral geometry is measured before numbering): ``s1_below_mm`` bone below the lowest
-      disc on the mid-sagittal slice (0 when not measured), ``s1_present`` 1 when it reaches ``min_visible_mm``,
-      ``s1_ap_ratio`` AP depth of that body over the body above the lowest disc (1 when unknown), ``t1t2_bottom``
-      1 when the lowest disc is confirmed by the second series.
+    The version 3 signals (:func:`sacral_signals`) are separate, so that this dict keeps the version 2 keys.
     """
     discs = sorted(anchors.discs.values(), key=lambda d: float(d.center[2]))  # bottom-up
     n = len(discs)
@@ -272,8 +260,6 @@ def numbering_signals(
     fov = zs[0] - float(coverage_low_z) if (n and coverage_low_z is not None) else 0.0
     shift_votes = [v for v in votes if int(v.get("best", 0)) != 0]
     vote_frac = len(shift_votes) / len(votes) if votes else 0.0
-    below = float(s1_below_mm) if s1_below_mm is not None else 0.0
-    ratio = float(s1_ap_ratio) if s1_ap_ratio is not None else S1_AP_RATIO_NEUTRAL
     return {
         "lumbo_p0": p0,
         "lumbo_margin": margin,
@@ -286,6 +272,26 @@ def numbering_signals(
         "vote_shift_frac": float(vote_frac),
         "p_shift": float(p_shift),
         "n_discs": float(n),
+    }
+
+
+def sacral_signals(
+    *,
+    s1_below_mm: float | None,
+    s1_ap_ratio: float | None,
+    t1t2_bottom: bool,
+    min_visible_mm: float = DEFAULT.sacrum_min_visible_mm,
+) -> dict[str, float]:
+    """Version 3 numbering signals (the four keys of :data:`SACRAL_FEATURES_V3`; lab22).
+
+    From the vertebral geometry measured before numbering: ``s1_below_mm`` bone below the lowest disc (0 when not
+    measured), ``s1_present`` 1 when it reaches ``min_visible_mm`` (the same test as ``sacrum_below``),
+    ``s1_ap_ratio`` AP depth of that body over the body above the lowest disc (1 when unknown), ``t1t2_bottom`` 1
+    when the lowest disc is confirmed by the second series.
+    """
+    below = float(s1_below_mm) if s1_below_mm is not None else 0.0
+    ratio = float(s1_ap_ratio) if s1_ap_ratio is not None else S1_AP_RATIO_NEUTRAL
+    return {
         "s1_present": 1.0 if below >= min_visible_mm else 0.0,
         "s1_below_mm": below,
         "s1_ap_ratio": ratio,
@@ -492,6 +498,7 @@ __all__ = [
     "load_calibration",
     "logit",
     "numbering_signals",
+    "sacral_signals",
     "spacing_deviation",
     "volume_feature_map",
     "volume_feature_vector",

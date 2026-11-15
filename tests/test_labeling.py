@@ -11,8 +11,9 @@ import tempfile
 import numpy as np
 import pytest
 
+from _labels import label_spine
 from spinescope import load_study
-from spinescope.anatomy import label_spine, label_spine_cli
+from spinescope.anatomy import label_spine_cli
 from spinescope.study import from_stacks
 from spinescope.testing.phantom import PhantomSpec, SpinePhantom, write_standard_study
 

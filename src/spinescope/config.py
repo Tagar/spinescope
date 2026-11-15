@@ -284,6 +284,17 @@ class Config:
     # Use the 3-D normal too. Off: on the independent Sudirman axial-slab normals it is worse (3.3 vs 2.5 deg
     # median), while SPIDER's own normals are 3-D masks, so the SPIDER gain is partly definitional.
     ml_disc_normal_3d: bool = False
+    # ONNX Runtime threads for the learned labeller (0 = ORT default, all cores). Inside a multiprocessing
+    # child the default becomes 1 thread (see spinescope.anatomy.ml.labeller.resolve_threads); the environment
+    # variable SPINESCOPE_THREADS sets the intra-op count when these are 0. Judgement default: a single
+    # labelled study is latency-bound on a laptop, pools are throughput-bound.
+    ml_intra_op_threads: int = 0
+    ml_inter_op_threads: int = 0
+    # Classical labeller as a second opinion inside the learned numbering fusion (its weak tilt vote and the
+    # ``classical_agree`` calibration feature). Off by default: it agreed geometrically on 5 of 267 SPIDER studies
+    # (lab08) and costs about half of a single-study run (the midline symmetry search). Turning it on changes the
+    # calibration inputs: refit with tools/calibrate_labeling.py (docs/labeling/lab14_perf.md).
+    classical_second_opinion: bool = False
     # ---- anatomy: applicability (spinescope.anatomy.ood: when NOT to label). Judgement defaults from anatomy
     # texts, checked on SPIDER training only (docs/labeling/lab12_ood.md). Lengths in mm, unitless otherwise.
     # Lumbar discs are ~8-12 mm high; thoracic and cervical discs ~4-6 mm.

@@ -17,7 +17,6 @@ import numpy as np
 from numpy.typing import NDArray
 from scipy import ndimage
 from scipy.signal import find_peaks
-from skimage.draw import polygon as _sk_polygon
 
 from .geometry import FloatArray, Stack
 
@@ -142,6 +141,8 @@ def poly_stats(stack: Stack, k: int, poly_rc: Any) -> dict[str, float | int]:
     """Mean, median, sd, n and area (mm2) inside a polygon given as ``[(r, c), ...]`` on slice ``k``."""
     rows, cols = stack.vol.shape[1:]
     pts = np.asarray(poly_rc, dtype=np.float64)
+    from skimage.draw import polygon as _sk_polygon  # lazy: scikit-image is slow to import
+
     rr, cc = _sk_polygon(pts[:, 0], pts[:, 1], shape=(rows, cols))
     return _stats(stack.vol[k][rr, cc], float(len(rr)) * stack.row_mm * stack.col_mm)
 

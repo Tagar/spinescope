@@ -7,6 +7,7 @@ import logging
 import numpy as np
 import pytest
 
+from _labels import label_spine
 from report_factory import minimal_valid
 from spinescope import Study, load_study
 from spinescope.ai.briefs import (
@@ -19,7 +20,6 @@ from spinescope.ai.briefs import (
     verification_errors,
 )
 from spinescope.ai.briefs import READER_NAME_RE as NAME_RE
-from spinescope.anatomy import label_spine
 from spinescope.geometry import Stack
 from spinescope.io.dicom import KEEP_TAGS
 from spinescope.report.schema import ITEM_SECTIONS, global_group_names, level_group_names

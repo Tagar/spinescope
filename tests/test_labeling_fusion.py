@@ -9,7 +9,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from spinescope.anatomy import label_spine
+from _labels import label_spine
 from spinescope.anatomy.anchors import Anchors, Disc, Vertebra
 from spinescope.anatomy.calibration import (
     DISC_FEATURES,
@@ -413,6 +413,18 @@ def test_label_spine_numbering_record_carries_status_and_votes(phantom_single) -
     assert num["calibrated"] is False  # the classical backend is not calibrated
     assert 0.0 <= num["confidence"] <= 1.0
     assert num["second_series"] is None
+
+
+def test_classical_second_opinion_is_opt_in_for_the_learned_labeller(phantom_single) -> None:  # type: ignore[no-untyped-def]
+    """Default: no classical opinion in the learned numbering (its cost, lab14_perf); opt in with the flag."""
+    pytest.importorskip("onnxruntime")
+    from spinescope.config import Config
+
+    assert Config().classical_second_opinion is False
+    off = label_spine(phantom_single, backend="ml")
+    assert off.numbering["classical"] is None
+    on = label_spine(phantom_single, Config(classical_second_opinion=True), backend="ml")
+    assert on.numbering["classical"] is not None
 
 
 def test_label_spine_second_series_is_recorded(phantom_two_series) -> None:  # type: ignore[no-untyped-def]

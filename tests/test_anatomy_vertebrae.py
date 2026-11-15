@@ -257,7 +257,7 @@ def test_geometry_round_trips_through_json_and_old_documents_load():
 
 def test_hook_on_phantom_study_serialises(phantom_study):
     """The labeller runs on the phantom (out of distribution, so only the code path is checked, not the numbers)."""
-    from spinescope.anatomy.ml import label_spine_ml
+    from _labels import label_spine_ml
 
     a = label_spine_ml(phantom_study)
     attach_geometry(phantom_study, a)
@@ -291,7 +291,9 @@ def test_s1_body_below_lowest_disc_is_measured_and_absent_without_bone():
     s1 = a.vertebrae["S1"].body
     assert s1 is not None and s1["discs_below"] == 0
     assert s1["below_lowest_disc_mm"] == pytest.approx(16.0, abs=2.0)
-    assert s1["extent_mm"] is None or s1["extent_mm"] > 0.0  # the mid-sagittal extent is measured when a plane exists
+    assert (
+        s1["extent_mm"] is None or s1["extent_mm"] > 0.0
+    )  # the mid-sagittal extent is measured when a plane exists
     # The other bodies carry an extent too; only the bone below the lowest disc is a numbering signal.
     assert a.vertebrae["L5"].body["below_lowest_disc_mm"] is None
 
@@ -299,4 +301,3 @@ def test_s1_body_below_lowest_disc_is_measured_and_absent_without_bone():
     a0 = _synthetic_anchors(seg0)
     measure_geometry(seg0, a0, DEFAULT)
     assert "S1" not in a0.vertebrae or (a0.vertebrae["S1"].body["below_lowest_disc_mm"] or 0.0) < 1.0
-

@@ -26,6 +26,7 @@ jobs:
       - run: ruff format --check .
       - run: mypy
 
+  # Fast suite: the default selection (pyproject addopts exclude the `slow` marker). Runs on every OS/Python.
   test:
     needs: lint
     strategy:
@@ -44,10 +45,27 @@ jobs:
         with:
           node-version: "20"
       - run: python -m pip install -e ".[dev]"
-      - run: python -m pytest --cov=spinescope --cov-report=term-missing --cov-report=xml
+      - run: python -m pytest -m "not slow" --cov=spinescope --cov-report=term-missing --cov-report=xml
+
+  # Full suite: everything, including the `slow` marker (heavy labelling runs and dataset validation).
+  # One OS and one Python is enough for these; coverage is reported from this run.
+  test-full:
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: python -m pip install -e ".[dev]"
+      - run: python -m pytest -m "" --cov=spinescope --cov-report=term-missing --cov-report=xml
 
   build:
-    needs: test
+    needs: [test, test-full]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -63,3 +81,10 @@ jobs:
           /tmp/wheelenv/bin/pip install dist/*.whl
           /tmp/wheelenv/bin/spinescope --help
           /tmp/wheelenv/bin/python -c "import spinescope, spinescope.testing.phantom; print(spinescope.__version__)"
+      - name: Import stays light (no heavy optional modules at import time)
+        run: |
+          /tmp/wheelenv/bin/python -c "
+          import sys, spinescope
+          heavy = [m for m in ('onnxruntime', 'skimage', 'matplotlib', 'scipy', 'pydicom') if m in sys.modules]
+          assert not heavy, heavy
+          print('import spinescope: ok')"
