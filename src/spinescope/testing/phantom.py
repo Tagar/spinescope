@@ -2,7 +2,12 @@
 
 The phantom is analytic and defined in patient LPS mm, so any slice geometry (sagittal, axial,
 oblique slabs, flipped in-plane axes...) can be rendered exactly. It is meant for unit tests and
-examples. It is a cartoon, not a realistic anatomy simulator.
+examples.
+
+Two looks are available through ``PhantomSpec(realism=...)``: ``"cartoon"`` (the default: hand-drawn shapes and an
+intensity table, kept so the existing tests keep their meaning) and ``"realistic"`` (kidney-bean bodies with
+morphometry, spin-echo signal from published relaxation times, partial-volume averaging; see
+``spinescope.testing.realistic`` and ``docs/labeling/lab21_phantom.md``).
 
 Example::
 
@@ -13,9 +18,10 @@ Example::
 
 from __future__ import annotations
 
+import hashlib
 import os
 import zlib
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from itertools import pairwise
 from typing import Any
 
@@ -30,6 +36,8 @@ BODIES = ("T11", "T12", "L1", "L2", "L3", "L4", "L5")  # body above each disc, s
 AIR, SOFT, FAT, MUSCLE, MARROW, CORTEX, ANNULUS, NUCLEUS, CSF, CORD, VESSEL, MODIC1, PSOAS = range(13)
 # Added for the robustness scenarios (ids appended so the original ids keep their values).
 OEDEMA, HARDWARE, SCHMORL, BLOOM = range(13, 17)
+# Added for the realistic anatomy (``realism="realistic"``); the cartoon never produces these labels.
+DURA, LIGAMENT, FACET, BOWEL, LIVER, KIDNEY, NERVE, REMNANT = range(17, 25)
 TISSUES = (
     "air",
     "soft",
@@ -48,6 +56,14 @@ TISSUES = (
     "hardware",
     "schmorl",
     "bloom",
+    "dura",
+    "ligament",
+    "facet",
+    "bowel",
+    "liver",
+    "kidney",
+    "nerve",
+    "remnant",
 )
 
 #: Mean signal per tissue and contrast (arbitrary units, roughly 1.5 T FSE-like ordering).
@@ -143,14 +159,21 @@ LAT0 = np.array([1.0, 0.0, 0.0])  # lateral axis of an unrotated level
 SCOLIOSIS_SIGMA_MM = 60.0  # width of the thoracolumbar curve around its apex (L2)
 TRANSITIONAL = (None, "lumbarised_s1", "sacralised_l5")
 FIELD_STRENGTHS = (1.5, 3.0)
+REALISMS = (
+    "cartoon",
+    "realistic",
+)  # cartoon: hand-drawn shapes (default); realistic: see testing/realistic.py
+_LABEL_CACHE_SIZE = 512  # realistic label volumes kept per phantom (one stack set is about 160 sample blocks)
+CARTOON_SACRAL_SLOPE = 28.0
+CARTOON_SEGMENT_LORDOSIS: tuple[float, ...] = (3.0, 4.0, 5.0, 6.0, 8.0, 14.0)
 
 
 @dataclass
 class PhantomSpec:
     """Phantom parameters. Angles in degrees, lengths in mm."""
 
-    sacral_slope: float = 28.0
-    segment_lordosis: tuple[float, ...] = (3.0, 4.0, 5.0, 6.0, 8.0, 14.0)  # T11-T12..L4-L5 relative turns
+    sacral_slope: float | None = None  # degrees; None = 28 (cartoon) or 40 (realistic, Roussouly 2005)
+    segment_lordosis: tuple[float, ...] | None = None  # T11-T12..L4-L5 relative turns; None = per realism
     body_height: float = 26.0
     disc_height: float = 10.0
     body_half_width: float = 22.0
@@ -182,7 +205,11 @@ class PhantomSpec:
     ] = ()  # 'screws:<body>', 'cage:<disc>', 'rod' (posterior rod at the spinous line)
     ribs: bool = False  # rib tubes off the thoracic bodies (visible off the midline)
     bias_field: float = 0.0  # surface-coil intensity bias amplitude (relative; 0 = none)
-    field_strength: float = 1.5  # 1.5 or 3.0 T: intensity and noise variant (a cartoon, not a physics model)
+    field_strength: float = 1.5  # 1.5 or 3.0 T: intensity and noise variant (cartoon: an intensity table)
+    # ---- realism. ``realistic`` replaces the drawn shapes and intensities by morphometry and spin-echo physics.
+    realism: str = "cartoon"  # 'cartoon' (default, original look) | 'realistic' (testing/realistic.py)
+    supersample: tuple[int, int] = (2, 2)  # realistic only: (through-plane, in-plane per axis) sub-samples
+    gibbs: bool = False  # realistic only: Gibbs ringing from truncated k-space
 
 
 def _segment_distance(pts: np.ndarray, a: np.ndarray, b: np.ndarray) -> np.ndarray:
@@ -204,8 +231,27 @@ class SpinePhantom:
     """Analytic lumbar spine. ``truth`` holds the ground-truth anatomy anchors in LPS mm."""
 
     def __init__(self, spec: PhantomSpec | None = None) -> None:
-        self.spec = spec or PhantomSpec()
+        self._label_cache: dict[bytes, np.ndarray] = {}
+        spec = spec or PhantomSpec()
+        if spec.realism not in REALISMS:
+            raise ValueError(f"realism must be one of {REALISMS}, got {spec.realism!r}")
+        if spec.realism == "realistic":
+            from . import realistic as _re
+
+            defaults: dict[str, Any] = {
+                "sacral_slope": _re.SACRAL_SLOPE_DEG,
+                "segment_lordosis": _re.SEGMENT_LORDOSIS_DEG,
+            }
+        else:
+            defaults = {"sacral_slope": CARTOON_SACRAL_SLOPE, "segment_lordosis": CARTOON_SEGMENT_LORDOSIS}
+        resolved = {k: (getattr(spec, k) if getattr(spec, k) is not None else v) for k, v in defaults.items()}
+        self.spec = replace(spec, **resolved)
         self._build()
+
+    @property
+    def realistic(self) -> bool:
+        """True for ``realism="realistic"``."""
+        return self.spec.realism == "realistic"
 
     # ----------------------------------------------------------------- anatomy
     def _level_names(self) -> tuple[list[str], list[str], str]:
@@ -224,19 +270,39 @@ class SpinePhantom:
         return discs, bodies, sacrum
 
     def _disc_height(self, disc: str) -> float:
-        return self.spec.disc_height * (1.0 - self.spec.collapsed.get(disc, 0.0))
+        base = self.spec.disc_height
+        if self.realistic:
+            from . import realistic as _re
+
+            base = _re.DISC_HEIGHT_MM.get(disc, base)
+        return base * (1.0 - self.spec.collapsed.get(disc, 0.0))
+
+    def _body_dims(self, name: str) -> tuple[float, float, float]:
+        """(half width, half depth, height) of a vertebral body or of the S1 block, in mm."""
+        sp = self.spec
+        if self.realistic:
+            from . import realistic as _re
+
+            return (
+                _re.BODY_HALF_WIDTH_MM.get(name, sp.body_half_width),
+                _re.BODY_HALF_DEPTH_MM.get(name, sp.body_half_depth),
+                _re.BODY_HEIGHT_MM.get(name, sp.body_height),
+            )
+        return sp.body_half_width, sp.body_half_depth, sp.body_height
 
     def _build(self) -> None:
         sp = self.spec
+        slope = float(sp.sacral_slope if sp.sacral_slope is not None else CARTOON_SACRAL_SLOPE)
+        seg_spec = sp.segment_lordosis if sp.segment_lordosis is not None else CARTOON_SEGMENT_LORDOSIS
         disc_names, body_names, sacrum = self._level_names()
         self._body_names, self._sacrum = body_names, sacrum
         # disc tilt from axial, inferior -> superior. segment_lordosis is ordered T11-T12 .. L4-L5 (top first);
         # extra thoracic discs take the top value.
-        seg = list(sp.segment_lordosis)
+        seg = list(seg_spec)
         while len(seg) < len(disc_names) - 1:
             seg.insert(0, seg[0])
         turns = seg[: len(disc_names) - 1][::-1]  # L4-L5 .. top
-        tilts = [sp.sacral_slope]
+        tilts = [slope]
         for t in turns:
             tilts.append(tilts[-1] - t)
         p = np.array(sp.s1_top, dtype=np.float64)
@@ -246,6 +312,7 @@ class SpinePhantom:
             tilt = tilts[i]
             nxt = tilts[i + 1] if i + 1 < len(tilts) else tilts[-1]
             h = self._disc_height(disc)
+            hw_b, hd_b, hb = self._body_dims(body)  # the body above the disc sets the disc outline
             n = self._normal(tilt)
             a = self._ap(tilt)
             c = p + n * h / 2
@@ -254,28 +321,52 @@ class SpinePhantom:
                 "normal": n,
                 "ap": a,
                 "lat": LAT0.copy(),
-                "anterior": c - a * sp.body_half_depth,
-                "posterior": c + a * sp.body_half_depth,
+                "anterior": c - a * hd_b,
+                "posterior": c + a * hd_b,
                 "tilt_deg": tilt,
                 "height_mm": h,
             }
+            if self.realistic:
+                discs[disc].update(hw=hw_b, hd=hd_b)
             bottom = p + n * h
             tb = (tilt + nxt) / 2
             nb, ab = self._normal(tb), self._ap(tb)
-            bc = bottom + nb * sp.body_height / 2
-            bodies[body] = {"center": bc, "normal": nb, "ap": ab, "lat": LAT0.copy(), "tilt_deg": tb}
-            p = bottom + nb * sp.body_height
-        # Sacrum: a block below the S1 endplate, tilted by the sacral slope
-        n0, a0 = self._normal(sp.sacral_slope), self._ap(sp.sacral_slope)
+            bc = bottom + nb * hb / 2
+            bodies[body] = {
+                "center": bc,
+                "normal": nb,
+                "ap": ab,
+                "lat": LAT0.copy(),
+                "tilt_deg": tb,
+                "hw": hw_b,
+                "hd": hd_b,
+                "half_height": hb / 2,
+            }
+            p = bottom + nb * hb
+        # Sacrum: a block below the S1 endplate, tilted by the sacral slope (S1 is 30 mm high in both realisms)
+        n0, a0 = self._normal(slope), self._ap(slope)
         s1 = np.array(sp.s1_top) - n0 * 15.0
+        hw_s, hd_s, _hb = self._body_dims(sacrum)
         bodies[sacrum] = {
             "center": s1,
             "normal": n0,
             "ap": a0,
             "lat": LAT0.copy(),
-            "tilt_deg": sp.sacral_slope,
+            "tilt_deg": slope,
             "half_height": 15.0,
+            "hw": hw_s,
+            "hd": hd_s,
         }
+        self.thecal_end_z = float(
+            (np.array(sp.s1_top) - n0 * 30.0)[2]
+        )  # S1 bottom: the dural sac ends near S2
+        self._sacral_segments: list[dict[str, Any]] = []
+        if self.realistic:
+            from . import realistic as _re
+
+            self._sacral_segments = _re.sacral_segments(
+                np.array(sp.s1_top) - n0 * 30.0, slope, self._normal, self._ap
+            )
         self.discs, self.bodies = discs, bodies
         for item in sp.hardware:
             kind, _, name = item.partition(":")
@@ -362,6 +453,8 @@ class SpinePhantom:
     # ------------------------------------------------------------------ labels
     def labels(self, pts: np.ndarray) -> np.ndarray:
         """Tissue label for each LPS point, shape (m, 3) -> (m,)."""
+        if self.realistic:
+            return self._labels_cached(np.asarray(pts, dtype=np.float64))
         sp = self.spec
         pts = np.asarray(pts, dtype=np.float64)
         lab = np.full(len(pts), AIR, dtype=np.int8)
@@ -483,6 +576,21 @@ class SpinePhantom:
         lab[cord] = CORD
         return lab
 
+    def _labels_cached(self, pts: np.ndarray) -> np.ndarray:
+        """Realistic labels, memoised on the exact sample points: the three contrasts of one geometry share them."""
+        from . import realistic as _re
+
+        key = hashlib.blake2b(np.ascontiguousarray(pts).tobytes(), digest_size=16).digest()
+        hit = self._label_cache.get(key)
+        if hit is not None:
+            return hit
+        lab = _re.labels(self, pts)
+        lab.flags.writeable = False
+        if len(self._label_cache) >= _LABEL_CACHE_SIZE:
+            self._label_cache.pop(next(iter(self._label_cache)))
+        self._label_cache[key] = lab
+        return lab
+
     def _canal_distance(self, pts: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         line = self.canal_line
         best = np.full(len(pts), np.inf)
@@ -526,15 +634,48 @@ class SpinePhantom:
         return 1.0 + self.spec.bias_field * (np.exp(-((d / 140.0) ** 2)) - 0.5)
 
     def _table(self, contrast: str) -> dict[int, float]:
+        if self.realistic:
+            from . import realistic as _re
+
+            return _re.signal_table(ACQ[contrast], self.spec.field_strength)
         gain = 0.85 if contrast == "t2" and self.spec.field_strength == 3.0 else 1.0  # cartoon 3 T variant
         return {k: float(v) * gain for k, v in INTENSITY[contrast].items()}
 
     # ----------------------------------------------------------------- images
+    def _realistic_slice(
+        self,
+        ipp: np.ndarray,
+        rd: np.ndarray,
+        cd: np.ndarray,
+        nrm: np.ndarray,
+        rows: int,
+        cols: int,
+        px: float,
+        thickness: float,
+        contrast: str,
+    ) -> np.ndarray:
+        """Flat signal of one slice, averaged over sub-samples across the thickness and in plane (partial volume)."""
+        st, sx = self.spec.supersample
+        if st < 1 or sx < 1:
+            raise ValueError("supersample factors must be >= 1")
+        rr, cc = np.mgrid[0:rows, 0:cols]
+        base = ipp + np.outer(cc.ravel() * px, rd) + np.outer(rr.ravel() * px, cd)
+        acc = np.zeros(base.shape[0], dtype=np.float64)
+        n_sub = 0
+        for t in (np.arange(st) + 0.5) / st - 0.5:
+            for du in (np.arange(sx) + 0.5) / sx - 0.5:
+                for dv in (np.arange(sx) + 0.5) / sx - 0.5:
+                    pts = base + (t * thickness) * nrm + (du * px) * rd + (dv * px) * cd
+                    acc += self.intensity(self.labels(pts), contrast, pts)
+                    n_sub += 1
+        return acc / n_sub
+
     def intensity(self, labels: np.ndarray, contrast: str, pts: np.ndarray | None = None) -> np.ndarray:
         table = self._table(contrast)
-        img = np.zeros(labels.shape, dtype=np.float64)
+        lut = np.zeros(max(table) + 1, dtype=np.float64)  # label -> signal lookup (labels are small ints)
         for t, val in table.items():
-            img[labels == t] = val
+            lut[t] = val
+        img = lut[np.asarray(labels, dtype=np.intp)]
         if pts is not None and self.spec.degenerated:
             for d, f in self.spec.degenerated.items():
                 dv = self.discs[d]
@@ -542,6 +683,10 @@ class SpinePhantom:
                 near = (np.abs(q @ dv["normal"]) < self.spec.disc_height) & (labels == NUCLEUS)
                 ann = table[ANNULUS]
                 img[near] = ann + (table[NUCLEUS] - ann) * f
+        if pts is not None and self.realistic:
+            from . import realistic as _re
+
+            img = _re.apply_texture(img, labels, pts, self.spec.seed)
         return img
 
     def render(
@@ -594,11 +739,18 @@ class SpinePhantom:
         for o in offs:
             ipp = center + o * nrm - ((cols - 1) / 2) * px * rd - ((rows - 1) / 2) * px * cd
             pts = ipp + np.outer(cc.ravel() * px, rd) + np.outer(rr.ravel() * px, cd)
-            lab = self.labels(pts)
-            img = self.intensity(lab, contrast, pts)
+            if self.realistic:  # partial volume: average sub-samples through the slice and in plane
+                img = self._realistic_slice(ipp, rd, cd, nrm, rows + wrap_rows, cols, px, thickness, contrast)
+            else:
+                lab = self.labels(pts)
+                img = self.intensity(lab, contrast, pts)
             if self.spec.bias_field:
                 img = img * self._bias(pts)
             img2 = img.reshape(rows + wrap_rows, cols)
+            if self.realistic and self.spec.gibbs:
+                from . import realistic as _re
+
+                img2 = _re.gibbs_ringing(img2)
             if ghost:
                 s = max(1, rows // 12)  # ghosts repeat along the phase (row) axis
                 img2 = img2 + ghost * (np.roll(img2, s, axis=0) + np.roll(img2, -s, axis=0))

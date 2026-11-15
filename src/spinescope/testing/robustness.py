@@ -21,6 +21,7 @@ is L5-S1, or L6-S1 when S1 is lumbarised); the anatomical name is kept in the ph
 
 from __future__ import annotations
 
+import functools
 import math
 from dataclasses import dataclass, field
 from typing import Any
@@ -78,6 +79,7 @@ class RobustnessCase:
     phantom: SpinePhantom
     study: Study
     truth: list[TruthDisc]
+    realism: str = "cartoon"  # phantom look: 'cartoon' or 'realistic' (see testing/realistic.py)
 
 
 @dataclass
@@ -231,7 +233,8 @@ def scenario(name: str) -> Scenario:
 def _fov_rows_and_centre(ph: SpinePhantom, proto: Protocol) -> tuple[np.ndarray, int]:
     """Sagittal centre and row count that cover ``proto.fov`` (top body, bottom body)."""
     top, bottom = proto.fov or ("", "")
-    z_top = float(ph.bodies[top]["center"][2]) + ph.spec.body_height / 2 + proto.fov_pad_top
+    half_top = ph.bodies[top].get("half_height", ph.spec.body_height / 2)
+    z_top = float(ph.bodies[top]["center"][2]) + half_top + proto.fov_pad_top
     half_bottom = ph.bodies[bottom].get("half_height", ph.spec.body_height / 2)
     z_bot = float(ph.bodies[bottom]["center"][2]) - half_bottom - proto.fov_extra_below
     l3 = ph.bodies["L3"]["center"]
@@ -250,9 +253,12 @@ def _truth_in_view(ph: SpinePhantom, stack: Any) -> list[TruthDisc]:
     return out
 
 
-def build_case(sc: Scenario) -> RobustnessCase:
-    """Render scenario ``sc`` into a study and collect its in-view truth. Deterministic."""
-    ph = SpinePhantom(PhantomSpec(**sc.spec))
+def build_case(sc: Scenario, realism: str = "cartoon") -> RobustnessCase:
+    """Render scenario ``sc`` into a study and collect its in-view truth. Deterministic.
+
+    ``realism`` picks the phantom look: ``'cartoon'`` (the original shapes) or ``'realistic'``.
+    """
+    ph = SpinePhantom(PhantomSpec(**{**sc.spec, "realism": realism}))
     p = sc.protocol
     centre: np.ndarray | None = None
     rows = p.rows
@@ -278,7 +284,13 @@ def build_case(sc: Scenario) -> RobustnessCase:
     best = study.best("sag")
     if best is None:  # pragma: no cover - every protocol renders at least one sagittal
         raise RuntimeError(f"scenario {sc.name}: no sagittal stack")
-    return RobustnessCase(sc, ph, study, _truth_in_view(ph, best))
+    return RobustnessCase(sc, ph, study, _truth_in_view(ph, best), realism)
+
+
+@functools.cache
+def cached_case(name: str, realism: str = "cartoon") -> RobustnessCase:
+    """:func:`build_case` for the scenario called ``name``, cached for the process (rendering is the slow part)."""
+    return build_case(scenario(name), realism)
 
 
 def classify(metrics: dict[str, float], numbering_confidence: float) -> str:
