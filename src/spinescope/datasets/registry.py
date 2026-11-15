@@ -147,6 +147,74 @@ SUDIRMAN_LUMBAR_MRI = DatasetSpec(
     ),
 )
 
+SUDIRMAN_LUMBAR_LABELS = DatasetSpec(
+    key="lumbar_spine_mri_sudirman_labels",
+    title="Label Image Ground Truth Data for Lumbar Spine MRI Dataset (Sudirman et al.)",
+    modality="MRI axial T1-weighted label images (IVD, posterior element, thecal sac, AAP) of the last three discs",
+    licence="CC-BY-4.0",
+    licence_url="https://creativecommons.org/licenses/by/4.0/",
+    doi="10.17632/zbf6b4pttk.2",
+    source_url="https://data.mendeley.com/datasets/zbf6b4pttk/2",
+    citation=(
+        "Sudirman S, Al Kafri A, Natalia F, Meidia H, Afriliana N, Al-Rashdan W, Bashtawi M, "
+        "Al-Jumaily M. Label Image Ground Truth Data for Lumbar Spine MRI Dataset. Mendeley Data, V2 "
+        "(2019). doi:10.17632/zbf6b4pttk.2"
+    ),
+    description=(
+        "Raw and ground-truth label images of axial T1 slices of the last three intervertebral discs, "
+        "drawn by five labellers under an expert radiologist (companion of the Sudirman MRI dataset)."
+    ),
+    subdir="lumbar_spine_mri_sudirman_labels",
+    extra={"mendeley_id": "zbf6b4pttk"},
+    files=(
+        FileSpec(
+            "Ground_Truth_Label.zip",
+            "https://data.mendeley.com/public-files/datasets/zbf6b4pttk/files/"
+            "0a216a09-5349-4f4b-9a36-df28d436ae38/file_downloaded",
+            1039678878,
+            sha256="ba59da9855499265818e360b0bec7c47ec488f26fe14560845417c58b445a217",
+            resolver="mendeley-api",
+        ),
+        FileSpec(
+            "Manual_Label_Data.zip",
+            "https://data.mendeley.com/public-files/datasets/zbf6b4pttk/files/"
+            "78e10a83-df38-44ef-ab2f-82abf129e65f/file_downloaded",
+            637438849,
+            sha256="d8277b7f46264eb1d5f71b2f08da65f03812237bb1398c8d5235118f51a72b00",
+            resolver="mendeley-api",
+        ),
+    ),
+    notes="Both zips are below the 2 GiB cap (1.68 GB together). Resolved from the Mendeley files API.",
+)
+
+SUDIRMAN_RADIOLOGIST_NOTES = DatasetSpec(
+    key="lumbar_spine_mri_sudirman_notes",
+    title="Radiologists Notes for Lumbar Spine MRI Dataset (Sudirman et al.)",
+    modality="Expert radiologist annotations (xlsx) for the Sudirman lumbar MRI studies",
+    licence="CC-BY-4.0",
+    licence_url="https://creativecommons.org/licenses/by/4.0/",
+    doi="10.17632/s6bgczr8s2.2",
+    source_url="https://data.mendeley.com/datasets/s6bgczr8s2/2",
+    citation=(
+        "Sudirman S, Al Kafri A, Natalia F, Meidia H, Afriliana N, Al-Rashdan W, Bashtawi M, "
+        "Al-Jumaily M. Radiologists Notes for Lumbar Spine MRI Dataset. Mendeley Data, V2 (2019). "
+        "doi:10.17632/s6bgczr8s2.2"
+    ),
+    description="Radiologist notes per study: bone marrow disease, end plate degeneration, disc bulges, thecal sac compression.",
+    subdir="lumbar_spine_mri_sudirman_notes",
+    extra={"mendeley_id": "s6bgczr8s2"},
+    files=(
+        FileSpec(
+            "Radiologists Report.xlsx",
+            "https://data.mendeley.com/public-files/datasets/s6bgczr8s2/files/"
+            "ed86d033-5078-4658-948f-94c13e8b2291/file_downloaded",
+            38292,
+            sha256="3ec6d554fe277cb02554e783a36ad89ebfd58f121206ce3c9cf9158f22d954a7",
+            resolver="mendeley-api",
+        ),
+    ),
+)
+
 VCF_MRI_HCFMRP = DatasetSpec(
     key="lumbar_vcf_mri_hcfmrp",
     title="Lumbar vertebral compression fractures MRI (T1, benign vs malignant)",
@@ -177,7 +245,16 @@ VCF_MRI_HCFMRP = DatasetSpec(
 )
 
 #: Public spine MRI datasets, keyed by ``DatasetSpec.key``. Licences were checked at the source.
-REGISTRY: dict[str, DatasetSpec] = {d.key: d for d in (SPIDER, SUDIRMAN_LUMBAR_MRI, VCF_MRI_HCFMRP)}
+REGISTRY: dict[str, DatasetSpec] = {
+    d.key: d
+    for d in (
+        SPIDER,
+        SUDIRMAN_LUMBAR_MRI,
+        SUDIRMAN_LUMBAR_LABELS,
+        SUDIRMAN_RADIOLOGIST_NOTES,
+        VCF_MRI_HCFMRP,
+    )
+}
 
 #: Considered and not registered: LumASe (Zenodo 7181338, CC-BY-4.0) is CT, not MRI.
 

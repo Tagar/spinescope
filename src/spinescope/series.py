@@ -20,7 +20,11 @@ import numpy as np
 
 from .geometry import Stack, unit
 
-_LOCALIZER_RE = re.compile(r"\b(LOC|LOCALI[SZ]ER|SCOUT|SURVEY|TRI-?PILOT|3-?PL(ANE)?|AAHSCOUT|PLANNING)\b")
+# POSDISP (Siemens "position display"): 1-3 image copies of a planned slice, not an acquisition. They carry
+# the acquisition's TR/TE and a plane of their own, so they are treated as non-diagnostic localizers.
+_LOCALIZER_RE = re.compile(
+    r"\b(LOC|LOCALI[SZ]ER|SCOUT|SURVEY|TRI-?PILOT|3-?PL(ANE)?|AAHSCOUT|PLANNING|POSDISP)\b"
+)
 _STIR_RE = re.compile(r"\b(STIR|TIRM|IR|T2 ?IR|SPAIR-?IR)\b")
 _FLAIR_RE = re.compile(r"\bFLAIR\b")
 # Fat suppression: FS / FatSat / SPAIR / SPIR / CHESS, and T2FS / T1FS compounds (vendors differ).
