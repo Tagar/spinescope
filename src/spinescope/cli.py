@@ -113,6 +113,8 @@ def _cmd_label(args: argparse.Namespace) -> int:
     from .study import load_study
 
     study = load_study(args.path)
+    if getattr(args, "anchors", None):  # a corrected file: same as apply-labels
+        return _review_and_report(args, study, args.anchors)
     anchors = label_spine(study, backend=args.backend)
     doc = anchors.to_dict()
     if args.out:
@@ -135,10 +137,12 @@ def _load(path: str, *, anchors: bool, anchors_file: str | None = None) -> tuple
     from .study import load_study
 
     study = load_study(path)
-    if anchors_file:  # corrected anchors from `verify-labels --answer --out`: used as they are
-        from .anatomy.anchors import Anchors as _Anchors
+    if (
+        anchors_file
+    ):  # a corrected or verified file: checked against this study (refused if it is another one)
+        from .anatomy.review import load_anchors_file
 
-        return study, _Anchors.from_json(anchors_file)
+        return study, load_anchors_file(study, anchors_file, path=path)
     if not anchors:
         return study, None
     from .anatomy import label_spine
@@ -229,6 +233,38 @@ def _cmd_verify_labels(args: argparse.Namespace) -> int:
     return 0
 
 
+def _review_and_report(args: argparse.Namespace, study: Study, anchors_file: str) -> int:
+    """Apply a corrected anchors file (viewer export) to ``study``: checks, provenance, status by policy; print it."""
+    from pathlib import Path
+
+    from .anatomy.review import ReviewError, apply_review
+
+    try:
+        anchors = apply_review(study, anchors_file, who=args.who, why=args.why, path=args.path)
+    except ReviewError as exc:
+        print(f"anchors refused: {exc}", file=sys.stderr)
+        return 2
+    doc = anchors.to_dict()
+    if args.out:
+        Path(args.out).write_text(json.dumps(doc, indent=1) + "\n", encoding="utf-8")
+    if getattr(args, "json", False):
+        json.dump(doc, sys.stdout, indent=1, default=str)
+        print()
+    else:
+        print(_label_table(anchors))
+        if args.out:
+            print(f"Reviewed anchors JSON written to {args.out}")
+    return 0
+
+
+def _cmd_apply_labels(args: argparse.Namespace) -> int:
+    """``apply-labels STUDY CORRECTED --out FILE``: validate a viewer-corrected file against the study and set status."""
+    from .study import load_study
+
+    study = load_study(args.path)
+    return _review_and_report(args, study, args.corrected)
+
+
 def _cmd_mcp(args: argparse.Namespace) -> int:
     try:
         from .ai.mcp_server import main as mcp_main
@@ -273,7 +309,32 @@ def build_parser() -> argparse.ArgumentParser:
         default="auto",
         help="labeller: auto (learned if available, else classical), ml (learned) or classical",
     )
+    s.add_argument(
+        "--anchors",
+        help="apply a corrected anchors JSON (exported from the viewer) instead of labelling; see apply-labels",
+    )
+    s.add_argument(
+        "--who", default="reviewer", help="with --anchors: reviewer name for the provenance record"
+    )
+    s.add_argument(
+        "--why", help="with --anchors: reason for the review (default: the reason saved in the file)"
+    )
     s.set_defaults(func=_cmd_label)
+
+    s = sub.add_parser(
+        "apply-labels",
+        help="check a corrected anchors JSON against the study (schema, study fingerprint, no paths), add the "
+        "review provenance and set the status by policy (docs/guide/correcting-labels.md)",
+    )
+    s.add_argument("path", help="DICOM directory or volume file (the study the labels were made from)")
+    s.add_argument("corrected", help="anchors JSON exported from the viewer, or corrected by hand")
+    s.add_argument("--out", help="write the reviewed anchors JSON here")
+    s.add_argument("--who", default="reviewer", help="reviewer name or initials, saved in the provenance")
+    s.add_argument(
+        "--why", help="reason for the review, saved in the provenance (default: the file's own reason)"
+    )
+    s.add_argument("--json", action="store_true", help="print the reviewed anchors JSON instead of the table")
+    s.set_defaults(func=_cmd_apply_labels)
 
     s = sub.add_parser("brief", help="reading brief for an AI reader (conventions, anchors, findings format)")
     s.add_argument("path", help="DICOM directory or volume file")
@@ -341,7 +402,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     if raw[:1] == ["benchmark"]:  # forwarded verbatim: its own options, help and exit codes
         return _cmd_benchmark(raw[1:])
     args = build_parser().parse_args(raw)
-    return int(args.func(args))
+    from .anatomy.review import ReviewError
+
+    try:
+        return int(args.func(args))
+    except ReviewError as exc:  # a corrected file that does not belong to this study, or is malformed
+        print(f"anchors refused: {exc}", file=sys.stderr)
+        return 2
 
 
 if __name__ == "__main__":

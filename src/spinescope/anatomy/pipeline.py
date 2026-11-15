@@ -79,6 +79,7 @@ from .numbering import (
     vertebra_name,
 )
 from .ood import apply_applicability, assess_applicability
+from .review import stamp_study
 from .sagittal import BodyAxis, CanalTrack, SagImage, build_body_axis, sagittal_image, straighten, track_canal
 
 log = logging.getLogger(__name__)
@@ -815,6 +816,7 @@ def label_spine_details(
             refresh_conus(det.anchors, cfg)  # level, low-lying flag and status factor in the final names
         else:
             _conus_after_labels(study, det.anchors, cfg)
+    stamp_study(det.anchors, study)  # binds the labels to this study (corrected files are checked against it)
     return det
 
 

@@ -35,6 +35,8 @@ dependencies = [
   "scikit-image>=0.21",
   # Runs the packaged learned labeller (default backend for automatic level labelling).
   "onnxruntime>=1.17",
+  # Validates corrected anchors files against anchors.schema.json (apply-labels, MCP open_study).
+  "jsonschema>=4.18",
 ]
 
 [project.optional-dependencies]

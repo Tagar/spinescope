@@ -177,21 +177,25 @@ class SpineTools:
     def open_study(self, path: str, anchors_path: str | None = None) -> dict[str, Any]:
         """Open a DICOM directory (any layout) or a NIfTI / MetaImage / NRRD volume. Returns a study_id, the
         technical study attributes and the series table. The path is not echoed back. anchors_path: optional
-        anchors JSON already verified by a reader (verify-labels --out); the session then uses those levels."""
+        anchors JSON from the viewer export (apply-labels) or verify-labels --out. It must belong to this study
+        (study fingerprint, schema, no paths); its numbering status is set by the review policy, not taken from
+        the file. The session then uses those levels."""
+        from ..anatomy.review import ReviewError, load_anchors_file
+
         if not isinstance(path, str) or not os.path.exists(path):
             raise ToolError("no study found at the given path")
-        verified: Anchors | None = None
-        if anchors_path is not None:
-            try:
-                verified = Anchors.from_json(anchors_path)
-            except Exception:
-                raise ToolError("could not read the anchors file") from None
         try:
             study = load_study(path)
         except Exception as exc:  # the message may carry the path, so report only the type
             raise ToolError(f"could not read the study ({type(exc).__name__})") from None
         if len(study) == 0:
             raise ToolError("no image series could be read from the study")
+        verified: Anchors | None = None
+        if anchors_path is not None:
+            try:
+                verified = load_anchors_file(study, anchors_path, path=path)
+            except ReviewError as exc:
+                raise ToolError(f"anchors refused: {exc}") from None
         study_id = secrets.token_hex(6)
         self._studies[study_id] = study
         if verified is not None:
