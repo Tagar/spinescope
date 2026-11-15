@@ -790,7 +790,7 @@ def label_spine_details(
     calibrate: bool = True,
     lumbosacral: bool = True,
     fusion: FusionConfig | None = None,
-    counting: bool = True,
+    counting: bool = False,
 ) -> LabelDetails:
     """As :func:`label_spine`, but also returns the fusion record, raw confidences and calibration features.
 
@@ -801,7 +801,8 @@ def label_spine_details(
     the "before" in evaluations. The default check is on. ``fusion`` overrides the fusion settings (e.g.
     ``FusionConfig(use_axial=True)`` for the axial T1 slab cue); the default is :data:`fusion.DEFAULT_FUSION`.
 
-    ``counting`` records the top-chain evidence of wider sagittal series in ``anchors.numbering["counting"]``
+    ``counting=True`` (opt-in: it found no usable landmark and casts no vote, docs/labeling/lab34_counting.md) records
+    the top-chain evidence of wider sagittal series in ``anchors.numbering["counting"]``
     (:mod:`.counting`; evidence only, no name changes, no warnings added to the labels). ML backend only.
     """
     if backend not in BACKENDS:
