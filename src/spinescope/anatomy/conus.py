@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import itertools
 import logging
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -728,12 +729,15 @@ def locate_conus(
     cfg: Config = DEFAULT,
     *,
     seg: SegmentedStack | None = None,
+    segs: Mapping[str, SegmentedStack] | None = None,
 ) -> ConusResult:
     """Locate the conus on the study's sagittal series (see module doc). Missing inputs give warnings.
 
     ``seg`` is reused when it is the network output of the picked stack; otherwise the network runs here. When
     the study has a second sagittal contrast (T1 next to T2, or T2 next to T1) and ``Config.conus_cross_contrast``
-    is on, its tip is located too and used for the consistency check.
+    is on, its tip is located too and used for the consistency check. ``segs`` maps stack keys to network outputs
+    already computed for the study: the contrast stack is taken from there when present (the labeller segments
+    the second sagittal series once, and it is often this one), so the network does not run twice.
     """
     from ..render.window import contrast_of
     from .ml.labeller import segment_stack
@@ -750,7 +754,8 @@ def locate_conus(
         other = _cross_stack(study, stack)
         if other is not None:
             cross_contrast = contrast_of(other)
-            cross_seg = segment_stack(other, cfg)
+            known = segs.get(other.key) if segs is not None else None
+            cross_seg = known if known is not None and known.stack is other else segment_stack(other, cfg)
             cross, _why = _locate_on_stack(cross_seg, cfg, cross_contrast)
     return conus_from_segmentation(
         seg, anchors, cfg, contrast=contrast, cross=cross, cross_contrast=cross_contrast
@@ -758,14 +763,19 @@ def locate_conus(
 
 
 def attach_conus(
-    study: Study, anchors: Anchors, cfg: Config = DEFAULT, *, seg: SegmentedStack | None = None
+    study: Study,
+    anchors: Anchors,
+    cfg: Config = DEFAULT,
+    *,
+    seg: SegmentedStack | None = None,
+    segs: Mapping[str, SegmentedStack] | None = None,
 ) -> ConusResult:
     """Locate the conus and write it to ``anchors.conus`` with its warnings.
 
     A failed search keeps an existing conus (for example the classical tip) and says so; otherwise the
-    conus is ``None`` and a warning is added. ``seg`` is passed on to :func:`locate_conus`.
+    conus is ``None`` and a warning is added. ``seg`` and ``segs`` are passed on to :func:`locate_conus`.
     """
-    res = locate_conus(study, anchors, cfg, seg=seg)
+    res = locate_conus(study, anchors, cfg, seg=seg, segs=segs)
     if res.found:
         anchors.conus = res.to_dict()
         anchors.warnings.extend(res.warnings)
