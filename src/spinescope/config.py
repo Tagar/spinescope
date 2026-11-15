@@ -109,6 +109,33 @@ class Config:
     midline_search_mm: float = 10.0  # slices within this distance of the canal-ridge peak set the midline
     axial_canal_window_mm: float = 24.0  # axial window around the canal for the CSF-blob midline check
     conus_min_contrast: float = 0.08  # cord-vs-CSF contrast (0..1) on the canal centreline
+    # ---- conus locator (anatomy/conus.py), on the learned canal segmentation, 1 mm grid.
+    # Cord core: samples within this half-width of the canal centreline (cord ~ 8 mm AP; core 4 mm wide).
+    conus_core_half_mm: float = 2.0  # judgement: inside any lumbar cord
+    # CSF flank: samples from this fraction of the canal half-width outwards (CSF rim, clear of the cord).
+    conus_flank_inner_frac: float = 0.6  # judgement
+    # Cord-likeness per row, window-relative: 1 - core/CSF (T2, STIR: CSF bright) or 1 - CSF/core (T1). Judgement:
+    # cord is about half as bright as CSF on T2 and brighter than CSF on T1; cauda equina is thin and fragmented.
+    conus_cord_contrast_min: float = 0.25
+    # CSF must be in the bright half of the intensity window on T2/STIR (dark half on T1): the sac is the
+    # brightest (T2) or darkest (T1) fluid. Plausibility gate against bone or body signal in the canal mask.
+    conus_csf_min_rel: float = 0.5
+    conus_smooth_mm: float = 3.0  # median filter along the canal (removes single-row flicker)
+    conus_min_run_mm: float = 6.0  # shortest cord-like run that counts as cord
+    conus_full_run_mm: float = 20.0  # run length that gives full length credit to the confidence
+    conus_slice_halfwidth_mm: float = (
+        4.0  # sagittal slices within this distance of the midline are analysed (~1 either side)
+    )
+    conus_agree_mm: float = (
+        6.0  # slices whose tip lies within this of the median tip agree (about half a body)
+    )
+    conus_single_slice_factor: float = 0.8  # confidence factor when only one slice gives a tip
+    # Confidence factor by numbering status (confirmed, probable, unconfirmed): a conus named on unconfirmed
+    # level names is less certain than the same tip on a confirmed numbering.
+    conus_status_factor: tuple[float, float, float] = (1.0, 0.9, 0.7)  # judgement
+    # Low-lying conus: tip below the L2-L3 disc (Wilson & Prince, AJNR 1989; L3 is indeterminate there).
+    conus_low_lying_disc: str = "L2-L3"
+    conus_low_lying_min_confidence: float = 0.6  # below this the flag is worded as unconfirmed
     disc_match_mm: float = 6.0  # tolerance when matching discs between two sagittal series
     # Mid-sagittal plane by mirror symmetry (spinescope.anatomy.midline_robust). Mirror pairs of sagittal
     # slices at x0 +- d are compared; the symmetry axis is the midline. Lengths in mm.
@@ -263,6 +290,92 @@ class Config:
     # labelled study is latency-bound on a laptop, pools are throughput-bound.
     ml_intra_op_threads: int = 0
     ml_inter_op_threads: int = 0
+    # Classical labeller as a second opinion inside the learned numbering fusion (its weak tilt vote and the
+    # ``classical_agree`` calibration feature). Off by default: it agreed geometrically on 5 of 267 SPIDER studies
+    # (lab08) and costs about half of a single-study run (the midline symmetry search). Turning it on changes the
+    # calibration inputs: refit with tools/calibrate_labeling.py (docs/labeling/lab14_perf.md).
+    classical_second_opinion: bool = False
+    # ---- anatomy: applicability (spinescope.anatomy.ood: when NOT to label). Judgement defaults from anatomy
+    # texts, checked on SPIDER training only (docs/labeling/lab12_ood.md). Lengths in mm, unitless otherwise.
+    # Lumbar discs are ~8-12 mm high; thoracic and cervical discs ~4-6 mm.
+    ood_lumbar_disc_min_mm: float = 7.0
+    # Disc-to-disc spacing (centre to centre): cervical ~18-21 mm (body ~14 + disc ~5), thoracic ~26-30 mm,
+    # lumbar ~34-40 mm (body ~26-30 + disc ~8-12).
+    ood_cervical_spacing_max_mm: float = 22.0
+    ood_lumbar_spacing_min_mm: float = 30.0
+    # A sagittal stack needs at least this many slices and this z extent to be usable for labelling.
+    # Bone below the lowest disc (mm, along z) needed to call the sacrum in view: one lumbar body (~25-30 mm) plus the
+    # first sacral segment. A 25-30 mm body is the L5 body, not S1, so less than this does not confirm the numbering.
+    ood_sacrum_min_mm: float = 45.0
+    ood_min_sag_slices: int = 3
+    ood_min_sag_extent_mm: float = 40.0
+    # Field of view must extend this far beyond the outermost disc for another body to be in view
+    # (the shortest vertebral body, config.body_height_mm[0]).
+    ood_fov_margin_mm: float = 18.0
+    # Off-distribution cue (contrast, field strength, voxel shape, output entropy): multiplies the
+    # confidences by this factor per cue, never below the floor. Judgement default, not calibrated.
+    ood_offdist_factor: float = 0.6
+    ood_factor_floor: float = 0.3
+    # Thoracic discs above T10 (T10-T11 and higher) without a landmark named in the series descriptions
+    # are counted from the sacrum only: a missed disc anywhere below shifts them all. Confidence cap.
+    ood_thoracic_cap: float = 0.3
+    # Field strengths below this (tesla) have no training data: SPIDER is 1.5 T and 3 T.
+    ood_low_field_t: float = 1.0
+    # Voxels with all three sides at or below this size, and slice thickness within a factor 1.25 of the
+    # in-plane pixel size, are treated as 3-D isotropic (SPIDER T2 SPACE is 0.47 x 0.47 x 0.9 mm, not isotropic).
+    ood_isotropic_mm: float = 1.2
+    # Foreground pixels: network probability of any anatomy class above this. Normalised entropy of the
+    # class distribution over those pixels above ood_entropy_max means the network is unsure (0 = certain).
+    # Calibrated on SPIDER training: the 99th percentile of real studies is 0.17 (see docs/labeling/lab12_ood.md).
+    ood_fg_prob: float = 0.3
+    ood_entropy_max: float = 0.2
+    # A vertebral body lying between two adjacent discs longer than this (mm) means a disc between them was missed.
+    # Calibrated on SPIDER training (mid-sagittal network bodies: median 30 mm, 99th percentile 41 mm, 2-body
+    # merges ~55-65 mm): see docs/labeling/lab12_ood.md.
+    ood_long_body_mm: float = 45.0
+    # Labelling needs at least this many discs in view (one disc is not a chain to count).
+    ood_min_discs: int = 2
+    # Canal is searched within this distance (mm) of each disc level on the mid-sagittal slice; a spine has canal at
+    # every level, so the fraction of levels with canal must reach ood_canal_fraction_min.
+    ood_canal_tol_mm: float = 10.0
+    ood_canal_fraction_min: float = 0.5
+
+    # ---- vertebral geometry (anatomy/vertebrae.py, anatomy/canal_ml.py; lab15) ----
+    # Endplate lines are fitted on the central part of each body: this fraction of its AP depth is cut at each end,
+    # so the rounded corners do not bias the line. Judgement default, checked on SPIDER training.
+    vert_core_fraction: float = 0.2
+    # A body narrower than this in AP on the mid-sagittal plane is not measured (a fragment, not a vertebral body).
+    # Lumbar bodies are about 25-35 mm AP (anatomy; the disc AP length is ~35 mm); 15 mm rejects fragments.
+    vert_min_ap_mm: float = 15.0
+    # 3-D body width needs slices spanning at least this far (lateral extent cannot be seen on fewer slices).
+    vert_width_min_span_mm: float = 20.0
+    # 3-D width uses the slices holding at least this fraction of the body's largest slice count. Calibrated on SPIDER
+    # training (60 volumes, lab15): 0.0 (all slices) gave the lowest median absolute width error, 6.7 mm, against 9.6 mm
+    # at 0.25 and 13.2 mm at 0.5. Width stays low-confidence (p90 about 28 mm), see docs/labeling/lab15_vertebrae.md.
+    vert_width_slice_fraction: float = 0.0
+    # Canal centreline: z bins (mm), each needs canal pixels from at least two slices.
+    canal_z_bin_mm: float = 5.0
+    canal_min_bin_slices: int = 2
+    # A slice joins the bin's centre only if it holds this fraction of the bin's largest slice count (lateral strays).
+    canal_bin_slice_fraction: float = 0.3
+    # AP diameter at a level: mid-sagittal canal rows within this distance (mm) of the level are used (median chord).
+    canal_level_band_mm: float = 2.0
+    # Calibrated on SPIDER training (lab15): the mid-sagittal AP chord of the labeller's canal is a median 0.5 mm wider
+    # than the truth chord (one-pixel boundary effect); subtracting this removes it (median abs error 1.0 -> 0.5 mm).
+    canal_ap_bias_mm: float = 0.5
+    # The centreline is reported this far (mm) beyond the lowest and highest disc, within the canal's extent.
+    canal_zone_margin_mm: float = 10.0
+    # Posterior elements (approximations, no training labels exist for them; see docs/labeling/lab15_vertebrae.md).
+    # Spinous tip: search from this gap behind the posterior canal edge out to the search depth, for the posterior-most
+    # intensity edge at least spinous_edge_per_mm (window-normalised intensity per mm) strong.
+    spinous_gap_mm: float = 3.0
+    spinous_search_mm: float = 45.0
+    spinous_smooth_mm: float = 1.0
+    spinous_edge_per_mm: float = 0.03
+
+    # Conus locator is experimental (no ground truth; a 60-case AI visual audit could not verify most tips):
+    # cap its reported confidence until it is calibrated.
+    conus_max_confidence: float = 0.5
 
 
 DEFAULT = Config()

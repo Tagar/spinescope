@@ -71,6 +71,20 @@ def model_path(name: str = MODEL_ASSET) -> Path:
 _SESSION_LOCK = threading.Lock()
 _SESSIONS: dict[tuple[str, int, int], ort.InferenceSession] = {}
 _SESSIONS_MAX = 4  # distinct (weights, thread) combinations kept alive per process
+#: Process-wide intra-op thread override set by :func:`set_intra_op_threads` (None = not set). It sits between an
+#: explicit ``Config`` value and the ``SPINESCOPE_THREADS`` environment variable in :func:`resolve_threads`.
+_PROCESS_INTRA_OP: int | None = None
+
+
+def set_intra_op_threads(n: int) -> None:
+    """Process-wide ONNX Runtime intra-op threads for labeller sessions created from now on (0 = runtime default).
+
+    Same knob as ``SPINESCOPE_THREADS``, for code that sets it in-process. An explicit ``Config`` value wins over it.
+    """
+    global _PROCESS_INTRA_OP
+    if n < 0:
+        raise ValueError("intra-op thread count must be >= 0")
+    _PROCESS_INTRA_OP = n
 
 
 def in_worker_process() -> bool:
@@ -78,24 +92,49 @@ def in_worker_process() -> bool:
     return multiprocessing.parent_process() is not None
 
 
+def _process_or_env_threads() -> int | None:
+    """Intra-op count from :func:`set_intra_op_threads`, else ``SPINESCOPE_THREADS``; None when neither is set."""
+    if _PROCESS_INTRA_OP is not None:
+        return _PROCESS_INTRA_OP
+    env = os.environ.get(THREADS_ENV, "").strip()
+    return int(env) if env.isdigit() else None  # "0" is an explicit ORT default: no pool cap either
+
+
 def resolve_threads(config: Config | None = None) -> tuple[int, int]:
     """ONNX Runtime ``(intra_op, inter_op)`` thread counts; 0 means ORT's default (all cores).
 
-    Precedence: an explicit non-zero ``Config.ml_intra_op_threads`` / ``ml_inter_op_threads`` wins; then the
-    environment variable ``SPINESCOPE_THREADS`` (intra-op; ``0`` means ORT's default); then, inside a
-    multiprocessing child, one thread, so N pool workers do not oversubscribe the machine. Otherwise 0.
+    The single thread-control mechanism. Precedence: an explicit non-zero ``Config.ml_intra_op_threads`` /
+    ``ml_inter_op_threads`` wins; then :func:`set_intra_op_threads`; then ``SPINESCOPE_THREADS`` (intra-op); then,
+    inside a multiprocessing child, one thread, so N pool workers do not oversubscribe the machine. Otherwise 0.
     """
     cfg = config or DEFAULT
     intra, inter = cfg.ml_intra_op_threads, cfg.ml_inter_op_threads
     if intra <= 0:
-        env = os.environ.get(THREADS_ENV, "").strip()
-        if env.isdigit():  # "0" is an explicit ORT default: no pool cap either
-            intra = int(env)
-        elif in_worker_process():
-            intra = 1
+        from_process = _process_or_env_threads()
+        intra = from_process if from_process is not None else (1 if in_worker_process() else 0)
     if inter <= 0 and in_worker_process():
         inter = 1
     return max(intra, 0), max(inter, 0)
+
+
+def session_options(
+    intra_op_threads: int | None = None, inter_op_threads: int | None = None
+) -> ort.SessionOptions:
+    """Quiet CPU ONNX Runtime options for the packaged models. Thread counts default to :func:`resolve_threads`."""
+    try:
+        import onnxruntime as ort
+    except ImportError as exc:  # pragma: no cover - exercised when the extra is missing
+        raise ImportError("the learned labellers need onnxruntime: pip install 'spinescope[ml]'") from exc
+    default_intra, default_inter = resolve_threads()
+    intra = default_intra if intra_op_threads is None else max(intra_op_threads, 0)
+    inter = default_inter if inter_op_threads is None else max(inter_op_threads, 0)
+    opts = ort.SessionOptions()
+    opts.log_severity_level = 3
+    if intra > 0:
+        opts.intra_op_num_threads = intra
+    if inter > 0:
+        opts.inter_op_num_threads = inter
+    return opts
 
 
 def _session_for(path: str, intra: int, inter: int) -> ort.InferenceSession:
@@ -110,13 +149,9 @@ def _session_for(path: str, intra: int, inter: int) -> ort.InferenceSession:
             raise ImportError("label_spine_ml needs onnxruntime: pip install 'spinescope[ml]'") from exc
         if not Path(path).is_file():
             raise FileNotFoundError(f"labeller weights not found: {path}")
-        opts = ort.SessionOptions()
-        opts.log_severity_level = 3
-        if intra > 0:
-            opts.intra_op_num_threads = intra
-        if inter > 0:
-            opts.inter_op_num_threads = inter
-        sess = ort.InferenceSession(path, sess_options=opts, providers=["CPUExecutionProvider"])
+        sess = ort.InferenceSession(
+            path, sess_options=session_options(intra, inter), providers=["CPUExecutionProvider"]
+        )
         if len(_SESSIONS) >= _SESSIONS_MAX:
             _SESSIONS.pop(next(iter(_SESSIONS)))
         _SESSIONS[key] = sess
@@ -185,12 +220,37 @@ def segment_stack(
     return SegmentedStack(stack=stack, grids=grids, probs=probs, window=window)
 
 
+def segment_primary(
+    study: Study, config: Config | None = None, *, session: Any = None
+) -> SegmentedStack | None:
+    """Network output for the primary sagittal stack of ``study`` (``study.best('sag')``); None without sagittal."""
+    cfg = config or DEFAULT
+    if session is None and cfg.ml_model != MODEL_ASSET:
+        session = load_session(model_path(cfg.ml_model))
+    stack = study.best("sag")
+    if stack is None:
+        return None
+    return segment_stack(stack, cfg, session=session)
+
+
 def label_spine_ml(study: Study, config: Config | None = None, *, session: Any = None) -> Anchors:
     """Detect discs, vertebral bodies, sacrum and the mid-sagittal plane with the learned labeller.
 
     Returns :class:`Anchors` in LPS mm with confidence and evidence. Missing sequences give warnings.
     ``session`` is an optional ONNX Runtime session; by default the packaged weights named by
     ``Config.ml_model`` (``labeller_v1.onnx``). A file must exist in ``ml/assets`` for any other name.
+    """
+
+    anchors, _seg = label_spine_ml_segmented(study, config, session=session)
+    return anchors
+
+
+def label_spine_ml_segmented(
+    study: Study, config: Config | None = None, *, session: Any = None
+) -> tuple[Anchors, SegmentedStack | None]:
+    """As :func:`label_spine_ml`, also returning the network output used (None when there is no sagittal).
+
+    The applicability check (:mod:`spinescope.anatomy.ood`) needs the probabilities for its entropy and canal cues.
     """
     from .postprocess import anchors_from_segmentation
 
@@ -199,13 +259,16 @@ def label_spine_ml(study: Study, config: Config | None = None, *, session: Any =
         session = load_session(model_path(cfg.ml_model), config=cfg)
     stack = study.best("sag")
     if stack is None:
-        return Anchors(
-            method=METHOD,
-            warnings=["no sagittal series: spine anatomy cannot be labelled"],
-            numbering={"method": "none", "confidence": 0.0, "notes": "no sagittal"},
+        return (
+            Anchors(
+                method=METHOD,
+                warnings=["no sagittal series: spine anatomy cannot be labelled"],
+                numbering={"method": "none", "confidence": 0.0, "notes": "no sagittal"},
+            ),
+            None,
         )
     seg = segment_stack(stack, cfg, session=session)
-    return anchors_from_segmentation(seg, cfg)
+    return anchors_from_segmentation(seg, cfg), seg
 
 
 __all__ = [
@@ -215,9 +278,13 @@ __all__ = [
     "SegmentedStack",
     "in_worker_process",
     "label_spine_ml",
+    "label_spine_ml_segmented",
     "load_session",
     "model_path",
     "resolve_threads",
     "run_network",
+    "segment_primary",
     "segment_stack",
+    "session_options",
+    "set_intra_op_threads",
 ]

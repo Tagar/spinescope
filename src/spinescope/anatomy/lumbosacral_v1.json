@@ -1,0 +1,118 @@
+{
+ "input": "float32 (n, 1, 96, 96), intensity normalised to [0, 1] per volume (ml.grid.normalise)",
+ "onnx": "lumbosacral_v1.onnx",
+ "output": "logit of P(L5-S1); sigmoid applied by the caller",
+ "patch_mm": 96,
+ "thresholds": {
+  "drop_min_p": 0.8,
+  "keep_min_p": 0.5,
+  "unsure_min_p": 0.5
+ },
+ "training": {
+  "batch": 64,
+  "epochs": 40,
+  "held_out_volumes": 52,
+  "loss_history": [
+   0.45091,
+   0.10138,
+   0.04014,
+   0.02299,
+   0.0084,
+   0.00234,
+   0.00118,
+   0.00083,
+   0.00103,
+   0.00051,
+   0.00034,
+   0.0003,
+   0.00024,
+   0.00028,
+   0.00018,
+   0.00019,
+   0.00015,
+   0.00015,
+   0.00014,
+   0.00012,
+   0.00012,
+   0.0001,
+   0.00013,
+   0.00011,
+   9e-05,
+   9e-05,
+   9e-05,
+   9e-05,
+   0.00012,
+   8e-05,
+   0.0001,
+   8e-05,
+   7e-05,
+   8e-05,
+   7e-05,
+   7e-05,
+   6e-05,
+   7e-05,
+   7e-05,
+   7e-05
+  ],
+  "onnx_bytes": 448158,
+  "seed": 20260,
+  "selected_drop_min_p": 0.8,
+  "selection": "held-out SPIDER training volumes, labeller candidates; objective correct - 2 wrong drops - missed",
+  "selection_n": 52,
+  "sweep": {
+   "0.5": {
+    "correct": 52,
+    "drops": 0,
+    "missed_drop": 0,
+    "n": 52,
+    "unsure": 0,
+    "wrong_drop": 0
+   },
+   "0.6": {
+    "correct": 52,
+    "drops": 0,
+    "missed_drop": 0,
+    "n": 52,
+    "unsure": 0,
+    "wrong_drop": 0
+   },
+   "0.7": {
+    "correct": 52,
+    "drops": 0,
+    "missed_drop": 0,
+    "n": 52,
+    "unsure": 0,
+    "wrong_drop": 0
+   },
+   "0.8": {
+    "correct": 52,
+    "drops": 0,
+    "missed_drop": 0,
+    "n": 52,
+    "unsure": 0,
+    "wrong_drop": 0
+   },
+   "0.9": {
+    "correct": 52,
+    "drops": 0,
+    "missed_drop": 0,
+    "n": 52,
+    "unsure": 0,
+    "wrong_drop": 0
+   },
+   "0.95": {
+    "correct": 52,
+    "drops": 0,
+    "missed_drop": 0,
+    "n": 52,
+    "unsure": 0,
+    "wrong_drop": 0
+   }
+  },
+  "torch": "2.15.0",
+  "train_patches": 1991,
+  "train_positive": 924,
+  "train_volumes_excluded_held_out": 52
+ },
+ "version": 1
+}

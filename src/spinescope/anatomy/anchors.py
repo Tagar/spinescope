@@ -18,7 +18,9 @@ import numpy as np
 from ..config import DEFAULT, Config
 from .numbering import VERTEBRA_NAMES
 
-SCHEMA_VERSION = "1.0"
+#: 1.1 adds the optional geometry fields ``Vertebra.body``, ``Anchors.canal`` and ``Anchors.posterior_elements``
+#: (lab15). Readers of 1.0 documents still load: the new fields default to None.
+SCHEMA_VERSION = "1.1"
 
 #: Canonical order of the labels we may emit, superior -> inferior.
 VERTEBRA_ORDER = (
@@ -110,6 +112,9 @@ class Vertebra:
     center: list[float]
     confidence: float = 0.0
     evidence: list[str] = field(default_factory=list)
+    #: Optional body geometry (see :mod:`spinescope.anatomy.vertebrae`): 3-D centre, endplate lines, heights, AP
+    #: depth, width. None until measured (learned labeller only).
+    body: dict[str, Any] | None = None
 
 
 @dataclass
@@ -118,12 +123,19 @@ class Anchors:
     vertebrae: dict[str, Vertebra] = field(default_factory=dict)
     midline_x: float | None = None
     conus: dict[str, Any] | None = None  # {"z": float, "level": "L1", "confidence": float}
+    #: Optional canal geometry: ``{"points": [[x, y, z], ...] superior first, "per_level": {label: {"z_mm",
+    #: "ap_mm", "kind"}}, "confidence", "method", "evidence"}``. None until measured (learned labeller only).
+    canal: dict[str, Any] | None = None
+    #: Optional posterior-element approximations (lamina proxy, spinous tip) with their ``limits``. Unvalidated.
+    posterior_elements: dict[str, Any] | None = None
     numbering: dict[str, Any] = field(
         default_factory=dict
     )  # {"method": ..., "confidence": ..., "notes": ...}
     method: str = ""
     source_stack: str = ""
     warnings: list[str] = field(default_factory=list)
+    # Applicability record (spinescope.anatomy.ood): verdict, region, labelled, factor, coverage, cues. Additive.
+    applicability: dict[str, Any] = field(default_factory=dict)
     schema_version: str = SCHEMA_VERSION
 
     # ---------------------------------------------------------------- queries
@@ -210,6 +222,7 @@ class Anchors:
             raise ValueError("relabelling would give two vertebrae the same name")
         self.discs = {disc_map.get(k, k): v for k, v in self.discs.items()}
         self.vertebrae = {vert_map.get(k, k): v for k, v in self.vertebrae.items()}
+        self._sync_geometry(disc_map, vert_map)
         if self.conus and self.conus.get("level"):
             level = str(self.conus["level"])
             if conus_map is not None and level in conus_map:
@@ -218,6 +231,30 @@ class Anchors:
                 self.conus["level"] = disc_map[level]
             elif level in vert_map:
                 self.conus["level"] = vert_map[level]
+
+    def _sync_geometry(self, disc_map: Mapping[str, str], vert_map: Mapping[str, str]) -> None:
+        """Carry the geometry fields (canal levels, posterior elements, body level names) across a relabelling.
+
+        Entries whose level no longer exists are dropped, as the vertebra entries are by :meth:`shift_labels`.
+        """
+        names = set(self.discs) | set(self.vertebrae)
+
+        def mapped(k: str) -> str:
+            return disc_map.get(k, vert_map.get(k, k))
+
+        if self.canal and isinstance(self.canal.get("per_level"), dict):
+            self.canal["per_level"] = {
+                mapped(k): v for k, v in self.canal["per_level"].items() if mapped(k) in names
+            }
+        if self.posterior_elements:
+            for key in ("lamina_proxy", "spinous_tip"):
+                if isinstance(self.posterior_elements.get(key), dict):
+                    self.posterior_elements[key] = {
+                        mapped(k): v for k, v in self.posterior_elements[key].items() if mapped(k) in names
+                    }
+        for name, v in self.vertebrae.items():
+            if v.body is not None:
+                v.body["level"] = name
 
     def shift_labels(
         self,
