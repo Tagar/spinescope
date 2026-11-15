@@ -116,6 +116,22 @@ SACRAL_FEATURES_V3: tuple[str, ...] = ("s1_present", "s1_below_mm", "s1_ap_ratio
 SIGNAL_FEATURES_V3: tuple[str, ...] = (*SIGNAL_FEATURES, *SACRAL_FEATURES_V3)
 #: Neutral values of the version 3 signals when the geometry (or a second series) is missing.
 S1_AP_RATIO_NEUTRAL = 1.0
+#: Test-time augmentation study features (lab35; :func:`anatomy.ml.tta.aggregate`), recorded in ``volume_feature_dict``
+#: when ``Config.ml_tta`` is on. They describe how far the labeller's chain changes across label variants:
+#: ``tta_count_agree`` / ``tta_chain_agree`` share of variants with the same disc count / with the same count and names,
+#: ``tta_presence_min`` / ``tta_name_min`` the weakest base disc's share of variants that find it / name it the same,
+#: ``tta_spread_max`` the largest centre displacement (mm) of a base disc in a variant, ``tta_bottom_name`` the naming
+#: agreement of the lowest disc.
+TTA_STUDY_FEATURES: tuple[str, ...] = (
+    "tta_count_agree",
+    "tta_chain_agree",
+    "tta_presence_min",
+    "tta_name_min",
+    "tta_spread_max",
+    "tta_bottom_name",
+)
+#: Calibration file of the test-time augmentation model (lab35); shipped only when it met the protocol.
+CALIBRATION_FILE_TTA = "calibration_tta_v1.json"
 
 
 def logit(p: float) -> float:
@@ -477,8 +493,21 @@ def load_calibration(path: str | None = None, version: int | None = None) -> Cal
     return Calibration.from_dict(json.loads(p.read_text(encoding="utf-8")))
 
 
+@lru_cache(maxsize=2)
+def load_tta_calibration(path: str | None = None) -> Calibration | None:
+    """The test-time augmentation calibration (lab35, ``calibration_tta_v1.json``), or the file at ``path``.
+
+    None when the file is not shipped: then ``Config.ml_tta`` keeps the version 2 numbering calibration.
+    """
+    p = Path(path) if path else Path(__file__).with_name(CALIBRATION_FILE_TTA)
+    if not p.is_file():
+        return None
+    return Calibration.from_dict(json.loads(p.read_text(encoding="utf-8")))
+
+
 __all__ = [
     "CALIBRATION_FILE",
+    "CALIBRATION_FILE_TTA",
     "CALIBRATION_FILE_V3",
     "DEFAULT_CALIBRATION_VERSION",
     "DISC_FEATURES",
@@ -487,6 +516,7 @@ __all__ = [
     "TARGET_PRECISION",
     "TARGET_PRECISION_V1",
     "TARGET_PRECISION_V3",
+    "TTA_STUDY_FEATURES",
     "UNREACHABLE_THRESHOLD",
     "VOLUME_FEATURES",
     "VOLUME_FEATURES_V1",
@@ -497,6 +527,7 @@ __all__ = [
     "choose_thresholds",
     "disc_feature_rows",
     "load_calibration",
+    "load_tta_calibration",
     "logit",
     "numbering_signals",
     "sacral_signals",

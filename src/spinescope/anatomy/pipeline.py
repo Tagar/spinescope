@@ -39,6 +39,7 @@ from .axial import assess_axial
 from .calibration import (
     disc_feature_rows,
     load_calibration,
+    load_tta_calibration,
     numbering_signals,
     sacral_signals,
     volume_feature_map,
@@ -68,6 +69,9 @@ from .lumbosacral import (
 )
 from .midline import MidlineChoice, pols_for, refine_midline_axial, select_midline
 from .ml.labeller import SegmentedStack
+from .ml.tta import TTAResult
+from .ml.tta import analyse as analyse_tta
+from .ml.tta import disc_records as tta_disc_records
 from .numbering import (
     DEFAULT_STATUS_THRESHOLDS,
     STATUS_CONFIRMED,
@@ -369,6 +373,10 @@ class LabelDetails:
     calibrated: bool = False
     unfused: Anchors | None = None  # the primary's anchors before the numbering was fused (for evaluation)
     status_thresholds: dict[str, float] | None = None  # thresholds the numbering status was computed with
+    #: Test-time augmentation (lab35, ``Config.ml_tta`` only): the study record and the per-disc agreement, keyed by the
+    #: final labels. Empty when the augmentation is off.
+    tta: dict[str, Any] = field(default_factory=dict)
+    tta_discs: dict[str, dict[str, float]] = field(default_factory=dict)
 
 
 def _label_classical(study: Study, cfg: Config) -> Anchors:
@@ -548,6 +556,7 @@ def _finalise(
     lumbosacral: bool = True,
     fusion_cfg: FusionConfig | None = None,
     segs: dict[str, SegmentedStack] | None = None,
+    tta: TTAResult | None = None,
 ) -> LabelDetails:
     """Every stage that precedes the calibrated numbering decision, in this order (lab22):
 
@@ -670,9 +679,19 @@ def _finalise(
         ),
         **det.signals,
     }
+    if tta is not None:  # lab35: study features of the variant agreement (only with Config.ml_tta)
+        det.volume_feature_dict.update(tta.study)
 
     # 6. calibrated numbering confidence and status (caps as before)
     cal = load_calibration() if (calibrate and kind == "ml") else None
+    if cal is not None and cfg.ml_tta and tta is not None:
+        tta_cal = load_tta_calibration()
+        if tta_cal is not None:
+            cal = tta_cal
+        else:
+            warn.append(
+                "test-time augmentation calibration not shipped: numbering confidence is calibration v2"
+            )
     fallback = fus.p_applied * (1.0 if sacrum_below else 0.9)
     if cal is not None:
         det.calibrated = True
@@ -724,7 +743,13 @@ def _finalise(
         "notes": "; ".join(notes),
         "second_series_agreement": fus.second["agree"] if fus.second else 0,
         **({"lumbosacral": lumbosacral_record(lumbo_dec, lumbo_drop)} if lumbo_dec is not None else {}),
+        **({"tta": {k: round(float(v), 4) for k, v in tta.study.items()}} if tta is not None else {}),
     }
+    if tta is not None and tta.study.get("tta_chain_agree", 1.0) < 1.0:
+        warn.append(
+            f"test-time variants disagree on the disc chain: {tta.study['tta_chain_agree']:.0%} of the "
+            f"{len(tta.variants)} variants ({', '.join(tta.variants)}) reproduce the base count and names"
+        )
     primary.warnings.extend(fus.warnings)
     primary.warnings.extend(warn)
     if status != STATUS_CONFIRMED:
@@ -817,6 +842,8 @@ def label_spine_details(
         from .ml import label_spine_ml_segmented
 
         primary, seg = label_spine_ml_segmented(study, cfg)
+        # lab35: the variants are compared with the labeller's chain before any numbering step changes it.
+        tta_res = analyse_tta(primary, seg, cfg) if (cfg.ml_tta and seg is not None) else None
         segs = _segmentations(study, seg, cfg) if seg is not None else {}
         det = _finalise(
             study,
@@ -828,9 +855,12 @@ def label_spine_details(
             lumbosacral=lumbosacral,
             fusion_cfg=fusion,
             segs=segs,
+            tta=tta_res,
         )
         if counting:
             _counting_stage(study, det.anchors, cfg, segs)
+        if tta_res is not None:
+            _attach_tta(det, tta_res)
     else:
         primary = _label_classical(study, cfg)
         det = _finalise(study, primary, "classical", cfg, calibrate, fusion_cfg=fusion)
@@ -878,6 +908,17 @@ def _quality_stage(study: Study, anchors: Anchors, cfg: Config) -> None:
         anchors.warnings.append(f"image quality not assessed ({type(exc).__name__})")
         return
     apply_quality(anchors, record, cfg)
+
+
+def _attach_tta(det: LabelDetails, res: TTAResult) -> None:
+    """Record the variant agreement on the details and on each final disc (lab35; evidence line per disc)."""
+    det.tta = res.to_dict()
+    det.tta_discs = tta_disc_records(res, det.anchors)
+    for lab, rec in det.tta_discs.items():
+        det.anchors.discs[lab].evidence.append(
+            f"test-time variants ({len(res.variants)}): found in {rec['presence']:.0%}, same name in "
+            f"{rec['name_agree']:.0%}, largest centre shift {rec['spread_mm']:.1f} mm"
+        )
 
 
 def _conus_after_labels(study: Study, anchors: Anchors, cfg: Config) -> None:

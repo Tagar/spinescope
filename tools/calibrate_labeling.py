@@ -36,6 +36,7 @@ from typing import Any
 
 import numpy as np
 
+import spinescope.anatomy.calibration as calibration_module
 from spinescope.anatomy._validate import (
     DiscMatch,
     VolumeScore,
@@ -45,9 +46,11 @@ from spinescope.anatomy._validate import (
     truth_from_mask,
 )
 from spinescope.anatomy.calibration import (
+    CALIBRATION_FILE_TTA,
     DISC_FEATURES,
     SIGNAL_FEATURES,
     TARGET_PRECISION_V3,
+    TTA_STUDY_FEATURES,
     UNREACHABLE_THRESHOLD,
     VOLUME_FEATURES,
     VOLUME_FEATURES_V2,
@@ -113,12 +116,12 @@ def _match_dict(m: DiscMatch) -> dict[str, Any]:
     return {k: _finite(v) for k, v in d.items()}
 
 
-def _spider_record(job: tuple[str, str, str, bool]) -> dict[str, Any]:
+def _spider_record(job: tuple[str, str, str, bool, bool]) -> dict[str, Any]:
     """Worker: label one SPIDER volume (with its T1 sibling for a T2 file) and score it against its mask.
 
     The last job field turns on the classical second opinion (``Config.classical_second_opinion``), off by default.
     """
-    name, manu, split, classical = job
+    name, manu, split, classical, tta = job
     rec: dict[str, Any] = {"id": name, "split": split, "vendor": manu, "error": None}
     t0 = time.perf_counter()
     try:
@@ -126,7 +129,7 @@ def _spider_record(job: tuple[str, str, str, bool]) -> dict[str, Any]:
         truth, mx = truth_from_mask(str(SPIDER_ROOT / "masks" / f"{name}.mha"))
         rec["second_series"] = len(study.find("sag")) > 1
         det = label_spine_details(
-            study, Config(classical_second_opinion=classical), backend="ml", calibrate=False
+            study, Config(classical_second_opinion=classical, ml_tta=tta), backend="ml", calibrate=False
         )
         rec["primary"] = det.anchors.source_stack
         score = score_anchors(det.anchors, truth, mx)
@@ -183,16 +186,19 @@ def _record_common(det: Any, score: VolumeScore) -> dict[str, Any]:
         else {k: a.conus.get(k) for k in ("level", "confidence", "confidence_raw", "low_lying")},
         "applicability": (a.applicability or {}).get("verdict"),
         "s1_below_mm": a.numbering.get("s1_below_mm"),
+        # version 4 (lab35): test-time augmentation record (study features, per-disc agreement in final labels)
+        "tta": det.tta or None,
+        "tta_final": det.tta_discs or None,
     }
     return out
 
 
-def _sudirman_record(job: tuple[str, str | None]) -> dict[str, Any]:
+def _sudirman_record(job: tuple[str, str | None, bool]) -> dict[str, Any]:
     """Worker: one labelled Sudirman patient, scored level-wise against its annotated discs."""
     from spinescope.anatomy._validate_sudirman import score_levels, truth_discs
     from spinescope.datasets.sudirman import patient_sessions, select_session
 
-    pid, labels_root = job
+    pid, labels_root, tta = job
     rec: dict[str, Any] = {"id": pid, "error": None}
     t0 = time.perf_counter()
     try:
@@ -205,7 +211,7 @@ def _sudirman_record(job: tuple[str, str | None]) -> dict[str, Any]:
             rec["error"] = "no session reproduces the label slices"
             return rec
         _sess, study, levels = sel
-        det = label_spine_details(study, backend="ml", calibrate=False)
+        det = label_spine_details(study, Config(ml_tta=tta), backend="ml", calibrate=False)
         rows = score_levels(det.anchors, levels)
         score = score_anchors(det.anchors, truth_discs(levels), None)
         rec.update(_record_common(det, score))
@@ -232,18 +238,19 @@ def _sudirman_record(job: tuple[str, str | None]) -> dict[str, Any]:
     return rec
 
 
-def _qx5rt_record(session: Any) -> dict[str, Any]:
+def _qx5rt_record(job: tuple[Any, bool]) -> dict[str, Any]:
     """Worker: one qx5rt session (OSF multi-scanner set, never used for fitting), scored level-wise like Sudirman."""
     from spinescope.anatomy._validate_qx5rt import score_levels, truth_discs, truth_levels
     from spinescope.io.volumes import read_volume
     from spinescope.study import from_stacks
 
+    session, tta = job
     rec: dict[str, Any] = {"id": session.key, "vendor": session.vendor, "error": None}
     t0 = time.perf_counter()
     try:
         stack = read_volume(str(session.t1))
         truths = truth_levels(session, stack)
-        det = label_spine_details(from_stacks([stack]), backend="ml", calibrate=False)
+        det = label_spine_details(from_stacks([stack]), Config(ml_tta=tta), backend="ml", calibrate=False)
         rows = score_levels(det.anchors, truths, session)
         score = score_anchors(det.anchors, truth_discs(truths), None)
         rec.update(_record_common(det, score))
@@ -286,8 +293,9 @@ def cmd_collect(args: argparse.Namespace) -> int:
         cache.mkdir(parents=True, exist_ok=True)
         sessions = discover(None)
         todo = [s for s in sessions if not (cache / f"{_safe_name(s.key)}.json").is_file()]
+        jobs_q = [(s, bool(args.tta)) for s in todo]
         log.info("qx5rt: %d sessions, %d to run", len(sessions), len(todo))
-        for rec in _run_jobs(_qx5rt_record, todo, args.jobs):
+        for rec in _run_jobs(_qx5rt_record, jobs_q, args.jobs):
             (cache / f"{_safe_name(rec['id'])}.json").write_text(json.dumps(rec), encoding="utf-8")
         return 0
     if args.sudirman:
@@ -297,7 +305,7 @@ def cmd_collect(args: argparse.Namespace) -> int:
         ids = labelled_patients(None)
         if args.limit and args.limit < len(ids):  # evenly spaced subset (documented in the report)
             ids = [ids[round(i)] for i in np.linspace(0, len(ids) - 1, args.limit)]
-        todo = [(p, None) for p in ids if not (cache / f"{p}.json").is_file()]
+        todo = [(p, None, bool(args.tta)) for p in ids if not (cache / f"{p}.json").is_file()]
         log.info("sudirman: %d labelled, %d to run", len(ids), len(todo))
         for rec in _run_jobs(_sudirman_record, todo, args.jobs):
             (cache).mkdir(parents=True, exist_ok=True)
@@ -311,7 +319,7 @@ def cmd_collect(args: argparse.Namespace) -> int:
         files = [files[round(i)] for i in np.linspace(0, len(files) - 1, args.limit)]
         (out / f"{args.split}_subset.json").write_text(json.dumps([n for n, _ in files]), encoding="utf-8")
     todo = [
-        (name, manu, args.split, bool(args.classical_second_opinion))
+        (name, manu, args.split, bool(args.classical_second_opinion), bool(args.tta))
         for name, manu in files
         if not (cache / f"{name}.json").is_file()
     ]
@@ -985,6 +993,147 @@ def _round(v: Any) -> Any:
     return v
 
 
+# ---------------------------------------------------------------- version 4 protocol (lab35: test-time augmentation)
+
+#: Candidate volume feature sets with the test-time augmentation study features (lab35). ``v2_baseline`` is the version 2
+#: set on the same records, so that the selection can keep it. Selected by out-of-fold log-loss on the fit set only.
+TTA_CANDIDATES: dict[str, tuple[str, ...]] = {
+    "v2_baseline": VOLUME_FEATURES_V2,
+    "v2+chain": (*VOLUME_FEATURES_V2, "tta_chain_agree"),
+    "v2+count+chain": (*VOLUME_FEATURES_V2, "tta_count_agree", "tta_chain_agree"),
+    "v2+presence+name": (*VOLUME_FEATURES_V2, "tta_presence_min", "tta_name_min"),
+    "v2+bottom+spread": (*VOLUME_FEATURES_V2, "tta_bottom_name", "tta_spread_max"),
+    "v2+all_tta": (*VOLUME_FEATURES_V2, *TTA_STUDY_FEATURES),
+}
+
+
+def _tta_disc_rows(recs: list[dict[str, Any]]) -> list[dict[str, float]]:
+    """One row per matched predicted disc that has a TTA record: spread, presence, name agreement and the errors."""
+    rows: list[dict[str, float]] = []
+    for r in recs:
+        final = r.get("tta_final") or {}
+        for m in r.get("matches", []):
+            t = final.get(m["pred"])
+            if t is None or m.get("centre_err_mm") is None:
+                continue
+            rows.append(
+                {
+                    "spread": float(t["spread_mm"]),
+                    "presence": float(t["presence"]),
+                    "name_agree": float(t["name_agree"]),
+                    "err3": 1.0 if float(m["centre_err_mm"]) > 3.0 else 0.0,
+                    "wrong": 0.0 if m["label_correct"] else 1.0,
+                }
+            )
+    return rows
+
+
+def _tta_disc_block(recs: list[dict[str, Any]]) -> dict[str, Any]:
+    """Does the centre spread (and the agreement) predict disc errors: AUROC, and flag counts at 1, 2 and 3 mm."""
+    rows = _tta_disc_rows(recs)
+    if not rows:
+        return {"discs": 0}
+    spread = np.array([r["spread"] for r in rows])
+    presence = np.array([r["presence"] for r in rows])
+    name = np.array([r["name_agree"] for r in rows])
+    err3 = np.array([r["err3"] for r in rows])
+    wrong = np.array([r["wrong"] for r in rows])
+    out: dict[str, Any] = {
+        "discs": len(rows),
+        "centre_err_gt3mm": int(err3.sum()),
+        "wrong_label": int(wrong.sum()),
+        "auroc_spread_err_gt3mm": _round(_auc(spread, err3)),
+        "auroc_spread_wrong_label": _round(_auc(spread, wrong)),
+        "auroc_name_disagree_wrong_label": _round(_auc(1.0 - name, wrong)),
+        "auroc_presence_disagree_err_gt3mm": _round(_auc(1.0 - presence, err3)),
+        "flags": {},
+    }
+    for thr in (1.0, 2.0, 3.0):
+        sel = spread > thr
+        n = int(sel.sum())
+        out["flags"][f"spread_gt_{thr:g}mm"] = {
+            "flagged": n,
+            "err_gt3mm_precision": _round(float(err3[sel].mean())) if n else None,
+            "err_gt3mm_recall": _round(float(err3[sel].sum() / max(err3.sum(), 1))),
+            "wrong_label_recall": _round(float(wrong[sel].sum() / max(wrong.sum(), 1))),
+        }
+    return out
+
+
+def cmd_fit_tta(args: argparse.Namespace) -> int:
+    """Version 4 protocol (lab35): the version 2 protocol with the test-time augmentation study features as candidates.
+
+    Same fit set (SPIDER training subset + Sudirman half A), folds, L2 grid, thresholds and evaluation sets (SPIDER
+    validation, Sudirman half B, qx5rt) as ``fit-v2``. The version 1 disc model is kept. The v2 model is scored on the
+    same records as the baseline. ``--write`` ships ``calibration_tta_v1.json``; without it nothing is written.
+    """
+    _V2_OUT[0] = args.out
+    out = Path(args.out)
+    fit, evals = _v2_sets()
+    if not fit:
+        log.error("no fit records under %s", out)
+        return 2
+    y_fit = _v2_y(fit)
+    cands: dict[str, Any] = {}
+    best: tuple[float, str, float] | None = None
+    for cname, names in TTA_CANDIDATES.items():
+        for l2 in V2_L2_GRID:
+            p = _v2_oof(fit, names, l2)
+            ll = _logloss(p, y_fit)
+            cands[f"{cname}|l2={l2:g}"] = {"oof_logloss": round(ll, 4), "oof_auroc": _auc(p, y_fit)}
+            if best is None or ll < best[0]:
+                best = (ll, cname, l2)
+    assert best is not None
+    _, chosen, l2 = best
+    names = TTA_CANDIDATES[chosen]
+    p_oof = _v2_oof(fit, names, l2)
+    thr = choose_thresholds(p_oof, y_fit)
+    volume = Logistic.fit(_v2_x(fit, names), y_fit, names, l2=l2)
+    v1 = load_calibration(version=1)
+    v2 = load_calibration(version=2)
+    assert v1 is not None and v2 is not None, "calibration_v1.json and calibration_v2.json are the references"
+    cal = Calibration(
+        disc=v1.disc,
+        volume=volume,
+        thresholds=thr,
+        source=f"volume: SPIDER training + Sudirman half A with test-time augmentation ({len(fit)} studies, lab35 "
+        "protocol); disc: v1 (unchanged)",
+        version=4,
+    )
+    report: dict[str, Any] = {
+        "fit": {"studies": len(fit), "wrong": int((y_fit == 0).sum()), "candidates": cands},
+        "selected": {"set": chosen, "names": list(names), "l2": l2},
+        "thresholds_oof": thr,
+        "volume_weights": dict(zip(names, [round(w, 4) for w in volume.weights], strict=True)),
+        "volume_bias": round(volume.bias, 4),
+        "scored_by": "spinescope.anatomy._validate.reliability (ECE, AUROC); fixed thresholds from the fit set",
+        "sets": {},
+    }
+    grid = tuple(round(x, 2) for x in np.arange(0.5, 1.0001, 0.05))
+    v2_names = tuple(v2.volume.names)
+    for name, recs in evals.items():
+        if not recs:
+            continue
+        conf_v2 = v2.volume.predict(_v2_x(recs, v2_names))
+        conf_tta = volume.predict(_v2_x(recs, names))
+        report["sets"][name] = {
+            "studies": len(recs),
+            "numbering_correct_rate": round(float(_v2_y(recs).mean()), 4),
+            "before_v2": _v2_status_block(recs, conf_v2, v2.thresholds),
+            "after_tta": _v2_status_block(recs, conf_tta, thr),
+            "curve_v2": _v2_curve(recs, conf_v2, grid),
+            "curve_tta": _v2_curve(recs, conf_tta, grid),
+            "disc_spread": _tta_disc_block(recs),
+        }
+    (out / "calibration_tta_report.json").write_text(json.dumps(report, indent=1), encoding="utf-8")
+    print(json.dumps(report, indent=1))
+    if args.write:
+        target = Path(calibration_module.__file__).with_name(CALIBRATION_FILE_TTA)
+        cal.save(target)
+        log.info("wrote %s", target)
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -999,6 +1148,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--classical-second-opinion",
         action="store_true",
         help="label with the classical second opinion on (Config.classical_second_opinion; SPIDER split only)",
+    )
+    c.add_argument(
+        "--tta",
+        action="store_true",
+        help="label with test-time augmentation on (Config.ml_tta; lab35): records carry the variant agreement",
     )
     c.set_defaults(func=cmd_collect)
     f = sub.add_parser("fit", help="fit on training records and report")
@@ -1020,6 +1174,13 @@ def build_parser() -> argparse.ArgumentParser:
         "--write", action="store_true", help="write calibration_v3.json when the acceptance rules pass"
     )
     t.set_defaults(func=cmd_fit_v3)
+    u = sub.add_parser(
+        "fit-tta",
+        help="version 4 protocol (lab35): v2 protocol with the test-time augmentation features; --write ships it",
+    )
+    u.add_argument("--out", required=True)
+    u.add_argument("--write", action="store_true", help="write calibration_tta_v1.json")
+    u.set_defaults(func=cmd_fit_tta)
     return p
 
 
