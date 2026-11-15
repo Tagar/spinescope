@@ -5,8 +5,8 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from collections.abc import Sequence
-from typing import TYPE_CHECKING
+from collections.abc import Mapping, Sequence
+from typing import TYPE_CHECKING, Any
 
 from . import __version__
 
@@ -189,7 +189,23 @@ def _cmd_viewer(args: argparse.Namespace) -> int:
     from .viewer import build_viewer
 
     study, anchors = _load(args.path, anchors=not args.no_anchors, anchors_file=args.anchors)
-    path = build_viewer(study, args.outdir, anchors=anchors, title=args.title)
+    findings: Mapping[str, Any] | None = None
+    notes: list[str] = []
+    if args.findings is not None:
+        if anchors is None:
+            print("viewer --findings needs the level labels: drop --no-anchors", file=sys.stderr)
+            return 2
+        if args.findings:  # a findings file written by `spinescope analyze --out`
+            from .viewer.findings_view import load_findings_file
+
+            findings, notes = load_findings_file(args.findings, anchors)
+        else:  # no file: run every registered analysis on these labels
+            from .analysis.base import run_all
+
+            findings = dict(run_all(study, anchors))
+    path = build_viewer(
+        study, args.outdir, anchors=anchors, title=args.title, findings=findings, findings_notes=notes
+    )
     print(path)
     return 0
 
@@ -397,6 +413,15 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--no-anchors", action="store_true", help="skip automatic level labelling")
     s.add_argument(
         "--anchors", help="use this anchors JSON (e.g. corrected by verify-labels) instead of labelling"
+    )
+    s.add_argument(
+        "--findings",
+        nargs="?",
+        const="",
+        default=None,
+        metavar="FILE",
+        help="add the findings panel: run the registered analyses on the labels, or with FILE load the JSON that "
+        "`spinescope analyze --out` wrote (PHI-free fields only)",
     )
     s.set_defaults(func=_cmd_viewer)
 

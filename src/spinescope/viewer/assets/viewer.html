@@ -87,12 +87,39 @@ __CSS__
     </section>
 
     <div class="row"><button id="clear" type="button">Clear cursor</button><button id="helpbtn" type="button" aria-haspopup="dialog">Keys (?)</button></div>
+    <div class="row"><button id="findbtn" type="button" aria-controls="findings" aria-expanded="false" hidden>Findings</button></div>
   </aside>
   <main id="main">
     <div id="banner" role="status" hidden></div>
     <div id="panes"></div>
     <div id="status" role="status" aria-live="polite"></div>
   </main>
+  <aside id="findings" aria-labelledby="h-findings" hidden>
+    <div class="fhead">
+      <h2 id="h-findings">Findings</h2>
+      <button id="findclose" type="button">Hide</button>
+    </div>
+    <p class="hint" id="findnote">Measurements and suggestions with their confidence. Not diagnoses. Select a row to move the planes to that level.</p>
+    <p class="hint" id="findnum"></p>
+    <ul class="warnlist" id="fx-warn" aria-label="Warnings from the analyses"></ul>
+    <div class="field">
+      <label for="fx-structure">Structure</label>
+      <select id="fx-structure" name="fx_structure"></select>
+    </div>
+    <div class="tablewrap">
+      <table class="ftable" id="fx-table">
+        <caption class="sronly">Findings per level. Use Up and Down to move between rows, Enter to show the level in the planes.</caption>
+        <thead><tr>
+          <th scope="col">Level</th><th scope="col">Finding</th><th scope="col">Value</th>
+          <th scope="col">Confidence</th><th scope="col">Experimental</th><th scope="col">Validation</th>
+        </tr></thead>
+        <tbody id="fx-body"></tbody>
+      </table>
+    </div>
+    <p class="fieldmsg" id="fx-msg" role="status"></p>
+    <ul class="fxlegend" id="fx-legend" aria-label="Marker colours by finding kind"></ul>
+    <p class="hint">Markers show on the slice that contains the finding. Solid: measured or suggested. Dashed ring: experimental, not validated for use.</p>
+  </aside>
 </div>
 
 <div id="help" hidden>
@@ -109,6 +136,8 @@ __CSS__
       <tr><td>Drag</td><td>window width (left/right) and level (up/down)</td></tr>
       <tr><td>Click</td><td>set the 3D cursor; other panes move to the nearest slice. While adding a disc: place its centre</td></tr>
       <tr><td><kbd>C</kbd></td><td>clear the cursor</td></tr>
+      <tr><td><kbd>F</kbd></td><td>show or hide the findings panel (when the study has findings)</td></tr>
+      <tr><td><kbd>&uarr;</kbd> <kbd>&darr;</kbd> in the findings table</td><td>move between findings; <kbd>Enter</kbd> moves the planes to it</td></tr>
       <tr><td>Ctrl/Cmd + <kbd>Z</kbd></td><td>undo the last label correction</td></tr>
       <tr><td><kbd>?</kbd> or <kbd>Esc</kbd></td><td>show or hide this list (Esc also cancels disc placement)</td></tr>
     </table>

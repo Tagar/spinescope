@@ -9,6 +9,12 @@
   var MONO = 'ui-monospace, Menlo, Consolas, monospace';
   var HISTORY_MAX = 100;
   var POLICY = D.policy || { who: 'viewer user', confHigh: 0.8, confLow: 0.5, confHuman: 0.95, confAi: 0.85 };
+  // findings panel (null without findings): items come from findings_view.py, already PHI-free
+  var FX = D.findings || null;
+  var KIND_PALETTE = ['#ff8a65', '#4dd0e1', '#aed581', '#ba68c8', '#ffd54f', '#90caf9', '#f48fb1', '#a1887f',
+    '#80cbc4', '#fff176'];
+  var KIND_COLOR = {}, STATUS_WORDS = ['confirmed', 'probable', 'unconfirmed'];
+  if (FX) FX.kinds.forEach(function (k, i) { KIND_COLOR[k] = KIND_PALETTE[i % KIND_PALETTE.length]; });
   var SER = {}, ORDER = [];
   D.series.forEach(function (s) {
     SER[s.key] = s;
@@ -20,7 +26,9 @@
   var state = {
     layout: D.layout || 3, focus: 0, cursor: null, hover: '', msg: '', panes: [],
     model: D.anchors ? L.clone(D.anchors) : null,  // the labels being reviewed (Anchors.to_dict shape)
-    history: [], discs: [], addMode: null
+    history: [], discs: [], addMode: null,
+    sel: null,         // id of the finding selected in the table (its marker gets a ring)
+    fxVisible: []      // findings shown in the table (after the structure filter); their markers are drawn
   };
   var rafPending = false;
 
@@ -44,6 +52,11 @@
   function presetName(key) {
     var c = SER[key].contrast;
     return c === 't1' ? 'T1' : c === 't2' ? 'T2' : c === 'stir' ? 'STIR' : 'Auto';
+  }
+  // numbering status of the labels being reviewed; anything unknown counts as unconfirmed (as status_of does)
+  function statusWord() {
+    var s = state.model && state.model.numbering ? state.model.numbering.status : '';
+    return STATUS_WORDS.indexOf(s) >= 0 ? s : 'unconfirmed';
   }
   function wrapText(ctx, text, x, y, maxW, lh) {
     var words = String(text).split(' '), line = '', yy = y;
@@ -408,7 +421,16 @@
       if (!sg) return;
       var col = TIER_COLOR[L.tier(D1.confidence, POLICY)];
       seg(sg, col, [6, 4], 1.2);
-      label(sg, D1.label, col);
+      label(sg, D1.label + ' (' + statusWord() + ')', col);
+    });
+
+    // findings: markers on the slice that contains them; the table below says what each one is
+    state.fxVisible.forEach(function (it) {
+      if (!it.pos) return;
+      var pc = M.projectToSlice(s, p.k, it.pos);
+      if (pc.r < -0.5 || pc.r > R - 0.5 || pc.c < -0.5 || pc.c > C - 0.5) return;
+      if (Math.abs(pc.off) > spacingOf(s) / 2 + 1e-6) return;
+      drawMarker(ctx, X(pc.c), Y(pc.r), it, it.id === state.sel);
     });
 
     // 3D cursor
@@ -446,6 +468,26 @@
     ctx.fillText(M.opposite(bl), cw / 2, PAD / 2);
     ctx.restore();
     p.info.title = p.info.textContent;
+  }
+
+  // A finding's marker: colour by kind; opacity by confidence (a word maps to a fixed opacity); experimental items are
+  // a dashed ring, the rest a filled dot; the selected one also gets a yellow ring.
+  function markerAlpha(it) {
+    if (it.confidence !== null && it.confidence !== undefined) return 0.3 + 0.7 * it.confidence;
+    return { high: 1, medium: 0.6, low: 0.3 }[it.confidence_word] || 0.6;
+  }
+  function drawMarker(ctx, x, y, it, selected) {
+    var col = KIND_COLOR[it.kind] || '#ffffff';
+    ctx.save();
+    ctx.globalAlpha = markerAlpha(it);
+    ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(x, y, 5, 0, 2 * Math.PI);
+    if (it.experimental) { ctx.setLineDash([3, 2]); ctx.stroke(); } else { ctx.fill(); }
+    if (selected) {
+      ctx.globalAlpha = 1; ctx.setLineDash([]); ctx.strokeStyle = '#ffd54f';
+      ctx.beginPath(); ctx.arc(x, y, 10, 0, 2 * Math.PI); ctx.stroke();
+    }
+    ctx.restore();
   }
 
   // Grid placement: three panes put the first (sagittal, by default) in a tall column on the left, so the
@@ -508,6 +550,12 @@
     } else {
       lines.push('No 3D cursor. Click an image to place one; the other panes move to the nearest slice.');
     }
+    if (FX && state.sel !== null && FX.items[state.sel]) {
+      var fi = FX.items[state.sel];
+      lines.push('Finding: ' + (fi.level || 'no level') + (fi.side ? ' ' + fi.side : '') + ', ' + fi.kind +
+        (fi.value !== null ? ' = ' + fi.value : '') + (fi.experimental ? ' (experimental)' : '') +
+        (fi.pos ? '' : ' (no position)'));
+    }
     if (state.hover) lines.push(state.hover);
     statusEl.textContent = lines.join('\n');
   }
@@ -518,6 +566,7 @@
 
   function renderLabels() {
     var model = state.model, num = model ? (model.numbering || {}) : {};
+    if (FX) renderFindings();
     var b = L.banner(model, POLICY), bn = $('banner');
     bn.hidden = !b.text;
     bn.className = b.level;
@@ -709,6 +758,151 @@
     setCorrMsg('Exported ' + n + ' recorded change' + (n === 1 ? '' : 's') + ' with a provenance entry for this export.', 'ok');
   }
 
+  // ------------------------------------------------------------------ findings panel
+  function setFxMsg(text, kind) {
+    var m = $('fx-msg');
+    m.textContent = text;
+    m.className = 'fieldmsg' + (kind ? ' ' + kind : '');
+  }
+  function cell(tr, text, cls) {
+    var td = el('td', cls || '', text);
+    tr.appendChild(td);
+    return td;
+  }
+  function computeVisible() {
+    var f = $('fx-structure').value;
+    state.fxVisible = FX.items.filter(function (it) { return !f || it.structure === f; });
+  }
+  function renderFindings() {
+    if (!FX) return;
+    computeVisible();
+    var body = $('fx-body'), sw = statusWord();
+    body.textContent = '';
+    state.fxVisible.forEach(function (it) {
+      var tr = el('tr');
+      tr.tabIndex = 0;
+      tr.dataset.id = String(it.id);
+      tr.setAttribute('aria-selected', it.id === state.sel ? 'true' : 'false');
+      if (!it.pos) tr.className = 'nopos';
+      var lv = cell(tr, it.level || '-');
+      if (it.level) {
+        lv.appendChild(document.createTextNode(' '));
+        lv.appendChild(el('span', 'badge status-' + sw, sw));
+      }
+      cell(tr, it.kind + (it.side ? ' (' + it.side + ')' : ''));
+      cell(tr, it.value === null ? '-' : String(it.value), 'num');
+      var cc = cell(tr, '');
+      if (it.confidence !== null || it.confidence_word) {  // the word is shown; the number is in the tooltip
+        var w = it.confidence_word || (it.confidence >= 0.7 ? 'high' : it.confidence >= 0.4 ? 'medium' : 'low');
+        var tag = el('span', 'tier ' + w, w);
+        if (it.confidence !== null) tag.title = 'confidence ' + it.confidence.toFixed(2);
+        cc.appendChild(tag);
+      } else {
+        cc.textContent = '-';
+      }
+      cell(tr, it.experimental ? 'yes' : 'no', it.experimental ? 'badge exp' : 'muted');
+      cell(tr, it.validation || 'not reported', it.validation ? '' : 'muted');
+      body.appendChild(tr);
+      if (it.id === state.sel && it.notes) {  // the note of the selected finding, under its row (not focusable)
+        var nt = el('tr', 'fxnote'), nd = el('td', 'muted', 'Note: ' + it.notes);
+        nd.colSpan = 6;
+        nt.appendChild(nd);
+        body.appendChild(nt);
+      }
+    });
+    if (!state.fxVisible.length) {
+      var none = el('tr'), td = el('td', 'muted', FX.items.length ? 'No findings for this structure.' :
+        'No findings for the labelled levels.');
+      td.colSpan = 6;
+      none.appendChild(td);
+      body.appendChild(none);
+    }
+    var n = FX.items.length;
+    $('findbtn').textContent = 'Findings (' + n + ')';
+    var parts = FX.analyses.map(function (a) { return a.name + ' ' + a.findings; });
+    $('findnum').textContent = 'Level labels: numbering ' + sw + '. Analyses: ' + (parts.join(', ') || 'none') + '.' +
+      (state.history.length ? ' Labels were corrected here after the analysis ran: positions and level names of the' +
+        ' findings keep the labels of the analysis run.' : '');
+  }
+  function selectFinding(id) {
+    var it = FX.items[id];
+    if (!it) return;
+    state.sel = id;
+    if (!it.pos) {
+      setFxMsg((it.level || 'This finding') + ' has no position: it is listed here only.', 'err');
+    } else {
+      state.cursor = it.pos.slice();
+      syncPanes(-1);
+      setFxMsg('Planes moved to ' + (it.level || 'the finding') + (it.side ? ' ' + it.side : '') + ': ' + it.kind + '.', 'ok');
+    }
+    renderFindings();
+    scheduleRender();
+  }
+  function setFindingsOpen(on) {
+    $('findings').hidden = !on;
+    $('findbtn').setAttribute('aria-expanded', on ? 'true' : 'false');
+    scheduleRender();
+  }
+  function toggleFindings() {
+    if (!FX) return;
+    var open = $('findings').hidden;
+    setFindingsOpen(open);
+    var target = open ? ($('fx-body').querySelector('tr[tabindex]') || $('fx-structure')) : $('findbtn');
+    target.focus();
+  }
+  function buildFindings() {
+    $('findbtn').hidden = false;
+    $('findbtn').addEventListener('click', toggleFindings);
+    $('findclose').addEventListener('click', function () { setFindingsOpen(false); $('findbtn').focus(); });
+    var sel = $('fx-structure');
+    sel.appendChild(new Option('All structures (' + FX.items.length + ')', ''));
+    FX.structures.forEach(function (name) {
+      var n = FX.items.filter(function (it) { return it.structure === name; }).length;
+      sel.appendChild(new Option(name + ' (' + n + ')', name));
+    });
+    sel.addEventListener('change', function () { renderFindings(); scheduleRender(); });
+    var body = $('fx-body');
+    body.addEventListener('click', function (ev) {
+      var tr = ev.target.closest ? ev.target.closest('tr[data-id]') : null;
+      if (tr) selectFinding(+tr.dataset.id);
+    });
+    body.addEventListener('keydown', function (ev) {
+      var tr = ev.target.closest ? ev.target.closest('tr') : null;
+      if (!tr) return;
+      var k = ev.key, next = null, step = k === 'ArrowDown' ? 'nextElementSibling' :
+        k === 'ArrowUp' ? 'previousElementSibling' : null;
+      if (k === 'Enter' || k === ' ') {
+        ev.preventDefault();
+        if (tr.dataset.id !== undefined) selectFinding(+tr.dataset.id);
+        return;
+      }
+      if (k === 'Home' || k === 'End') {
+        var rows = Array.prototype.filter.call(body.children, function (x) { return x.tabIndex === 0; });
+        next = k === 'Home' ? rows[0] : rows[rows.length - 1];
+      } else if (step) {
+        next = tr[step];
+        while (next && next.tabIndex !== 0) next = next[step];  // skip the note row
+      }
+      if (next) { ev.preventDefault(); next.focus(); }
+      else if (step || k === 'Home' || k === 'End') ev.preventDefault();
+    });
+    var legend = $('fx-legend');
+    FX.kinds.forEach(function (k) {
+      var li = el('li'), dot = el('span', 'dot');
+      dot.style.background = KIND_COLOR[k];
+      dot.setAttribute('aria-hidden', 'true');
+      li.appendChild(dot);
+      li.appendChild(document.createTextNode(k));
+      legend.appendChild(li);
+    });
+    var warns = (FX.warnings || []).slice();
+    FX.analyses.forEach(function (a) { (a.warnings || []).forEach(function (w) { warns.push(a.name + ': ' + w); }); });
+    var wl = $('fx-warn');
+    wl.textContent = '';
+    warns.forEach(function (w) { wl.appendChild(el('li', '', w)); });
+    renderFindings();
+  }
+
   // ------------------------------------------------------------------ sidebar
   function buildSidebar() {
     $('title').textContent = D.title;
@@ -814,6 +1008,7 @@
     if (k === '1' || k === '2' || k === '3' || k === '4') { setLayout(+k); ev.preventDefault(); return; }
     if (k === '[' || k === ']') { focusPane(state.focus + (k === ']' ? 1 : -1)); ev.preventDefault(); return; }
     if (k === 'c' || k === 'C') { state.cursor = null; scheduleRender(); return; }
+    if ((k === 'f' || k === 'F') && FX) { ev.preventDefault(); toggleFindings(); return; }
     var onPage = !t || t === document.body || panesEl.contains(t);
     if (!onPage) return;
     var i = state.focus, p = state.panes[i];
@@ -847,6 +1042,7 @@
     ensure(key);
   }
   refreshDiscs();
+  if (FX) buildFindings();
   renderLabels();
   if (window.ResizeObserver) new ResizeObserver(function () { scheduleRender(); }).observe(panesEl);
   window.addEventListener('resize', function () { scheduleRender(); });

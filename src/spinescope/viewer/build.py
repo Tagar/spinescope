@@ -10,6 +10,7 @@ import json
 import logging
 import os
 import re
+from collections.abc import Mapping
 from importlib import resources
 from pathlib import Path
 from typing import Any
@@ -64,6 +65,8 @@ def build_viewer(
     title: str | None = None,
     *,
     config: Config = DEFAULT,
+    findings: Mapping[str, Any] | None = None,
+    findings_notes: list[str] | None = None,
 ) -> Path:
     """Write ``spinescope_viewer.html`` into ``outdir`` and return its path.
 
@@ -72,8 +75,19 @@ def build_viewer(
     levels: lines across the images, labels on the image edge, and a disc jump list. ``title``
     is shown in the page; keep it free of patient information. The page contains only technical
     series information and the research-only disclaimer.
+
+    ``findings`` (analysis name -> ``Result``, or the dict an ``analyze`` file holds) adds the findings panel:
+    a table per level with the value, confidence and validation, and markers on the planes. Only the fields
+    :mod:`spinescope.viewer.findings_view` documents are written. ``findings_notes`` are shown with the panel.
     """
-    payload = build_payload(study, anchors, title=title or DEFAULT_TITLE, config=config)
+    payload = build_payload(
+        study,
+        anchors,
+        title=title or DEFAULT_TITLE,
+        config=config,
+        findings=findings,
+        findings_notes=findings_notes,
+    )
     out = Path(os.fspath(outdir))
     out.mkdir(parents=True, exist_ok=True)
     path = out / VIEWER_FILE

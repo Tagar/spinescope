@@ -174,6 +174,29 @@ def _surface_viewer(study, anchors, tmp: Path) -> Blobs:
     return {"viewer.html": Path(path).read_bytes()}
 
 
+def _surface_viewer_findings(study, anchors, tmp: Path) -> Blobs:
+    """The findings panel, from the analyses run in memory and from an ``analyze`` file read back."""
+    from spinescope.analysis.base import run_all
+    from spinescope.viewer.findings_view import load_findings_file
+
+    results = run_all(study, anchors)
+    path = build_viewer(study, tmp / "viewer_findings", anchors=anchors, findings=results)
+    analyze = tmp / "analyze.json"
+    analyze.write_text(
+        json.dumps(
+            {"levels": anchors.disc_labels(), "analyses": {k: r.to_dict() for k, r in results.items()}}
+        )
+    )
+    read_back, notes = load_findings_file(analyze, anchors)
+    path2 = build_viewer(
+        study, tmp / "viewer_from_file", anchors=anchors, findings=read_back, findings_notes=notes
+    )
+    return {
+        "viewer_findings.html": Path(path).read_bytes(),
+        "viewer_from_file.html": Path(path2).read_bytes(),
+    }
+
+
 def _surface_report() -> Blobs:
     a = findings("reader_a", levels={"L4-L5": {"disc": l45_disc(3)}})
     b = findings("reader_b", levels={"L4-L5": {"disc": l45_disc(4)}})
@@ -375,6 +398,7 @@ def test_public_text_keeps_protocol_words_and_drops_the_rest() -> None:
         "labelling",
         "analysis",
         "viewer",
+        "viewer_findings",
         "report",
         "briefs",
         "cli",
@@ -413,6 +437,8 @@ def test_no_canary_in_surface(
         blobs = _surface_analysis(study, anchors, tmp_path)
     elif surface == "viewer":
         blobs = _surface_viewer(study, anchors, tmp_path)
+    elif surface == "viewer_findings":
+        blobs = _surface_viewer_findings(study, anchors, tmp_path)
     elif surface == "report":
         blobs = _surface_report()
     elif surface == "briefs":
