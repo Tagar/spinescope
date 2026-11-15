@@ -251,6 +251,13 @@ class Config:
     # Endplate defect threshold (concavity, mm) for the UP/LOW proxy: maximises Youden J on SPIDER training, UP and LOW
     # pooled (train J 0.227, AUC 0.667; docs/analysis/endplates.md). Not a clinical cut-off.
     endplate_defect_mm: float = 0.5
+    # Modic typing is EXPERIMENTAL. On SPIDER validation (39 cases, 80 scored discs) kappa was 0.14 and any-Modic
+    # specificity 0.74, below the pre-registered 0.85 target (docs/analysis/endplates.md). Typed Modic confidence is
+    # capped here, in rows, flags and findings. Judgement cap: no typed call is reported above this confidence.
+    endplate_modic_max_confidence: float = 0.4
+    # The endplate-defect measure is EXPERIMENTAL (UP/LOW AUC 0.59-0.60 on validation). Its rows (concavity_mm,
+    # irregularity_mm) are always written; flags are raised only when this switch is on. Default off.
+    endplate_defect_flags: bool = False
     # Cortical bone is near signal-void on T1: ratio to marrow below this marks cortex (excluded from lesions).
     cortex_t1_ratio: float = 0.30
     # Pixel smoothing (mm) applied before pixel-level classification (noise control).

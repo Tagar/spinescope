@@ -198,7 +198,12 @@ def _endplate_modic(endplate: str) -> Extract:
                     )
                 if pat not in mapping:
                     return None
-                return Candidate(mapping[pat], float(r.get("confidence") or 0.0), f"pattern: {pat}")
+                # same text as endplates.MODIC_EXPERIMENTAL_NOTE (kept literal to avoid an import cycle)
+                note = (
+                    "Modic typing is experimental: agreement with radiologists on public data is low; "
+                    "check T1 and T2 at this endplate"
+                )
+                return Candidate(mapping[pat], float(r.get("confidence") or 0.0), f"pattern: {pat}; {note}")
         return None
 
     return fn

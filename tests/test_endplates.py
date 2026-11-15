@@ -9,6 +9,7 @@ from _studies import keep_contrasts, phantom_study, stacks_flipped
 from spinescope.analysis import base, endplates
 from spinescope.analysis.base import Result
 from spinescope.anatomy import Anchors
+from spinescope.config import DEFAULT
 from spinescope.study import Study
 from spinescope.testing.phantom import PhantomSpec, SpinePhantom
 
@@ -237,3 +238,35 @@ def test_defect_upward_notch_for_top_endplate_and_sign():
 def test_defect_too_few_columns_is_not_assessed():
     conc, irr = endplates._defect_profile(_trace(np.full(3, 10.0)), "bot", 20.0)
     assert np.isnan(conc) and np.isnan(irr)
+
+
+def test_typed_modic_is_experimental_and_capped(phantom, phantom_study):
+    res = endplates.analyze(phantom_study, Anchors.from_truth(phantom.truth))
+    assert res.meta["modic_status"] == "experimental"
+    assert "experimental" in res.meta["modic_note"]
+    typed = [r for r in res.rows if r["scope"] == "endplate" and r["pattern"] in endplates.MODIC_PATTERNS]
+    assert typed
+    assert all(r["confidence"] <= DEFAULT.endplate_modic_max_confidence + 1e-9 for r in typed)
+    flags = _modic_flags(res)
+    assert flags and all(f["confidence"] <= DEFAULT.endplate_modic_max_confidence + 1e-9 for f in flags)
+    assert all("experimental" in f["note"] for f in flags)
+
+
+def test_defect_flags_are_off_by_default_and_rows_always_written(phantom, phantom_study):
+    res = endplates.analyze(phantom_study, Anchors.from_truth(phantom.truth))
+    assert res.meta["endplate_defect_status"] == "experimental"
+    assert not [f for f in res.flags if f["kind"] == "endplate_defect_candidate"]
+    assert any(r["scope"] == "endplate" and r["side"] == "all" for r in res.rows)
+    assert all("concavity_mm" in r for r in res.rows if r["scope"] == "endplate")
+
+
+def test_defect_flags_on_when_the_switch_is_set(phantom, phantom_study):
+    from dataclasses import replace
+
+    cfg = replace(
+        DEFAULT, endplate_defect_flags=True, endplate_defect_mm=-1.0
+    )  # every finite concavity flags
+    res = endplates.analyze(phantom_study, Anchors.from_truth(phantom.truth), cfg)
+    flags = [f for f in res.flags if f["kind"] == "endplate_defect_candidate"]
+    assert flags
+    assert all("experimental" in f["note"] for f in flags)

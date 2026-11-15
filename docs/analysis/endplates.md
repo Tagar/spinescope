@@ -158,3 +158,21 @@ Its threshold is at the level of sub-millimetre contour noise, so it should not 
   (review, reproducibility kappa 0.64-0.91). Our kappa 0.14 on validation is well below these reader values, and the
   scoring uses a single SPIDER rater, so the comparison is only indicative.
 
+## Decision (follow-up, after validation)
+
+- Modic typing is **experimental**. Validation kappa was 0.14 and any-Modic specificity 0.74, below the pre-registered
+  0.85. Typed Modic confidence is capped at `endplate_modic_max_confidence` = 0.4 (config) in rows, flags and findings.
+  Every typed Modic note says: "Modic typing is experimental: agreement with radiologists on public data is low; check
+  T1 and T2 at this endplate". `Result.meta` carries `modic_status = "experimental"`.
+- The band measurements stay in the output unchanged for the reader: band ratios (T1, T2, STIR), side, extent, width_pct
+  and depth_mm.
+- The endplate-defect measure is **experimental** (UP/LOW AUC 0.59-0.60). Rows (`concavity_mm`, `irregularity_mm`) are
+  always written. Defect flags (`endplate_defect_candidate`) are raised only when `endplate_defect_flags` is set; default
+  off. `Result.meta` carries `endplate_defect_status = "experimental"`.
+- The pre-registered thresholds are not changed after validation.
+
+## Next steps
+
+- Modic is the prime candidate for the model-strategy wave: a learned endplate classifier on T1 + T2 patches, trained on
+  SPIDER training and scored once on validation (the rule-based thresholds here do not transfer).
+

@@ -44,6 +44,10 @@ from .discs import DISC_CONTRAST_ORDER, DiscTrace, _body_height, background, tra
 log = logging.getLogger(__name__)
 
 MODIC_PATTERNS = ("Modic 1", "Modic 1-like", "Modic 2", "Modic 3")
+MODIC_EXPERIMENTAL_NOTE = "Modic typing is experimental: agreement with radiologists on public data is low; check T1 and T2 at this endplate"
+DEFECT_EXPERIMENTAL_NOTE = (
+    "endplate defect measure is experimental: agreement with SPIDER UP/LOW is weak; check the image"
+)
 SEQS = ("t1", "t2", "stir")
 SIDES = ("left", "central", "right")
 FIG_HALF_PX = 50  # half size of a triptych crop, native pixels
@@ -469,15 +473,13 @@ def _summarise(ob: list[_Obs], cfg: Config) -> dict[str, dict[str, Any]]:
             "STIR_raw": raw_med["stir"],
             "pattern": pat,
             # presence-only (type not assessed, a sequence missing) is always low confidence
-            "confidence": min(0.3, _confidence(n_seq, agree, len(grp)))
-            if pat in PRESENCE_PATTERNS
-            else _confidence(n_seq, agree, len(grp)),
+            "confidence": _capped_confidence(pat, _confidence(n_seq, agree, len(grp)), cfg),
             "extent_pct": round(100.0 * n_abn / n_band, 1) if n_band else float("nan"),
             "width_pct": round(100.0 * len(bins_abn) / len(bins_all), 1) if bins_all else float("nan"),
             "depth_mm": round(float(np.percentile(depths, 95)), 1)
             if depths and pat in MODIC_PATTERNS
             else float("nan"),
-            "note": note,
+            "note": note + (f"; {MODIC_EXPERIMENTAL_NOTE}" if pat in MODIC_PATTERNS else ""),
         }
     # the endplate-level suggestion is the worst side when a Modic pattern is confined to one or two sides
     mod_sides = [sd for sd in SIDES if sd in out and out[sd]["pattern"] in MODIC_PATTERNS]
@@ -490,6 +492,15 @@ def _summarise(ob: list[_Obs], cfg: Config) -> dict[str, dict[str, Any]]:
             note=out["all"]["note"] + f"; {out[best]['pattern']} on {', '.join(mod_sides)} side(s) only",
         )
     return out
+
+
+def _capped_confidence(pat: str, conf: float, cfg: Config) -> float:
+    """Presence-only is at most 0.3; typed Modic at most ``endplate_modic_max_confidence`` (experimental)."""
+    if pat in PRESENCE_PATTERNS:
+        return min(0.3, conf)
+    if pat in MODIC_PATTERNS:
+        return min(cfg.endplate_modic_max_confidence, conf)
+    return conf
 
 
 def _is_normal(summ: dict[str, dict[str, Any]]) -> bool:
@@ -601,7 +612,15 @@ def analyze(study: Study, anchors: Anchors, config: Config | None = None) -> Res
     """Modic-type suggestions, marrow extent and focal lesion candidates on sagittal images."""
     cfg = config or DEFAULT
     res = Result(
-        name="endplates", meta={"method": "disc-frame endplate depth maps; mid-body normalised ratios"}
+        name="endplates",
+        meta={
+            "method": "disc-frame endplate depth maps; mid-body normalised ratios",
+            "status": "experimental",
+            "modic_status": "experimental",
+            "modic_note": MODIC_EXPERIMENTAL_NOTE,
+            "endplate_defect_status": "experimental",
+            "endplate_defect_note": DEFECT_EXPERIMENTAL_NOTE,
+        },
     )
     stacks = sagittal_stacks(study)
     if not stacks:
@@ -750,6 +769,26 @@ def analyze(study: Study, anchors: Anchors, config: Config | None = None) -> Res
                 if s is None:
                     continue
                 endplate = "superior" if ep == "sup" else "inferior"
+                conc = _defect_median(defects.get((V, ep), []), 0) if side == "all" else float("nan")
+                irr = _defect_median(defects.get((V, ep), []), 1) if side == "all" else float("nan")
+                if (
+                    side == "all"
+                    and cfg.endplate_defect_flags
+                    and math.isfinite(conc)
+                    and conc >= cfg.endplate_defect_mm
+                ):
+                    res.flags.append(
+                        {
+                            "kind": "endplate_defect_candidate",
+                            "vertebra": V,
+                            "endplate": endplate,
+                            "adjacent_disc": disc_lab,
+                            "concavity_mm": conc,
+                            "irregularity_mm": irr,
+                            "confidence": 0.3,
+                            "note": DEFECT_EXPERIMENTAL_NOTE,
+                        }
+                    )
                 res.rows.append(
                     {
                         "scope": "endplate",
@@ -763,12 +802,8 @@ def analyze(study: Study, anchors: Anchors, config: Config | None = None) -> Res
                         "T1_ratio": s["T1"],
                         "T2_ratio": s["T2"],
                         "STIR_ratio": s["STIR"],
-                        "concavity_mm": _defect_median(defects.get((V, ep), []), 0)
-                        if side == "all"
-                        else float("nan"),
-                        "irregularity_mm": _defect_median(defects.get((V, ep), []), 1)
-                        if side == "all"
-                        else float("nan"),
+                        "concavity_mm": conc,
+                        "irregularity_mm": irr,
                         "T1_vs_healthy": _vs(s["T1_raw"], healthy_ref.get("t1")),
                         "T2_vs_healthy": _vs(s["T2_raw"], healthy_ref.get("t2")),
                         "STIR_vs_healthy": _vs(s["STIR_raw"], healthy_ref.get("stir")),
@@ -810,7 +845,7 @@ def analyze(study: Study, anchors: Anchors, config: Config | None = None) -> Res
                             "extent_pct": s["extent_pct"],
                             "width_pct": s["width_pct"],
                             "depth_mm": s["depth_mm"],
-                            "note": "suggestion for reader confirmation",
+                            "note": f"suggestion for reader confirmation; {MODIC_EXPERIMENTAL_NOTE}",
                         }
                     )
 
