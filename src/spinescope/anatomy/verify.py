@@ -47,6 +47,7 @@ import io
 import itertools
 import json
 import logging
+import math
 import re
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
@@ -94,7 +95,9 @@ QUESTION_RULES = (
     "is below it, L4-L5 if the disc marked L5-S1 is really L4-L5 (sacralized L5), L5-L6 if the S1 below it is "
     "lumbarized. Use 'unsure' if the sacrum is not visible or the count is doubtful. missing lists the true "
     "names of discs that have no label. transitional is true for a sacralized L5 or lumbarized S1, false if the "
-    "anatomy is standard, null if unknown. notes is at most a sentence. Answer with the JSON object only."
+    "anatomy is standard, null if unknown. The lumbosacral CNN probabilities in the packet are one cue, not a count: "
+    "it can score a sacral remnant as L5-S1 too, so check the bone. notes is at most a sentence. "
+    "Answer with the JSON object only."
 )
 ANSWER_SCHEMA: dict[str, Any] = {
     "type": "object",
@@ -149,6 +152,8 @@ class VerificationPacket:
     predicted_levels: list[str]  # disc labels superior -> inferior, as drawn on the images
     notes: list[str] = field(default_factory=list)
     answer_schema: dict[str, Any] = field(default_factory=lambda: dict(ANSWER_SCHEMA))
+    #: Lumbosacral CNN P(L5-S1) for the lowest candidates, bottom-up (:func:`lumbosacral_context`); None if it did not run.
+    lumbosacral: dict[str, Any] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         """JSON-safe description (no image bytes)."""
@@ -158,6 +163,7 @@ class VerificationPacket:
             "rules": QUESTION_RULES,
             "answer_schema": self.answer_schema,
             "predicted_levels": list(self.predicted_levels),
+            "lumbosacral": self.lumbosacral,
             "notes": list(self.notes),
         }
 
@@ -294,6 +300,62 @@ def _zoom_upscale(stack: Stack, cfg: Config) -> float:
     return max(1.0, SACRUM_ZOOM_PX * native_px / cfg.verify_sacrum_fov_mm)
 
 
+#: Height in px of each tile of the overview sheet (the individual PNGs keep their own size).
+OVERVIEW_TILE_PX = 480
+
+
+def lumbosacral_context(anchors: Anchors) -> dict[str, Any] | None:
+    """The lumbosacral CNN's P(L5-S1) for the lowest disc candidates, bottom-up, from ``anchors.numbering``.
+
+    None when the check did not run or recorded no finite probability. The candidates are listed as the labeller
+    named them (before any sacral drop), so the reader can see what the CNN scored.
+    """
+    rec = anchors.numbering.get("lumbosacral")
+    if not isinstance(rec, dict):
+        return None
+    labels = [str(x) for x in (rec.get("candidates") or [])]
+    raw = list(rec.get("p_l5s1") or [])
+    if not labels or len(raw) != len(labels):
+        return None
+    pairs = [
+        (lab, float(p))
+        for lab, p in zip(labels, raw, strict=True)
+        if p is not None and math.isfinite(float(p))
+    ]
+    if not pairs:
+        return None
+    return {"candidates": [lab for lab, _ in pairs], "p_l5s1": [round(p, 3) for _, p in pairs]}
+
+
+def _lumbosacral_note(ctx: dict[str, Any] | None) -> str:
+    if ctx is None:
+        return "lumbosacral CNN: not run (no probability for the lowest candidates)"
+    parts = ", ".join(f"{lab} {p:.3f}" for lab, p in zip(ctx["candidates"], ctx["p_l5s1"], strict=True))
+    return f"lumbosacral CNN P(L5-S1) for the lowest candidates, bottom-up: {parts}"
+
+
+def _overview(pngs: list[bytes]) -> bytes:
+    """Contact sheet of the packet panels in two columns, each scaled to :data:`OVERVIEW_TILE_PX` tall."""
+    tiles: list[Image.Image] = []
+    for png in pngs:
+        im = Image.open(io.BytesIO(png)).convert("RGB")
+        w, h = im.size
+        scale = OVERVIEW_TILE_PX / max(h, 1)
+        tiles.append(im.resize((max(1, round(w * scale)), OVERVIEW_TILE_PX)))
+    cols = min(2, len(tiles))
+    rows = -(-len(tiles) // cols)
+    col_w = [
+        max(tiles[c + cols * r].width for r in range(rows) if c + cols * r < len(tiles)) for c in range(cols)
+    ]
+    sheet = Image.new("RGB", (sum(col_w), rows * OVERVIEW_TILE_PX), (0, 0, 0))
+    x0 = [sum(col_w[:c]) for c in range(cols)]
+    for i, tile in enumerate(tiles):
+        sheet.paste(tile, (x0[i % cols], (i // cols) * OVERVIEW_TILE_PX))
+    buf = io.BytesIO()
+    sheet.save(buf, format="PNG")
+    return buf.getvalue()
+
+
 def build_packet(study: Study, anchors: Anchors, *, cfg: Config = DEFAULT) -> VerificationPacket:
     """The reader packet for ``anchors`` of ``study``. Never raises for missing series: notes say what is absent."""
     notes: list[str] = []
@@ -340,11 +402,17 @@ def build_packet(study: Study, anchors: Anchors, *, cfg: Config = DEFAULT) -> Ve
             f"sacrum zoom centred {cfg.verify_sacrum_offset_mm:g} mm below the lowest labelled disc "
             f"({lowest}); it may show no sacrum if the field of view ends above it"
         )
+    lumbo = lumbosacral_context(anchors)
+    if anchors.discs:
+        notes.append(_lumbosacral_note(lumbo))
+    if len(images) >= 2:  # one picture of all the panels, so a reader sees the whole packet at once
+        images["overview"] = _overview(list(images.values()))
     return VerificationPacket(
         images=images,
         question=QUESTION + " " + QUESTION_RULES,
         predicted_levels=anchors.disc_labels(),
         notes=notes,
+        lumbosacral=lumbo,
     )
 
 
