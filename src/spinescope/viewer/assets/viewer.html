@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<meta name="generator" content="spinescope">
+<title>__TITLE__</title>
+<style>
+__CSS__
+</style>
+</head>
+<body>
+<div id="app">
+  <aside id="side">
+    <div class="brand">
+      <h1 id="title"></h1>
+      <p class="disclaimer" id="disclaimer"></p>
+      <p class="hint" id="scanner"></p>
+    </div>
+    <h2>Series</h2>
+    <ul id="series"></ul>
+    <p class="hint reformat-note" id="reformatnote" hidden></p>
+    <h2>Panes</h2>
+    <div class="row" id="layout"></div>
+    <h2>Window / level</h2>
+    <div class="row" id="presets"></div>
+    <p class="hint">Drag in an image: left/right = width, up/down = level. Presets apply to the focused pane.</p>
+    <div id="discblock">
+      <h2>Disc levels</h2>
+      <select id="disc"></select>
+    </div>
+    <div class="row"><button id="clear">Clear cursor</button><button id="helpbtn">Keys (?)</button></div>
+  </aside>
+  <main id="main">
+    <div id="panes"></div>
+    <div id="status"></div>
+  </main>
+</div>
+
+<div id="help" hidden>
+  <div class="dialog">
+    <h2>Keyboard and mouse</h2>
+    <table>
+      <tr><td><kbd>1</kbd> to <kbd>4</kbd></td><td>number of panes</td></tr>
+      <tr><td><kbd>Tab</kbd></td><td>move focus to the next pane</td></tr>
+      <tr><td>Wheel, <kbd>&uarr;</kbd> <kbd>&darr;</kbd></td><td>scroll slices in the focused pane</td></tr>
+      <tr><td><kbd>PgUp</kbd> <kbd>PgDn</kbd>, <kbd>Home</kbd> <kbd>End</kbd></td><td>5 slices, first or last slice</td></tr>
+      <tr><td>Ctrl/Cmd + wheel, <kbd>+</kbd> <kbd>-</kbd></td><td>zoom (<kbd>0</kbd> or double-click resets)</td></tr>
+      <tr><td>Shift-drag or middle-drag</td><td>pan</td></tr>
+      <tr><td>Drag</td><td>window width (left/right) and level (up/down)</td></tr>
+      <tr><td>Click</td><td>set the 3D cursor; other panes move to the nearest slice</td></tr>
+      <tr><td><kbd>C</kbd></td><td>clear the cursor</td></tr>
+      <tr><td><kbd>?</kbd> or <kbd>Esc</kbd></td><td>show or hide this list</td></tr>
+    </table>
+    <p class="hint">Orientation letters on the image edges follow the acquisition geometry: R/L, A/P, S/I.
+    Reference lines show where the other panes' slices cut this one. Research and education only. Not for diagnosis.</p>
+  </div>
+</div>
+
+<script>window.SPINESCOPE_DATA = __DATA__;</script>
+<script>
+__MATH__
+</script>
+<script>
+__APP__
+</script>
+</body>
+</html>
