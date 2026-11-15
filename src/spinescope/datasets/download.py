@@ -183,6 +183,8 @@ def fetch_dataset(
             continue
         if path.suffix.lower() == ".zip":
             safe_extract_zip(path, base)
-        else:
+        elif "/" not in f.name:
+            # Top-level files (e.g. overview.csv) are also copied beside raw/. Nested files (a folder tree
+            # of NIfTI volumes) stay in raw/ only, so large datasets are not stored twice.
             shutil.copyfile(path, base / f.name)
     return base
