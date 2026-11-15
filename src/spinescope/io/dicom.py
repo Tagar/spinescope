@@ -123,6 +123,7 @@ class SliceRef:
     photometric: str = "MONOCHROME2"
     bits_stored: int = 12
     transfer_syntax: str = ""
+    signed: bool = False  # PixelRepresentation 1 (two's complement pixel data)
 
 
 @dataclass
@@ -278,33 +279,76 @@ def _float(v: Any, default: float) -> float:
 
 
 # ----------------------------------------------------------------------------- scanning
-def _refs_from_file(path: str) -> tuple[list[SliceRef], str | None]:
-    """Header-only read of one file -> (slice references, reason it was ignored or None)."""
+def _refs_from_file(path: str) -> tuple[list[SliceRef], str | None, Counter[str]]:
+    """Header-only read of one file -> (slice references, reason the file was ignored or None, dropped frames).
+
+    ``dropped`` counts frames of a usable file that were excluded for their geometry (see ``_geometry_problem``).
+    """
+    dropped: Counter[str] = Counter()
     try:
         ds = pydicom.dcmread(path, stop_before_pixels=True)
     except Exception as e:
         log.debug("skip unreadable file: %s", e)
-        return [], "unreadable"
+        return [], "unreadable", dropped
     modality = str(_get(ds, "Modality", "") or "").upper()
     sop = _sop_class(ds)
     if sop.startswith(_NON_IMAGE_SOP_PREFIXES) or modality in _NON_IMAGE_MODALITIES:
-        return [], "non_image_object"
+        return [], "non_image_object", dropped
     if sop.startswith(_SECONDARY_CAPTURE_PREFIX) or modality in _SECONDARY_CAPTURE_MODALITIES:
-        return [], "secondary_capture"
+        return [], "secondary_capture", dropped
     if modality and modality != "MR":
-        return [], "other_modality"
+        return [], "other_modality", dropped
     photometric = str(_get(ds, "PhotometricInterpretation", "MONOCHROME2")).upper()
     if int(_get(ds, "SamplesPerPixel", 1) or 1) != 1 or photometric.startswith(("RGB", "YBR", "PALETTE")):
-        return [], "colour_or_screenshot"
+        return [], "colour_or_screenshot", dropped
     try:
-        refs = _build_refs(ds, path, photometric)
+        refs = _build_refs(ds, path, photometric, dropped)
     except Exception as e:  # malformed header: ignore the file, never crash the scan
         log.debug("skip malformed file: %s", e)
-        return [], "malformed"
-    return refs, (None if refs else "no_geometry")
+        return [], "malformed", Counter()
+    if refs:
+        return refs, None, dropped
+    return [], (dropped.most_common(1)[0][0] if dropped else "no_geometry"), Counter()
 
 
-def _build_refs(ds: Dataset, path: str, photometric: str) -> list[SliceRef]:
+def _geometry_problem(ipp: Any, iop: Any, ps: Any) -> str | None:
+    """Why a frame cannot be placed in patient space, or None when its position, orientation and spacing are usable.
+
+    Frames without the tag are ``missing_*``; present but unusable values (non-finite, zero or non-orthonormal
+    orientation, non-positive spacing) are ``bad_*``. Such frames are excluded, never guessed.
+    """
+    if ipp is None:
+        return "missing_position"
+    if iop is None:
+        return "missing_orientation"
+    if ps is None:
+        return "missing_pixel_spacing"
+    try:
+        p = np.array([float(x) for x in ipp], dtype=np.float64)
+        o = np.array([float(x) for x in iop], dtype=np.float64)
+        s = np.array([float(x) for x in ps], dtype=np.float64)
+    except (TypeError, ValueError):
+        return "bad_position"
+    if p.shape != (3,) or not np.all(np.isfinite(p)):
+        return "bad_position"
+    if o.shape != (6,) or not np.all(np.isfinite(o)):
+        return "bad_orientation"
+    tol = DEFAULT.iop_orthonormal_tol
+    r, c = o[:3], o[3:]
+    if abs(float(np.linalg.norm(r)) - 1.0) > tol or abs(float(np.linalg.norm(c)) - 1.0) > tol:
+        return "bad_orientation"
+    if abs(float(r @ c)) > tol:
+        return "bad_orientation"
+    if s.shape != (2,) or not np.all(np.isfinite(s)) or np.any(s <= 0):
+        return "bad_pixel_spacing"
+    return None
+
+
+def _build_refs(
+    ds: Dataset, path: str, photometric: str, dropped: Counter[str] | None = None
+) -> list[SliceRef]:
+    if dropped is None:
+        dropped = Counter()
     base = _header(ds)
     study_uid = str(_get(ds, "StudyInstanceUID", ""))
     series_uid = str(_get(ds, "SeriesInstanceUID", path))
@@ -315,6 +359,7 @@ def _build_refs(ds: Dataset, path: str, photometric: str) -> list[SliceRef]:
     rows = int(_get(ds, "Rows", 0) or 0)
     cols = int(_get(ds, "Columns", 0) or 0)
     bits = int(_get(ds, "BitsStored", 12) or 12)
+    signed = int(_get(ds, "PixelRepresentation", 0) or 0) == 1
     refs: list[SliceRef] = []
     frames: list[int | None] = list(range(nframes)) if nframes > 1 else [None]
     for fr in frames:
@@ -322,7 +367,9 @@ def _build_refs(ds: Dataset, path: str, photometric: str) -> list[SliceRef]:
         iop = _lookup(ds, fr, "ImageOrientationPatient")
         ps = _lookup(ds, fr, "PixelSpacing")
         thk = _lookup(ds, fr, "SliceThickness")
-        if ipp is None or iop is None or ps is None:
+        problem = _geometry_problem(ipp, iop, ps)
+        if problem is not None:
+            dropped[problem] += 1
             continue
         header = base if fr is None else _frame_header(ds, base, fr)
         echo = header.get("EchoTime")
@@ -352,6 +399,7 @@ def _build_refs(ds: Dataset, path: str, photometric: str) -> list[SliceRef]:
                 photometric=photometric,
                 bits_stored=bits,
                 transfer_syntax=ts,
+                signed=signed,
             )
         )
     return refs
@@ -366,10 +414,11 @@ def scan_dicom(root: str | os.PathLike[str]) -> Scan:
     files = 0
     for path in iter_dicom_files(root):
         files += 1
-        rs, reason = _refs_from_file(path)
+        rs, reason, dropped = _refs_from_file(path)
         if reason is not None:
             ignored[reason] += 1
             continue
+        ignored.update(dropped)  # frames of a usable file that lacked or had unusable geometry
         if (
             rs[0].transfer_syntax
             and _is_compressed(rs[0].transfer_syntax)
@@ -556,6 +605,15 @@ def build_stacks(
     return stacks
 
 
+def _signed_offset(vol: np.ndarray) -> float:
+    """0.5th percentile of the finite voxels, when negative (else 0): the background level of signed pixel data."""
+    v = np.asarray(vol, dtype=np.float64).ravel()
+    v = v[np.isfinite(v)]
+    if v.size == 0:
+        return 0.0
+    return min(0.0, float(np.percentile(v, 0.5)))
+
+
 def load_stack_pixels(stack: Stack) -> Stack:
     """Read the pixels of a lazy stack (in place) and return it. Loaded stacks are returned unchanged."""
     if not stack.meta.get("_lazy"):
@@ -567,6 +625,20 @@ def load_stack_pixels(stack: Stack) -> Stack:
     cache: dict[str, np.ndarray] = {}
     vol = np.stack([_read_pixels(r, cache) for r in refs])
     vol = apply_display_ops(vol, list(stack.meta.get("display_transform", [])))
+    bad = ~np.isfinite(vol)
+    if bad.any():
+        # NaN/inf pixels (corrupt export or float data) become the nearest finite extreme, never propagate.
+        finite = vol[~bad]
+        lo = float(finite.min()) if finite.size else 0.0
+        hi = float(finite.max()) if finite.size else 0.0
+        vol = np.nan_to_num(vol, nan=lo, posinf=hi, neginf=lo)
+        stack.meta["nonfinite_voxels"] = int(bad.sum())
+    if any(r.signed for r in refs):
+        off = _signed_offset(vol)
+        if off < 0.0:
+            # Signed pixel data with a background below zero: values stay as stored (signed reading is the
+            # contract); the offset is recorded so the learned labeller can shift its network input.
+            stack.meta["signed_offset"] = off
     stack.vol = np.ascontiguousarray(vol, dtype=np.float32)
     stack.meta["_refs"] = refs
     del stack.meta["_lazy"]
@@ -646,6 +718,50 @@ def list_studies(root: str | os.PathLike[str]) -> list[StudyInfo]:
     return [info for info, _uid in _study_table(_group_studies(scan.refs))]
 
 
+def _ignored_note(scan: Scan) -> str:
+    """Counts of ignored files and frames, for error messages (no paths, no identifiers)."""
+    if not scan.ignored:
+        return ""
+    return " (ignored: " + ", ".join(f"{k} {v}" for k, v in sorted(scan.ignored.items())) + ")"
+
+
+def _geometry_warnings(scan: Scan, stacks: list[Stack]) -> list[str]:
+    """Warnings for images excluded for geometry, and for series whose orientation is inconsistent.
+
+    A series with a few slices in a different orientation from a long run of others is almost always a bad
+    ImageOrientationPatient on those slices; they are kept as their own stack (never merged), so the labeller
+    sees a gap rather than a silently re-oriented slice.
+    """
+    out: list[str] = []
+    dropped = sum(v for k, v in scan.ignored.items() if k.startswith(("missing_", "bad_")))
+    if dropped:
+        out.append(
+            f"{dropped} image(s) ignored for missing or invalid ImagePositionPatient, ImageOrientationPatient "
+            "or PixelSpacing; the affected series may be incomplete"
+        )
+    by_series: dict[str, list[Stack]] = defaultdict(list)
+    for st in stacks:
+        by_series[str(st.meta.get("series_uid_hash", ""))].append(st)
+    for sid, group in by_series.items():
+        if len(group) < 2:
+            continue
+        group.sort(key=lambda s: -s.n)
+        main = group[0]
+        for minor in group[1:]:
+            if minor.n <= 2 and main.n >= 4:
+                # an in-plane rotation (same normal, other row direction) is an inconsistency too: take the larger angle
+                # signed dot products: a reversed slice (flipped direction) is 180 deg, not 0
+                angles = [
+                    np.degrees(np.arccos(np.clip(float(a @ b), -1.0, 1.0)))
+                    for a, b in ((main.normal, minor.normal), (main.row_dir, minor.row_dir))
+                ]
+                out.append(
+                    f"series {sid}: {minor.n} slice(s) have an orientation {max(angles):.1f} deg "
+                    f"away from the other {main.n} (inconsistent ImageOrientationPatient?); kept as a separate stack"
+                )
+    return out
+
+
 def read_dicom(
     root: str | os.PathLike[str],
     *,
@@ -660,7 +776,9 @@ def read_dicom(
     """
     scan = scan_dicom(root)
     if not scan.refs:
-        raise FileNotFoundError(f"no DICOM images with plane geometry found under {root}")
+        raise FileNotFoundError(
+            f"no DICOM images with plane geometry found under {root}{_ignored_note(scan)}"
+        )
     groups = _group_studies(scan.refs)
     table = _study_table(groups)
     warnings: list[str] = []
@@ -674,6 +792,10 @@ def read_dicom(
             )
             log.warning(msg)
             warnings.append(msg)
+            if table[1][0].n_images == table[0][0].n_images:
+                tie = "several studies tie on image count, so the choice is arbitrary and may be another patient; check study="
+                log.warning(tie)
+                warnings.append(tie)
     elif isinstance(study, int):
         if not 0 <= study < len(table):
             raise KeyError(f"study index {study} out of range (folder has {len(table)} studies)")
@@ -693,6 +815,9 @@ def read_dicom(
         log.warning(msg)
         warnings.append(msg)
     stacks = build_stacks(groups[uid], load_pixels=False, config=config)
+    for msg in _geometry_warnings(scan, stacks):
+        log.warning(msg)
+        warnings.append(msg)
     return DicomRead(
         stacks=stacks,
         studies=[info for info, _ in table],
