@@ -27,6 +27,7 @@ from typing import Any
 from ..analysis.base import Result
 from ..analysis.endplates import MODIC_PATTERNS
 from ..anatomy.anchors import Anchors
+from ..config import DEFAULT
 from .evaluate import (
     CaseSpec,
     Predictor,
@@ -41,6 +42,9 @@ _MODIC_TYPE = {"none": 0, "Modic 1": 1, "Modic 1-like": 1, "Modic 2": 2, "Modic 
 
 register_truth_field(TruthField("pfirrmann", "ordinal", (1, 2, 3, 4, 5), "Pfirrmann grade 1-5 (SPIDER)"))
 register_truth_field(TruthField("modic", "categorical", (0, 1, 2, 3), "Modic type 0-3 (SPIDER, per disc)"))
+register_truth_field(
+    TruthField("modic_any", "binary", (), "Any Modic change: SPIDER Modic >= 1 (derived from the Modic code)")
+)
 register_truth_field(
     TruthField("up_endplate", "binary", (), "UP endplate code 0/1 (SPIDER; semantics unverified)")
 )
@@ -110,29 +114,56 @@ def _modic(res: Result, anchors: Anchors) -> dict[str, tuple[Any, float | None]]
     return out
 
 
-def _endplate(endplate: str) -> Predictor:
-    def fn(res: Result, anchors: Anchors) -> dict[str, tuple[Any, float | None]]:
-        out: dict[str, tuple[Any, float | None]] = {}
-        for lab in anchors.discs:
-            rows = [r for r in _endplate_rows(res, lab) if r.get("endplate") == endplate]
-            pat = str(rows[0].get("pattern")) if rows else ""
-            if pat in MODIC_PATTERNS:
-                out[lab] = (1, None)
-            elif pat == "none":
-                out[lab] = (0, None)
-            else:
-                out[lab] = (None, None)
-        return out
-
-    return fn
+def _modic_any(res: Result, anchors: Anchors) -> dict[str, tuple[Any, float | None]]:
+    """1 when an endplate shows a typed Modic change OR a presence-only change; 0 when both endplates are normal."""
+    out: dict[str, tuple[Any, float | None]] = {}
+    for lab in anchors.discs:
+        pats = [str(r.get("pattern")) for r in _endplate_rows(res, lab)]
+        if any(p in MODIC_PATTERNS or p.startswith("presence only") for p in pats):
+            out[lab] = (1, None)
+        elif len(pats) == 2 and all(p == "none" for p in pats):
+            out[lab] = (0, None)
+        else:
+            out[lab] = (None, None)
+    return out
 
 
 register_predictor("discs", "pfirrmann", _pfirrmann)
 register_predictor("discs", "disc_narrowing", _disc_narrowing)
 register_predictor("endplates", "modic", _modic)
-# "inferior" endplate of the body above a disc is its UP endplate; "superior" of the body below is its LOW endplate.
-register_predictor("endplates", "up_endplate", _endplate("inferior"))
-register_predictor("endplates", "low_endplate", _endplate("superior"))
+register_predictor("endplates", "modic_any", _modic_any)
+
+
+def _endplate_defect(endplate: str) -> Predictor:
+    """Endplate contour defect proxy: concavity (mm) against ``config.endplate_defect_mm`` (see endplates.md)."""
+
+    def fn(res: Result, anchors: Anchors) -> dict[str, tuple[Any, float | None]]:
+        thr = DEFAULT.endplate_defect_mm
+        out: dict[str, tuple[Any, float | None]] = {}
+        for lab in anchors.discs:
+            rows = [r for r in _endplate_rows(res, lab) if r.get("endplate") == endplate]
+            raw = rows[0].get("concavity_mm") if rows else None
+            conc = float(raw) if raw is not None else float("nan")
+            if not math.isfinite(conc):
+                out[lab] = (None, None)
+            else:
+                out[lab] = (1 if conc >= thr else 0, conc)
+        return out
+
+    return fn
+
+
+# UP / LOW: endplate contour defect (concavity), replacing the Modic-type proxy (that proxy measured marrow signal,
+# not the endplate; kept in the baseline report for comparison).
+register_predictor("endplates", "up_endplate", _endplate_defect("inferior"))
+register_predictor("endplates", "low_endplate", _endplate_defect("superior"))
+
+
+def _modic_any_truth(modic: Any) -> int | None:
+    """Derived truth: 1 for a Modic code >= 1, 0 for code 0, unknown otherwise."""
+    if modic is None:
+        return None
+    return 1 if int(modic) >= 1 else 0
 
 
 def _load_spider(spec: CaseSpec) -> tuple[Any, list[TruthRef], dict[str, str], bool]:
@@ -163,7 +194,10 @@ def _load_spider(spec: CaseSpec) -> tuple[Any, list[TruthRef], dict[str, str], b
             TruthRef(
                 name=g.level,
                 center=(float(d.center[0]), float(d.center[1]), float(d.center[2])),
-                values={f: g.value(f) for f in GRADING_FIELDS},
+                values={
+                    **{f: g.value(f) for f in GRADING_FIELDS},
+                    "modic_any": _modic_any_truth(g.value("modic")),
+                },
             )
         )
     study = sd.to_study(seqs)

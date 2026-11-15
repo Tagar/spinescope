@@ -256,13 +256,29 @@ class Config:
     # Lesion search keeps this distance from both endplates (beyond the Modic band, plus margin).
     lesion_endplate_mm: float = 10.0
     min_region_mm2: float = 6.0
-    # Ratios to the own mid-body (relative units). Modic typing thresholds, approximate and
-    # uncalibrated; to be validated on public Modic gradings.
-    t1_low: float = 0.85
-    t1_high: float = 1.15
-    t2_low: float = 0.90
-    t2_high: float = 1.10
+    # Ratios to the own mid-body (relative units). Calibrated on SPIDER training only (pre-registered grid, objective:
+    # max unweighted kappa of Modic 0-3 subject to any-Modic specificity >= 0.85; docs/analysis/endplates.md).
+    # Modic signature definitions: Modic 1988 / Rahme & Moussa 2008. Validation: SPIDER validation split, once.
+    t1_low: float = 0.75
+    t1_high: float = 1.25
+    t2_low: float = 0.85
+    t2_high: float = 1.05
+    # STIR high threshold: not calibrated (SPIDER has no STIR); the Modic 1-like rule uses it when present.
     stir_high: float = 1.20
+    # Endplate contour defects (Schmorl-type intrusion, irregularity): running-median window along AP that defines the
+    # smooth endplate contour. The median is robust while a defect is under half the window; a Schmorl node is up to
+    # about 10 mm across (judgement, Dar et al. 1999), so 20 mm is the window. Judgement default.
+    endplate_defect_window_mm: float = 20.0
+    # Endplate defect threshold (concavity, mm) for the UP/LOW proxy: maximises Youden J on SPIDER training, UP and LOW
+    # pooled (train J 0.227, AUC 0.667; docs/analysis/endplates.md). Not a clinical cut-off.
+    endplate_defect_mm: float = 0.5
+    # Modic typing is EXPERIMENTAL. On SPIDER validation (39 cases, 80 scored discs) kappa was 0.14 and any-Modic
+    # specificity 0.74, below the pre-registered 0.85 target (docs/analysis/endplates.md). Typed Modic confidence is
+    # capped here, in rows, flags and findings. Judgement cap: no typed call is reported above this confidence.
+    endplate_modic_max_confidence: float = 0.4
+    # The endplate-defect measure is EXPERIMENTAL (UP/LOW AUC 0.59-0.60 on validation). Its rows (concavity_mm,
+    # irregularity_mm) are always written; flags are raised only when this switch is on. Default off.
+    endplate_defect_flags: bool = False
     # Cortical bone is near signal-void on T1: ratio to marrow below this marks cortex (excluded from lesions).
     cortex_t1_ratio: float = 0.30
     # Pixel smoothing (mm) applied before pixel-level classification (noise control).
