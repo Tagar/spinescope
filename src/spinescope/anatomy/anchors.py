@@ -353,6 +353,7 @@ class Anchors:
         if label not in self.discs:
             raise KeyError(f"no disc {label!r} to drop")
         del self.discs[label]
+        self._sync_geometry({}, {})  # canal and posterior-element entries of the dropped disc go too
         return self.record_correction(
             "drop", who=who, source=source, why=why, detail={"label": label}, confidence=confidence
         )

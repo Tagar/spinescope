@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Human review of the level names, end to end (`docs/guide/correcting-labels.md`): `spinescope label --out`, then
+  `spinescope viewer --anchors`, correct in the viewer (shift, rename, add, drop, each with a reason), export, then
+  `spinescope apply-labels STUDY corrected.json --out reviewed.json` (also `label --anchors`). Corrected files are
+  bound to their study by a geometry fingerprint (`numbering.study_fingerprint`), checked against the schema and for
+  paths, and their status is set by provenance: an AI reader cannot confirm the names, and `confirmed` needs a human
+  confirm with the sacrum in view. Brief, tasks, viewer, MCP `open_study(anchors_path)` and the analysis modules use
+  the reviewed file. The viewer's rename, delete and confirm now carry canal, posterior-element and body names too.
 - One-command labelling benchmark (`tools/benchmark.py`, `spinescope benchmark`): SPIDER validation, Sudirman, qx5rt and
   the phantom robustness suites, cached and parallel, with a golden file (`benchmarks/golden.json`) and a regression
   check (`--check`). Numbers and protocol in `docs/benchmarks.md`.

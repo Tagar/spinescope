@@ -558,6 +558,11 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
+        "study_fingerprint": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{16}$",
+          "description": "Binds the labels to their study: a hash of the sagittal and axial stack geometry (no UIDs, no paths). A corrected file is refused when it does not match the study."
+        },
         "status": {
           "type": "string",
           "enum": [

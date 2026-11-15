@@ -108,6 +108,7 @@ var SSLabels = (function () {
     Object.keys(a.vertebrae).forEach(function (k) { verts[has(vertMap, k) ? vertMap[k] : k] = a.vertebrae[k]; });
     a.discs = discs;
     a.vertebrae = verts;
+    syncGeometry(a, discMap, vertMap);
     if (a.conus && a.conus.level) {
       var level = String(a.conus.level);
       if (conusMap && has(conusMap, level)) a.conus.level = conusMap[level];
@@ -146,6 +147,34 @@ var SSLabels = (function () {
     return record(a, 'shift', extend(opts, { what: what }), detail, conf(opts));
   }
 
+  // Carry the geometry that is keyed by level name (canal per_level, posterior elements, vertebra body.level)
+  // across a relabelling, as Anchors._sync_geometry does; entries whose level no longer exists are dropped.
+  function syncGeometry(a, discMap, vertMap) {
+    var names = {};
+    Object.keys(a.discs).forEach(function (k) { names[k] = true; });
+    Object.keys(a.vertebrae).forEach(function (k) { names[k] = true; });
+    function mapped(k) { return has(discMap, k) ? discMap[k] : (has(vertMap, k) ? vertMap[k] : k); }
+    if (a.canal && a.canal.per_level && typeof a.canal.per_level === 'object') {
+      var pl = {};
+      Object.keys(a.canal.per_level).forEach(function (k) {
+        if (has(names, mapped(k))) pl[mapped(k)] = a.canal.per_level[k];
+      });
+      a.canal.per_level = pl;
+    }
+    if (a.posterior_elements) {
+      ['lamina_proxy', 'spinous_tip'].forEach(function (key) {
+        var src = a.posterior_elements[key];
+        if (!src || typeof src !== 'object') return;
+        var out = {};
+        Object.keys(src).forEach(function (k) { if (has(names, mapped(k))) out[mapped(k)] = src[k]; });
+        a.posterior_elements[key] = out;
+      });
+    }
+    Object.keys(a.vertebrae).forEach(function (name) {
+      if (a.vertebrae[name].body) a.vertebrae[name].body.level = name;
+    });
+  }
+
   // Rename chosen discs (L5-S1 -> L5-L6) or vertebrae by name. Unknown keys throw; validated first.
   function relabel(a, mapping, opts) {
     var discMap = {}, vertMap = {}, pairs = [];
@@ -166,6 +195,7 @@ var SSLabels = (function () {
   function drop(a, label, opts) {
     if (!has(a.discs, label)) throw new Error('no disc "' + label + '" to delete');
     delete a.discs[label];
+    syncGeometry(a, {}, {});
     return record(a, 'drop', extend(opts, { what: 'delete disc ' + label }), { label: label }, conf(opts));
   }
 
@@ -212,6 +242,9 @@ var SSLabels = (function () {
 
   // Reviewer confirms the current levels: a provenance entry, confidence, numbering status 'confirmed'.
   function confirm(a, opts) {
+    // Same rule as anatomy/review.py: a review that cannot see the bone (no sacrum in view) cannot confirm.
+    var blocked = (a.applicability && a.applicability.unconfirmed_reasons) || [];
+    if (blocked.length) throw new Error('the levels cannot be confirmed: ' + blocked.join('; '));
     record(a, 'confirm', extend(opts, { what: 'confirm the vertebral levels as reviewed' }), {},
       conf(opts));
     a.numbering.status = 'confirmed';
@@ -261,10 +294,15 @@ var SSLabels = (function () {
       return { level: 'probable', text: 'LEVELS PROBABLE (numbering confidence ' + c.toFixed(2) +
         '): the level names are to be confirmed; mark them so in any output.' };
     }
-    if (c < policy.confLow || status === 'unconfirmed') {
+    if (c < policy.confLow) {
       return { level: 'unconfirmed', text: 'LABELS UNCONFIRMED. Numbering confidence ' + c.toFixed(2) +
         ' (below ' + policy.confLow.toFixed(2) + '). Use disc positions only; check the lowest disc against the ' +
         'sacrum and confirm the levels before using their names.' };
+    }
+    if (status === 'unconfirmed') {
+      return { level: 'unconfirmed', text: 'LABELS NOT CONFIRMED. Numbering status unconfirmed (confidence ' +
+        c.toFixed(2) + '). Check the lowest disc against the sacrum; Confirm levels records a reviewer decision ' +
+        'once it is settled. Until then, use positions only.' };
     }
     return { level: 'ok', text: status ? 'Numbering status: ' + status + '.' : '' };
   }
@@ -286,6 +324,7 @@ var SSLabels = (function () {
   return {
     NAMES: NAMES, isDiscLabel: isDiscLabel, splitDisc: splitDisc, shiftLevel: shiftLevel,
     discOrder: discOrder, discsOf: discsOf, clone: clone, shift: shift, relabel: relabel, drop: drop,
+    syncGeometry: syncGeometry,
     add: add, confirm: confirm, exportAnchors: exportAnchors, tier: tier, banner: banner,
     applicabilityLine: applicabilityLine
   };
