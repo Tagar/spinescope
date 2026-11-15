@@ -226,7 +226,66 @@ def labelling_summary(anchors: Anchors, cfg: Config = DEFAULT) -> dict[str, Any]
             "castellvi": (anchors.lstv.get("castellvi") or {}).get("grade"),
             "line": lstv_line(anchors),
         },
+        "quality": quality_summary(anchors),
         "warnings": list(anchors.warnings),
+    }
+
+
+def quality_summary(anchors: Anchors, show_advisory: bool | None = None) -> dict[str, Any]:
+    """Image quality and hardware in one structure: study score, flagged kinds and levels, and the caps applied.
+
+    Empty-safe: a study without a quality record gets ``assessed`` False and no flags. Advisory detectors (STIR fat
+    suppression, bias field) are listed under ``advisory`` and never count as flags.
+    """
+    if show_advisory is None:
+        show_advisory = DEFAULT.quality_show_advisory
+    q = anchors.quality or {}
+    if not q:
+        return {
+            "assessed": False,
+            "score": None,
+            "flagged": [],
+            "levels": {},
+            "caps": [],
+            "line": "image quality: not assessed",
+        }
+    study = q.get("study", {}) or {}
+    flags = study.get("flags", {}) or {}
+    present = sorted(k for k, v in flags.items() if isinstance(v, dict) and v.get("present"))
+    advisory = sorted(
+        k for k, v in flags.items() if isinstance(v, dict) and v.get("advisory") and v.get("would_flag")
+    )
+    levels = {
+        lab: list(v.get("flagged", []))
+        for lab, v in (q.get("levels", {}) or {}).items()
+        if isinstance(v, dict) and v.get("flagged")
+    }
+    score = None if study.get("score") is None else float(study["score"])
+    if score is None:
+        return {
+            "assessed": False,
+            "score": None,
+            "flagged": [],
+            "levels": {},
+            "caps": [],
+            "line": "image quality: not assessed",
+        }
+    if present:
+        line = f"image quality: score {float(score):.2f}; flags " + ", ".join(
+            p.replace("_", " ") for p in present
+        )
+    else:
+        line = f"image quality: score {float(score):.2f}; no hardware or artefact flags"
+    if advisory and show_advisory:
+        line += "; advisory (not capped, unvalidated): " + ", ".join(a.replace("_", " ") for a in advisory)
+    return {
+        "assessed": True,
+        "score": None if score is None else round(float(score), 3),
+        "flagged": present,
+        "advisory": advisory,
+        "levels": levels,
+        "caps": [dict(c) for c in (q.get("caps", []) or []) if isinstance(c, dict)],
+        "line": line,
     }
 
 
@@ -249,6 +308,7 @@ def summary_lines(anchors: Anchors, cfg: Config = DEFAULT) -> list[str]:
             f"Lumbosacral check: {s['lumbosacral']['status']}"
             + (f" ({removed} sacral disc(s) removed)." if removed else ".")
         )
+    lines.append(s["quality"]["line"] + ".")
     if s["votes"]["counted"]:
         lines.append(
             f"Numbering votes: {s['votes']['agree']} of {s['votes']['counted']} agree with the applied count."
@@ -281,6 +341,7 @@ __all__ = [
     "labelling_summary",
     "numbering_votes",
     "one_line",
+    "quality_summary",
     "status_of",
     "summary_lines",
 ]

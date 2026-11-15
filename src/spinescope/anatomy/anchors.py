@@ -138,6 +138,8 @@ class Anchors:
     applicability: dict[str, Any] = field(default_factory=dict)
     # Transitional-vertebra check (spinescope.anatomy.lstv): suspicion, kind, Castellvi, naming suggestion. Additive.
     lstv: dict[str, Any] | None = None
+    # Image quality and hardware (spinescope.anatomy.artifacts, lab31). Additive: empty until assessed.
+    quality: dict[str, Any] = field(default_factory=dict)
     schema_version: str = SCHEMA_VERSION
 
     # ---------------------------------------------------------------- queries
