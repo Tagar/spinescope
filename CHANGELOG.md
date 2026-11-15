@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- AI reader surface for measured findings (`docs/ai_reader.md`): per disc level, each registered field with its
+  confidence and validation status (`spinescope.ai.reading.FIELD_STATUS`); a reading sheet per field (`render/reading_sheet.py`,
+  MCP `reading_sheet`, `spinescope findings --outdir`); review tasks that confirm or reject each measured value on its sheet
+  (`submit_reader_answer`, `spinescope review`). An AI review can only lower trust, is refused while the numbering is
+  unconfirmed, and converts to a findings file that the merge reads as one reader. Plugin skill `spine-findings`; `spine-read`
+  gains the review step. Pilot on 10 SPIDER validation discs (blind): the AI reader was within one Pfirrmann grade on all
+  ten, but missed all seven radiologist-positive bulges; a pilot, not a validation.
 - Labelling integration review (lab37, `docs/labeling/pipeline.md`): one map of the pipeline stage order and of every
   place that changes the numbering status. Fixes: a human answer to the verification packet no longer sets `confirmed`
   on its own (it is `probable`, as a human correction without a confirm; the import already downgraded it); the

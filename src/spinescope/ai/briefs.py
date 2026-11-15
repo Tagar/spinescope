@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import logging
 import re
+from collections.abc import Mapping
 from dataclasses import asdict, dataclass
 from typing import Any
 
@@ -34,9 +35,10 @@ from ..geometry import Stack
 from ..io.dicom import KEEP_TAGS
 from ..privacy import public_text
 from ..render.frame import direction_letter
-from ..report.instructions import reader_instructions
+from ..report.instructions import reader_instructions, review_instructions
 from ..report.schema import ITEM_SECTIONS, global_group_names, level_group_names
 from ..study import Study
+from .reading import REVIEW_POLICY, field_status, sheet_file_name
 
 log = logging.getLogger(__name__)
 
@@ -128,7 +130,9 @@ _TOOL_LINES = (
     "(check the level names before using them), render_slice(key, k, window), zoom(key, k, center_rc, fov_mm), linked_views(xyz), "
     "reference_lines(key, k, ref_keys), measure_distance(key, k, p0_rc, p1_rc), roi_stats(key, k, center_rc, "
     "radius_mm), reformat(plane, at_mm, label), build_viewer(outdir), brief(), tasks(), validate_findings(json), "
-    "merge_findings(paths). Without it you cannot look at the images, so do not fill a field from the text alone.",
+    "merge_findings(paths), list_findings() (measured values with validation status), reading_sheet(level, field) "
+    "(the sheet to check a value against), submit_reader_answer(answer_json) (a review). Without the images you "
+    "cannot look at them, so do not fill a field from the text alone.",
     "Evidence: write each PNG you looked at to your output directory and cite it in the evidence list (image path, "
     "series key, slice indices). An image you did not look at is not evidence.",
 )
@@ -417,7 +421,12 @@ def brief(
 
 
 def _brief_text(
-    study: Study, anchors: Anchors | None, reader: str, scope: str | None, facts: dict[str, Any]
+    study: Study,
+    anchors: Anchors | None,
+    reader: str,
+    scope: str | None,
+    facts: dict[str, Any],
+    answer: str | None = None,
 ) -> str:
     if not READER_NAME_RE.match(reader):
         raise ValueError("reader name must be 1-64 characters from A-Z, a-z, 0-9, '_', '.', '-'")
@@ -448,7 +457,10 @@ def _brief_text(
     ]
     if scope:
         parts += ["", "6. Your scope", scope.strip()]
-    parts += ["", "7. Findings format", reader_instructions(reader).rstrip()]
+    if answer is None:
+        parts += ["", "7. Findings format", reader_instructions(reader).rstrip()]
+    else:
+        parts += ["", "7. Answer format", answer.rstrip()]
     return "\n".join(parts) + "\n"
 
 
@@ -552,6 +564,77 @@ def _holistic_task(study: Study, anchors: Anchors | None, facts: dict[str, Any])
     )
 
 
+def _review_task(
+    study: Study,
+    anchors: Anchors,
+    lab: str,
+    fields: list[tuple[str, str]],
+    measured_level: Mapping[str, Any],
+    facts: dict[str, Any],
+) -> ReadingTask:
+    """Review of the measured findings of one disc level: confirm or reject each one against its reading sheet."""
+    lines = []
+    for group, name in fields:
+        fld = measured_level[group][name]
+        vs = field_status(group, name)
+        lines.append(
+            f'  levels["{lab}"].{group}.{name} | measured {_review_value(fld["value"])} | confidence '
+            f"{fld['confidence']} | validation {vs.status}: {vs.note} | sheet {sheet_file_name(lab, group, name)}"
+        )
+    scope = (
+        f"Review of the measured findings at {lab}. For each field below, look at its reading sheet, then give one "
+        "verdict: confirm (the sheet shows the measured value), reject (it does not; add value only if the sheet "
+        "shows another value of that field), or unclear. One check per field and no other fields. Trust rule: "
+        f"{REVIEW_POLICY}\nFields (path | measured value | confidence | validation | sheet):\n"
+        + "\n".join(lines)
+        + "\nGet a sheet with reading_sheet(study_id, level, field) over MCP (field as group.name, for example "
+        "disc.pfirrmann), or open its PNG file if you were given the sheets folder. Look at the sheet before you answer."
+    )
+    groups = tuple(dict.fromkeys(g for g, _n in fields))
+    return _task(
+        study,
+        anchors,
+        kind="review",
+        id=f"review-{lab}",
+        title=f"Review of measured findings at {lab}",
+        scope=scope,
+        levels=(lab,),
+        groups=groups,
+        series=_suggested_series(study, anchors, lab),
+        depends_on=(),
+        facts=facts,
+        answer=review_instructions(f"review_{lab}".replace("-", "_"), lab, fields),
+    )
+
+
+def _review_value(v: Any) -> str:
+    if v is None:
+        return "null (indeterminate)"
+    return f"{v:g}" if isinstance(v, float) else str(v)
+
+
+def _review_tasks(
+    study: Study, anchors: Anchors | None, measured: Mapping[str, Any], facts: dict[str, Any]
+) -> list[ReadingTask]:
+    """One review task per measured disc level. None while the numbering is unconfirmed: a review names its level in
+    every path, and the abstain policy forbids a level name until the numbering is verified."""
+    if anchors is None or not anchors.discs:
+        return []
+    if status_of(anchors) == "unconfirmed":
+        log.warning(
+            "reading_tasks: numbering unconfirmed, so no review tasks are generated (paths need level names)"
+        )
+        return []
+    out: list[ReadingTask] = []
+    for lab, obj in measured.items():
+        if lab not in anchors.disc_labels():
+            continue
+        fields = [(g, n) for g, body in obj.items() if not g.startswith("_") for n in body]
+        if fields:
+            out.append(_review_task(study, anchors, lab, fields, obj, facts))
+    return out
+
+
 def _verify_task(study: Study, anchors: Anchors | None, facts: dict[str, Any]) -> ReadingTask:
     scope = (
         "Adversarial verifier. You run after the consensus merge. Input: consensus.json (the merged report) "
@@ -591,13 +674,14 @@ def _task(
     depends_on: tuple[str, ...],
     facts: dict[str, Any],
     reader: str | None = None,
+    answer: str | None = None,
 ) -> ReadingTask:
     name = reader or id.replace("-", "_")
     name = re.sub(r"[^A-Za-z0-9_.-]", "_", name)[:64]
     naming = naming_policy(anchors) if levels else None
     scope_text = scope + (f"\nLevel naming: {naming}" if naming else "")
     scope_text += f"\nSuggested stacks: {', '.join(series)}." if series else ""
-    prompt = _brief_text(study, anchors, name, scope_text, facts)
+    prompt = _brief_text(study, anchors, name, scope_text, facts, answer=answer)
     return ReadingTask(
         id=id,
         kind=kind,
@@ -613,7 +697,11 @@ def _task(
 
 
 def reading_tasks(
-    study: Study, anchors: Anchors | None = None, *, config: Config = DEFAULT
+    study: Study,
+    anchors: Anchors | None = None,
+    *,
+    config: Config = DEFAULT,
+    measured: Mapping[str, Any] | None = None,
 ) -> list[ReadingTask]:
     """Independent reader scopes for one study, in a stable order.
 
@@ -621,6 +709,9 @@ def reading_tasks(
     verifier that depends on the merged consensus. The first three kinds are independent of each other and
     can run concurrently. Each task's ``prompt`` is a complete brief with its scope and the findings format.
     Without anchors there are no level tasks, and a warning is logged.
+
+    ``measured`` (from :func:`spinescope.ai.reading.measured_findings`) adds one ``review`` task per disc level that
+    has measured fields: the reader confirms or rejects each one on its reading sheet. Without it, no review tasks.
     """
     facts = geometry_facts(study, anchors, config)
     tasks: list[ReadingTask] = []
@@ -628,6 +719,8 @@ def reading_tasks(
         log.warning("reading_tasks: no disc anchors, so no per-level tasks are generated")
     if anchors is not None:
         tasks += [_level_task(study, anchors, lab, facts) for lab in anchors.disc_labels()]
+    if measured:
+        tasks += _review_tasks(study, anchors, measured, facts)
     for name, desc, groups in STRUCTURE_FAMILIES:
         tasks.append(_structure_task(study, anchors, name, desc, groups, facts))
     tasks.append(_holistic_task(study, anchors, facts))

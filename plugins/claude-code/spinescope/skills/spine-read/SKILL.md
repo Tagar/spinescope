@@ -103,6 +103,9 @@ may downgrade the status; never present an AI "confirmation" as confirmation in 
    `series`, `depends_on`) and `OUT/tasks/prompts/<reader>.txt` (the complete brief plus that reader's scope and
    the findings format). Read `tasks.json`. The kinds are:
    - `level`: one disc level, all its fields (independent).
+   - `review`: one disc level, the measured findings of that level (Pfirrmann, contour, listhesis, Modic...). Each
+     reader confirms or rejects every measured value on its reading sheet (independent). Present only when the numbering
+     is not `unconfirmed`, because a review names its levels. Its answer format is a review, not a findings file.
    - `structure`: one structure across all levels (independent).
    - `holistic`: global sections and the array sections (independent).
    - `verify`: the adversarial verifier. It depends on `merge` and runs in step 7, not now.
@@ -119,6 +122,10 @@ may downgrade the status; never present an AI "confirmation" as confirmation in 
      level names; probable = use them, each marked "to be confirmed"; unconfirmed = positions only, and call
      `verify_labels` before writing any level name. A reader that cannot call `verify_labels` must not write level
      names for an unconfirmed study.
+   - For a `review` task, say: the answer is a review (kind "review"), not findings. Each sheet is fetched with
+     `reading_sheet`, and the answer is submitted with `submit_reader_answer`. The `findings` object in its result is
+     the converted reader file: write it to `OUT/findings/<reader>.json`. An AI review can only lower trust (see the
+     spine-findings skill).
    - Give the path of its prompt file, `OUT/tasks/prompts/<reader>.txt`, and say: read it in full and follow it
      exactly. Its reader name is `<reader>`, and it must write exactly one file, `OUT/findings/<reader>.json`.
    - Give `STUDY` and the verified anchors file `OUT/verify/anchors.json`, and say: open it with
@@ -133,11 +140,13 @@ may downgrade the status; never present an AI "confirmation" as confirmation in 
    A reader with no MCP tools cannot look at images. If a subagent reports that it has no image tools, do not
    accept fields from it; rerun that reader later, or drop it and say so in the report.
 
-5. **Validate and collect.** For each `OUT/findings/*.json` run:
+5. **Validate and collect.** Review answers are converted by `submit_reader_answer` (or `spinescope review STUDY
+   answer.json --outdir OUT/findings`), so the review files sit next to the findings files. For each `OUT/findings/*.json` run:
    `python -c "from spinescope.report import validate; r = validate('<FILE>'); print(r.ok); print(*r.error_messages(), sep='\n')"`
    Rerun any invalid reader once with the errors; drop it if it still fails, and record that in the report.
 
-6. **Merge to a consensus.** Call `merge_findings` with the valid files and `outdir = OUT/consensus`. Or run:
+6. **Merge to a consensus.** Call `merge_findings` with the valid files and `outdir = OUT/consensus`. A rejected
+   measured value shows up as a disagreement (or as indeterminate when the reviewer gave no alternative). Or run:
    `python -c "from spinescope.report import merge, render_markdown; c = merge('<OUT>/findings'); c.to_json('<OUT>/consensus/consensus.json'); open('<OUT>/consensus/report.md', 'w').write(render_markdown(c))"`
    Read the disagreements and the indeterminate list from `consensus.json`. Do not average or override a reader's
    value by hand. Record disagreements as they are.
@@ -156,7 +165,7 @@ may downgrade the status; never present an AI "confirmation" as confirmation in 
      `OUT` path. No file paths of the input, no patient attributes.
    - The labelling status (`confirmed`, `probable` or `unconfirmed`), the abstain policy it implied, the
      applicability verdict, whether the sacrum is in view, and that the conus is experimental.
-   - The reader count: launched, valid, dropped, and why.
+   - The reader count: launched, valid, dropped, and why. Review readers are counted separately: confirms, rejects, unclear.
    - The consensus: the main findings per level and the global findings, each with agreement across readers and
      the confidence. Show the disagreements explicitly.
    - The verification: for each target, `supported`, `refuted` or `unclear`, with its confidence and a one-line reason.

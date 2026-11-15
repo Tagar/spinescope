@@ -582,5 +582,10 @@ class Config:
     # focal call is a prompt to check the axial images, not a finding. Bulge calls keep their own confidence.
     herniation_class_max_confidence: float = 0.35
 
+    # ---- reading sheets (dx19_ai_reader; render/reading_sheet.py) ----
+    # Sequences side by side on one reading sheet: the field's own series first, then the other sagittal series
+    # (T2, T1, STIR). Design choice for legibility on a laptop screen, not tuned on any data.
+    reading_sheet_panels: int = 3
+
 
 DEFAULT = Config()

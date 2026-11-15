@@ -15,13 +15,14 @@ plugins/claude-code/
     .claude-plugin/plugin.json       plugin manifest
     .mcp.json                        registers the spinescope-mcp server (stdio)
     skills/
-      spine-read/SKILL.md            orchestrated read: briefs, reader subagents, validation, merge, verification
+      spine-read/SKILL.md            orchestrated read: briefs, reader subagents, reviews, validation, merge, verification
+      spine-findings/SKILL.md        measured findings per level, their validation status, reading sheets, reviews
       spine-viewer/SKILL.md          build the offline HTML viewer and open it
       spine-inspect/SKILL.md         list series, classifications and gaps (read-only)
 ```
 
-Skills are namespaced by the plugin name, so they appear as `/spinescope:spine-read`, `/spinescope:spine-viewer` and
-`/spinescope:spine-inspect`. The MCP tools appear as `mcp__spinescope__<tool>`.
+Skills are namespaced by the plugin name, so they appear as `/spinescope:spine-read`, `/spinescope:spine-findings`,
+`/spinescope:spine-viewer` and `/spinescope:spine-inspect`. The MCP tools appear as `mcp__spinescope__<tool>`.
 
 ## Requirements
 
@@ -77,6 +78,8 @@ Ask in plain language, or call the skills:
 - `/spinescope:spine-viewer /path/to/study /path/to/output`: build the HTML viewer and open it.
 - `/spinescope:spine-read /path/to/study`: run the orchestrated read (reader subagents, at most 4 at a time),
   validate, merge, verify the top findings, and report.
+- `/spinescope:spine-findings /path/to/study`: list the measured values per level with their validation status, and
+  check any of them on its reading sheet.
 
 The command line does the same setup work without Claude Code:
 
@@ -84,7 +87,9 @@ The command line does the same setup work without Claude Code:
 spinescope inspect STUDY --json
 spinescope label STUDY --out anchors.json --overlay qa.png   # status, applicability, levels, warnings
 spinescope brief STUDY --out brief.txt
-spinescope tasks STUDY --outdir tasks/          # tasks.json and prompts/<reader>.txt
+spinescope tasks STUDY --outdir tasks/          # tasks.json and prompts/<reader>.txt (incl. review tasks)
+spinescope findings STUDY --outdir findings/    # findings.json and one reading sheet per measured field
+spinescope review STUDY answer.json --outdir findings/   # validate a review and write the reader's findings file
 spinescope viewer STUDY viewer-out/
 spinescope mcp --output-dir mcp-out/            # the same server the plugin starts
 ```
@@ -96,6 +101,8 @@ spinescope mcp --output-dir mcp-out/            # the same server the plugin sta
 These apply to every skill. The skills repeat them to the assistant.
 
 - **Research and education only.** Outputs are descriptions with confidence levels. They are not diagnoses.
+- **AI review only lowers trust.** A confirm keeps the measured value and never raises its confidence. Nothing an AI
+  writes is a human confirmation, and no review changes the numbering status.
 - **Never upload patient data anywhere.** Do not send studies, images, viewers, findings or reports to web services,
   third-party APIs, shared drives, chats or issue trackers. Keep the output on your machine.
 - **Only process data you are allowed to process.** Use de-identified, public or synthetic data unless your
@@ -108,8 +115,9 @@ These apply to every skill. The skills repeat them to the assistant.
 
 1. `open_study` gives an opaque `study_id`. The path is not returned.
 2. `get_anchors` runs the automatic level labelling, with confidences.
-3. `spinescope tasks` writes one brief and one scope per reader: each disc level, each structure across levels, a
-   holistic read, and a verifier that runs after the merge.
+3. `spinescope tasks` writes one brief and one scope per reader: each disc level, a review of each level's measured
+   values (not while the numbering is unconfirmed), each structure across levels, a holistic read, and a verifier
+   that runs after the merge.
 4. Reader subagents each take one scope and write one findings file. They never see each other's output.
 5. Each file is validated against the findings schema. `merge_findings` builds a consensus with disagreements listed.
 6. A verifier tries to refute the top findings on the images.
@@ -128,6 +136,6 @@ These apply to every skill. The skills repeat them to the assistant.
 
 The MCP server and the briefs are plain Python in `src/spinescope/ai/`. The plugin is a thin layer over them. To test
 the server without Claude Code, run `spinescope-mcp` and speak MCP over stdio, or run the unit tests:
-`pytest tests/test_ai_mcp.py tests/test_ai_briefs.py tests/test_ai_cli.py`.
+`pytest tests/test_ai_mcp.py tests/test_ai_briefs.py tests/test_ai_cli.py tests/test_ai_reading.py`.
 
 Research and education only. This is not a diagnosis.

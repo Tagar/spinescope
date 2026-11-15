@@ -6,7 +6,7 @@ import argparse
 import json
 import sys
 from collections.abc import Sequence
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from . import __version__
 
@@ -164,13 +164,25 @@ def _cmd_brief(args: argparse.Namespace) -> int:
     return 0
 
 
+def _measured(study: Study, anchors: Anchors | None) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Measured findings per level and the analysis results they come from (empty without disc anchors)."""
+    from .ai.reading import measured_findings
+    from .analysis.base import run_all
+
+    if anchors is None or not anchors.discs:
+        return {}, {}
+    results = run_all(study, anchors)
+    return measured_findings(results, anchors), results
+
+
 def _cmd_tasks(args: argparse.Namespace) -> int:
     from pathlib import Path
 
     from .ai.briefs import reading_tasks
 
     study, anchors = _load(args.path, anchors=not args.no_anchors, anchors_file=args.anchors)
-    tasks = reading_tasks(study, anchors)
+    measured, _ = _measured(study, anchors)
+    tasks = reading_tasks(study, anchors, measured=measured)
     if args.outdir:
         out = Path(args.outdir)
         (out / "prompts").mkdir(parents=True, exist_ok=True)
@@ -182,6 +194,66 @@ def _cmd_tasks(args: argparse.Namespace) -> int:
     else:
         json.dump([t.to_dict() for t in tasks], sys.stdout, indent=1)
         print()
+    return 0
+
+
+def _cmd_findings(args: argparse.Namespace) -> int:
+    """Measured findings with validation status (JSON), and with --outdir a reading sheet per measured field."""
+    from pathlib import Path
+
+    from .ai.reading import REVIEW_POLICY, render_sheet, sheet_file_name
+    from .anatomy.summary import status_of
+    from .render.reading_sheet import save_sheet
+
+    study, anchors = _load(args.path, anchors=not args.no_anchors, anchors_file=args.anchors)
+    measured, results = _measured(study, anchors)
+    doc = {
+        "numbering": status_of(anchors) if anchors is not None else None,
+        "review_policy": REVIEW_POLICY,
+        "levels": measured,
+        "analyses": {n: list(r.warnings) for n, r in sorted(results.items()) if r.warnings},
+    }
+    if args.outdir:
+        out = Path(args.outdir)
+        (out / "sheets").mkdir(parents=True, exist_ok=True)
+        for lab, obj in measured.items():
+            for group, body in obj.items():
+                if group.startswith("_") or anchors is None:
+                    continue
+                for name in body:
+                    img = render_sheet(study, anchors, measured, lab, group, name, show_value=not args.blind)
+                    save_sheet(img, out / "sheets" / sheet_file_name(lab, group, name))
+        (out / "findings.json").write_text(json.dumps(doc, indent=1, ensure_ascii=False), encoding="utf-8")
+        print(f"findings: {out / 'findings.json'} and {out / 'sheets'}/")
+    else:
+        print(json.dumps(doc, indent=1, ensure_ascii=False))
+    return 0
+
+
+def _cmd_review(args: argparse.Namespace) -> int:
+    """Validate a reader's review (confirm, reject or unclear per measured field) and convert it to a findings file."""
+    import json as _json
+    from pathlib import Path
+
+    from .ai.reading import review_errors, review_to_findings, write_review_outputs
+
+    study, anchors = _load(args.path, anchors=True, anchors_file=args.anchors)
+    measured, _ = _measured(study, anchors)
+    doc = _json.loads(Path(args.answer).read_text(encoding="utf-8"))
+    from .anatomy.summary import status_of
+
+    if anchors is None:
+        print("error: the review needs the study's level labels (anchors)", file=sys.stderr)
+        return 1
+    errs = review_errors(doc, measured, status=status_of(anchors))
+    if errs:
+        for e in errs:
+            print(f"error: {e}", file=sys.stderr)
+        return 1
+    if args.outdir:
+        print(write_review_outputs(doc, measured, args.outdir))
+    else:
+        print(json.dumps(review_to_findings(doc, measured), indent=1, ensure_ascii=False))
     return 0
 
 
@@ -389,6 +461,27 @@ def build_parser() -> argparse.ArgumentParser:
     )
     s.add_argument("--outdir", help="write tasks.json and prompts/<reader>.txt here instead of printing JSON")
     s.set_defaults(func=_cmd_tasks)
+
+    s = sub.add_parser(
+        "findings", help="measured findings with validation status; --outdir also writes reading sheets"
+    )
+    s.add_argument("path", help="DICOM directory or volume file")
+    s.add_argument("--no-anchors", action="store_true", help="skip automatic level labelling (no findings)")
+    s.add_argument("--anchors", help="use this anchors JSON instead of labelling")
+    s.add_argument("--outdir", help="write findings.json and sheets/<level>_<field>.png here")
+    s.add_argument(
+        "--blind", action="store_true", help="sheets without the measured value (for a blind read)"
+    )
+    s.set_defaults(func=_cmd_findings)
+
+    s = sub.add_parser(
+        "review", help="validate a reader's review (confirm/reject/unclear) and convert it to findings"
+    )
+    s.add_argument("path", help="DICOM directory or volume file")
+    s.add_argument("answer", help="the reader's review JSON")
+    s.add_argument("--anchors", help="the anchors JSON the review was made against")
+    s.add_argument("--outdir", help="write <reader>.json here instead of printing the converted findings")
+    s.set_defaults(func=_cmd_review)
 
     s = sub.add_parser("viewer", help="build the offline HTML viewer")
     s.add_argument("path", help="DICOM directory or volume file")
