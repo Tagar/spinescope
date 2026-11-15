@@ -1,0 +1,61 @@
+case,tip_z_mm,quality,note
+spider_2_t2,-50,uncertain,grey cord tapers into roots near L4 top
+spider_11_t2,125,uncertain,cord bulb ends near L2-L3; roots below
+spider_31_t2,25,uncertain,sac narrows to roots about L2
+spider_35_t2,,not_visible,sac bright to field end; no separable cord
+spider_35_t2_SPACE,110,uncertain,grey cord inside sac fades near L2-L3
+spider_38_t2,,not_visible,slice off the canal
+spider_53_t2,,not_visible,bright sac to field end; no separable cord
+spider_59_t2,35,uncertain,grey cord inside bright sac fades near L3
+spider_75_t2,,not_visible,homogeneous bright sac to field end
+spider_93_t2,,not_visible,sac bright below L3; cord not separable
+spider_101_t2,45,uncertain,grey cord fades near L2-L3 to L3
+spider_107_t2,10,uncertain,grey cord to about L3-L4; roots below
+spider_107_t2_SPACE,5,uncertain,grey cord wedge to about L3-L4; roots below
+spider_112_t2,,not_visible,sac bright to field end; no grey cord
+spider_115_t2,25,uncertain,sac narrows about L3-L4
+spider_118_t2,70,uncertain,bright sac to about L4 top; roots below
+spider_129_t2,-5,uncertain,grey cord fades near L3-L4 (same patient as 129_t2_SPACE)
+spider_129_t2_SPACE,-5,uncertain,grey cord to about L3-L4; wide sac with roots below
+spider_136_t2,25,uncertain,grey cord to about L2-L3; thin roots below
+spider_136_t2_SPACE,10,uncertain,sac tapers near L3; thin tube below (same patient as 136_t2)
+spider_140_t2,110,uncertain,off-midline look; sac end near L1-L2 unclear
+spider_145_t2,35,uncertain,sac narrows near L1-L2; slice posterior to canal centre
+spider_152_t2,118,uncertain,grey cord to about L1-L2; roots/cauda below
+spider_152_t2_SPACE,125,uncertain,grey cord to about L1-L2; cauda below (same patient as 152_t2)
+spider_161_t2,105,uncertain,grey cord to about L2; roots/cauda below
+spider_161_t2_SPACE,110,uncertain,grey cord to about L2; roots below (same patient as 161_t2)
+spider_165_t2,240,uncertain,cord narrows near L3-L4; thin tube below
+spider_168_t2,45,uncertain,grey cord tapers near L3-L4 top; thin roots below
+spider_171_t2,-10,uncertain,sac narrows near L2-L3 to L3; grey core fades
+spider_172_t2,25,uncertain,bright sac to about L3-L4; cauda-like below
+spider_177_t2,135,uncertain,grey cord narrows near L2-L3; roots below
+spider_179_t2,0,uncertain,grey cord fades near L3; roots below
+spider_192_t2,35,uncertain,sac narrows near L3-L4; grey cord not clear
+spider_198_t2,85,uncertain,grey cord narrows near L1-L2 to L2; bright sac below
+spider_208_t2,,not_visible,bright sac continuous to field end; cord not separable
+spider_210_t2,0,uncertain,sac narrows near L2-L3; bright continuous sac below
+spider_234_t2,100,uncertain,grey cord to about L2-L3; bright roots below
+spider_234_t2_SPACE,85,uncertain,sac tapers near L2-L3; same patient as 234_t2 (15 mm apart)
+spider_236_t2,15,uncertain,grey cord fades about L3; roots below
+spider_257_t2,15,uncertain,sac narrows near L3-L4 to L4; roots below
+sudirman_0006,,not_visible,sac continues bright to field end; no separable cord
+sudirman_0011,10,uncertain,bright sac narrows to a grey cord ending about T12-L1
+sudirman_0024,,not_visible,bright sac to field end; cord not separable
+sudirman_0161,35,uncertain,grey cord to about L2-L3; cauda below
+sudirman_0248,40,uncertain,grey cord to about L2-L3; sac narrows then cauda
+sudirman_0250,85,uncertain,sac narrows to a thin bright tube near L1-L2 to L2
+sudirman_0255,5,uncertain,grey cord narrows near L2-L3; roots below
+sudirman_0267,-25,uncertain,grey cord to about L3-L4; cauda below
+sudirman_0291,85,uncertain,grey cord to about L3; bright cauda below
+sudirman_0320,45,uncertain,grey cord to about L3-L4 top; roots below
+sudirman_0336,105,uncertain,grey cord to about L3-L4 top; mottled roots below
+sudirman_0342,,not_visible,sac continues to field end; no separable cord
+sudirman_0350,,not_visible,sac continues bright to field end; no separable cord
+sudirman_0381,-15,uncertain,grey cord to about L3-L4; narrowing then cauda
+sudirman_0409,-5,uncertain,grey cord to about L3-L4; bright below
+sudirman_0460,,not_visible,bright sac to field end; cord not separable
+sudirman_0469,,not_visible,slice off the canal
+sudirman_0509,,not_visible,bright sac continuous; cord not separable
+sudirman_0536,,not_visible,bright sac to field end; no separable cord
+sudirman_0549,,not_visible,bright sac to field end; no separable cord
