@@ -362,10 +362,18 @@ def _paint_discs(lab: NDArray[np.int8], pts: NDArray[np.float64], ph: SpinePhant
             (np.abs(lat) <= 14.0) & (ap >= ca + r - 0.5) & (ap <= ca + r + 3.0) & (np.abs(up) <= dh / 2 + 3.0)
         )
         lab[idx[lf]] = LIGAMENT
-        fj = ((np.abs(lat) - 19.0) / 6.0) ** 2 + ((ap - (ca + 1.0)) / 7.0) ** 2 + (
+        fj = ((np.abs(lat) - sp.facet_lateral_mm) / 6.0) ** 2 + ((ap - (ca + 1.0)) / 7.0) ** 2 + (
             up / (dh / 2 + 1.5)
         ) ** 2 <= 1.0
         lab[idx[fj]] = FACET
+        eff = sp.facet_effusion.get(d)
+        if eff is not None:  # CSF-like fluid lens inside the joint: `width` mm along AP, 3 mm across
+            side, width = eff
+            sgn = 1.0 if side == "L" else -1.0
+            fl = ((lat - sgn * sp.facet_lateral_mm) / 1.5) ** 2 + ((ap - (ca + 1.0)) / (width / 2.0)) ** 2 + (
+                up / (dh / 2 + 1.5)
+            ) ** 2 <= 1.0
+            lab[idx[fl]] = CSF
 
 
 def labels(ph: SpinePhantom, pts: NDArray[np.float64]) -> NDArray[np.int8]:

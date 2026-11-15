@@ -618,5 +618,44 @@ class Config:
     canal_axial_contrasts: tuple[str, ...] = ("t2", "stir", "pd", "t1")
     canal_axial_unvalidated_cap: float = 0.4
 
+    # ---- analysis: facet joints (spinescope.analysis.facets; dx08). Joint space on axial (then parasagittal) MRI.
+    # Site: lateral position of the joint between the canal wall (0) and the body edge (1), applied to the measured
+    # canal half width and body half width (correspondence geometry). Judgement: facet joints lie posterolateral to the
+    # canal; the exact site is not validated (see docs/analysis/facets.md).
+    facets_site_fraction: float = 0.6
+    # Sampling window: half side (mm) of the square resampled around each joint, and the in-plane grid (mm).
+    facets_roi_half_mm: float = 12.0
+    facets_px_mm: float = 0.5
+    # Fluid seed: the fluid component must reach within this distance (mm) of the joint site. The site is an
+    # approximation (a few mm of error is expected from the canal and body geometry), so the seed is about a third of
+    # the sampling half window (judgement; not a literature value).
+    facets_seed_mm: float = 4.0
+    # Reference patches (radius, mm): thecal sac (CSF, at the canal point) and paraspinal muscle (posterior to the joint).
+    facets_ref_radius_mm: float = 3.0
+    facets_muscle_offset_mm: float = (
+        20.0  # judgement: paraspinal muscle lies posterior to the articular pillar
+    )
+    # Fluid threshold as a fraction of the way from muscle (0) to CSF (1). 0.5 = half maximum (judgement; a
+    # half-way threshold separates CSF-like fluid from the healthy joint, measured on the realistic phantom).
+    facets_fluid_frac: float = 0.5
+    # Effusion width (mm, maximal caliper of the fluid) at or above which an effusion is reported. Schinnerer (2000)
+    # and Chaput et al. (2008) associate an effusion of about 1.5 to 2 mm with instability or degenerative
+    # spondylolisthesis; the upper end is used to keep the flag specific. Citations as given in the wave brief,
+    # not re-checked against the papers (docs/analysis/facets.md).
+    facets_effusion_min_mm: float = 2.0
+    # Possible synovial cyst: a round fluid collection at least this wide (mm) and this round (min/max caliper).
+    # Judgement; no validated threshold (docs/analysis/facets.md).
+    facets_cyst_min_mm: float = 5.0
+    facets_cyst_roundness_min: float = 0.6
+    # Minimum CSF-muscle contrast, as a fraction of the sampled slice's intensity range, below which no fluid call is made.
+    facets_min_contrast: float = 0.2
+    # Facet orientation tropism: left-right difference of the joint plane angle (deg) above which asymmetry is noted.
+    # Noren et al. (1991, Spine) used 7 degrees; the 7 to 10 degree range is cited in the literature. Used only by
+    # spinescope.analysis.facets.tropism_flag: joint angles are not measured in this version.
+    facets_tropism_deg: float = 7.0
+    # Confidence cap of the parasagittal fallback (analysis confidence in [0, 1]). Fluid is called only on fat-suppressed
+    # images (STIR or fat-sat T2): on plain T2 fat is as bright as fluid. Judgement: single-slice sagittal sampling.
+    facets_sagittal_max_confidence: float = 0.3
+
 
 DEFAULT = Config()
