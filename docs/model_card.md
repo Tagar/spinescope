@@ -321,3 +321,66 @@ Confidence ECE / AUROC (numbering, volume level): Sudirman half B 0.087 / 0.83 (
 
 Model weights derived from the SPIDER dataset (van der Graaf et al., Scientific Data 2024,
 doi:10.1038/s41597-024-03090-w; dataset doi:10.5281/zenodo.10159290), CC BY 4.0. See `NOTICE`.
+
+## Candidate `labeller_v3` (lab25): trained on a training fold, not shipped
+
+Goal: beat `labeller_v1` on the known failure modes (adjacent false discs at the lowest level, missed discs at the top of
+the field, posterior-element false discs on the phantom) without regressions. `labeller_v1.onnx` stays the default.
+
+### Protocol and what was run
+
+- Training data: SPIDER `training` only. Model selection on a held-out fold of training: 10 % of the training patients
+  (18 patients, 35 volumes; fixed seed, by patient, `holdout_patients` in `tools/train_labeller.py`). The fit fold is the other
+  325 volumes (3,357 slices). SPIDER `validation` was not read.
+- Common recipe with v1: four classes (background, body, disc, canal; no sacrum), same U-Net widths, loss, optimiser,
+  seed 20260, batch 12, lr 2e-3, rotation, scale, translation, gamma, bias, noise. **30 epochs** for the ablations (v1 used 50).
+- Three variants, same fold and scorer (`tools/train_labeller.py evaluate --subset training --fold holdout --holdout 0.1`):
+  - r1 (control): one slice.
+  - r2: 2.5-D input, three adjacent slices (k-1, k, k+1) as channels, same canvas origin, edges repeat as at inference.
+  - r3: r2 plus posterior hard-negative weighting (background posterior to the canal, weight 3) and partial field-of-view
+    cuts (inferior 0.3, superior 0.1, labels cut with the image).
+- Selection rule, written before the scores were read: highest label accuracy of all truth discs on the held-out fold; a
+  candidate must keep disc recall within 0.5 points of the control.
+
+### Results, held-out training fold (35 volumes, same scorer)
+
+| variant | disc recall | disc precision | label acc., all truth discs | fully correct volumes | centre error, median |
+|---|---|---|---|---|---|
+| r1 control (one slice) | 0.984 | 0.996 | 0.980 | 30 of 35 | 0.45 mm |
+| r2 2.5-D (three slices) | 0.988 | 0.996 | 0.961 | 31 of 35 | 0.42 mm |
+| r3 2.5-D + posterior weight + FOV cuts | 0.984 | 0.992 | 0.976 | 29 of 35 | 0.46 mm |
+
+Decision: no candidate beats the control on the selection rule, so none was promoted. Differences are one to two volumes
+on 35 and are within noise. The 2.5-D input moved disc recall up and label accuracy down; the posterior weighting and
+FOV cuts did not help on this fold. The v1 model was trained on all 360 training volumes, so it cannot be scored on this
+fold without leakage and is not in the table.
+
+### Not run (because no candidate was selected)
+
+- Full-training refit (50 epochs), the one-shot SPIDER validation, Sudirman (515), qx5rt, the realistic and cartoon
+  robustness suites, and any numbering calibration refit. No v3 weights are packaged, and `calibration_v2.json` is unchanged.
+  The ship criteria (validation label accuracy at least 97.6 %, fully correct at least 94.3 %, Sudirman and qx5rt at least
+  v1, no increase in wrong announced numberings) were therefore not evaluated for v3.
+- The instance-aware (disc-centre heatmap) head was not implemented. The adjacent-fragment failure is therefore still
+  open; the 2.5-D input was the only context-based test.
+
+### Runtime and tooling changes (behaviour of v1 unchanged)
+
+- `spinescope.anatomy.ml.labeller`: `input_channels` and `adjacent_channels` let a 3-channel (2.5-D) ONNX model run through
+  `segment_stack`; one-channel models take the same path as before. `model_path` accepts an absolute path to an existing
+  ONNX file, so a candidate can be passed through `Config.ml_model` for evaluation.
+- `tools/train_labeller.py`: `--context {1,3}`, `--post-weight`, `--fov-cut`, `--holdout`, `--name`, `--threads` on `train`;
+  `--fold {all,train,holdout}` and `--holdout` on `evaluate`. The slice cache is `train_cache_v3_*` and stores the three
+  channels per slice. The network target is the 4-class map (no sacrum); the sacrum pseudo-label is still computed for the
+  truth report only, as before.
+- Tests: `tests/test_anatomy_ml_sacrum.py` and `tests/test_anatomy_ml.py` pass unchanged; the fast tier passes
+  (1285 passed, 43 xfailed).
+
+### Reproduce the ablations
+
+    python tools/train_labeller.py --spider <root> --out <dir> train --epochs 30 --holdout 0.1 --context 1 --name labeller_v3_r1
+    python tools/train_labeller.py --spider <root> --out <dir> train --epochs 30 --holdout 0.1 --context 3 --name labeller_v3_r2
+    python tools/train_labeller.py --spider <root> --out <dir> train --epochs 30 --holdout 0.1 --context 3 --post-weight 3 --fov-cut --name labeller_v3_r3
+    python tools/train_labeller.py --spider <root> --out <dir> evaluate --subset training --fold holdout --holdout 0.1 --model <dir>/<name>.onnx
+
+Device: Apple MPS, torch 2.15.0, 4 CPU threads; about 20 minutes per 30-epoch fit.
