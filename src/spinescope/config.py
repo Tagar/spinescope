@@ -736,7 +736,9 @@ class Config:
     # Smallest ROI (pixels) that is measured; below it the value is not assessed.
     muscles_min_roi_pixels: int = 150
     # Upper bound on confidence for muscle outputs: experimental until the Sudirman check (docs/analysis/muscles.md).
-    muscles_max_confidence: float = 0.5
+    # Lowered to 0.3 by the coordinator: outlines are anatomy windows, the T1 and T2 fat estimates disagree (limits of
+    # agreement -16.6 to +25.9 points on Sudirman) and the Kjaer grade is likely over-counted (docs/analysis/muscles.md).
+    muscles_max_confidence: float = 0.3
 
 
 DEFAULT = Config()
