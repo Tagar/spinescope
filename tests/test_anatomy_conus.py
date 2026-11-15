@@ -211,28 +211,86 @@ def test_to_dict_is_plain_and_has_the_contract_keys() -> None:
 
 
 def test_tips_without_consensus_are_not_located(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Two slice tips 60 mm apart have no consensus (the median lies between them): not located, no NaN position."""
+    """Sac-slice tips 60 mm apart disagree with the interpolated tip: not located, no NaN position."""
     from spinescope.anatomy import conus as conus_module
 
-    calls: list[int] = []
-
-    def two_far_tips(probs, grid, img, pol, window, cfg):  # type: ignore[no-untyped-def]
-        calls.append(1)
-        if len(calls) > 2:
-            return None
-        z = 0.0 if len(calls) == 1 else 60.0
+    def tip(z: float) -> conus_module.SliceTip:
         return conus_module.SliceTip(
-            k=int(grid.k),
+            k=0,
             z=z,
             xyz=np.array([0.0, 0.0, z]),
             confidence=0.9,
             run_mm=20.0,
             reached_fov_end=False,
+            score=0.5,
         )
 
-    monkeypatch.setattr(conus_module, "_slice_tip", two_far_tips)
+    def fake_locate(seg, cfg, contrast, mid_x=None):  # type: ignore[no-untyped-def]
+        located = conus_module._Located(
+            tip=tip(0.0), slice_tips=[tip(0.0), tip(60.0)], n_sac_slices=2, polarity=1
+        )
+        return located, ""
+
+    monkeypatch.setattr(conus_module, "_locate_on_stack", fake_locate)
     ph = SpinePhantom(PhantomSpec())
     res = conus_from_segmentation(_oracle(ph, "t2"), Anchors.from_truth(ph.truth), contrast="t2")
     assert not res.found
     assert res.xyz is None
     assert any("disagree in z" in w for w in res.warnings)
+
+
+# ------------------------------------------------------------------------------ v2: tracking, brackets, cross-contrast
+def test_track_bridges_short_gaps_and_stops_at_a_long_gap() -> None:
+    from spinescope.anatomy.conus import _track
+
+    res = DEFAULT.ml_resolution_mm
+    flags = np.array(
+        [True] * 10 + [False] * 2 + [True] * 10 + [False] * 12 + [True] * 5, dtype=bool
+    )  # gap of 2 mm is bridged, the 12 mm gap ends the cord
+    tr = _track(flags, DEFAULT, res)
+    assert tr is not None
+    assert (tr.start, tr.tip) == (0, 21)
+    assert tr.reached_end is False
+
+
+def test_track_needs_a_minimum_run_and_reports_the_field_end() -> None:
+    from spinescope.anatomy.conus import _track
+
+    res = DEFAULT.ml_resolution_mm
+    assert _track(np.array([True] * 3 + [False] * 20), DEFAULT, res) is None
+    tr = _track(np.array([False] * 4 + [True] * 12), DEFAULT, res)  # cord to the last row of the field
+    assert tr is not None and tr.tip == 15 and tr.reached_end is True
+
+
+def test_bracket_weights_interpolate_linearly_between_sac_slices() -> None:
+    from spinescope.anatomy.conus import _bracket_weights
+
+    got = _bracket_weights([0.0, 4.0, 8.0], 1.0)
+    assert [i for i, _ in got] == [0, 1]
+    assert got[0][1] == pytest.approx(0.75) and got[1][1] == pytest.approx(0.25)
+    assert _bracket_weights([0.0, 4.0], -3.0) == [(0, 1.0)]
+
+
+def test_second_contrast_disagreement_halves_the_confidence() -> None:
+    from spinescope.anatomy import conus as conus_module
+
+    ph = SpinePhantom(PhantomSpec())
+    seg = _oracle(ph, "t2")
+    anchors = Anchors.from_truth(ph.truth)
+    base = conus_from_segmentation(seg, anchors, DEFAULT, contrast="t2")
+    assert base.found and base.confidence > 0
+    far = conus_module.SliceTip(
+        k=0,
+        z=base.z + 60.0,
+        xyz=np.array([0.0, 0.0, base.z + 60.0]),
+        confidence=0.0,
+        run_mm=20.0,
+        reached_fov_end=False,
+        score=0.5,
+    )
+    cross = conus_module._Located(tip=far, slice_tips=[], n_sac_slices=1, polarity=1)
+    dis = conus_from_segmentation(seg, anchors, DEFAULT, contrast="t2", cross=cross, cross_contrast="t1")
+    assert dis.found
+    ratio = dis.confidence / base.confidence
+    assert ratio == pytest.approx(DEFAULT.conus_xc_disagree_factor / DEFAULT.conus_xc_absent_factor, rel=1e-6)
+    assert dis.cross_z == pytest.approx(far.z) and dis.cross_contrast == "t1"
