@@ -77,7 +77,9 @@ def truth_from_mask(mask_path: str) -> tuple[list[TruthDisc], float | None]:
     canal = np.nonzero(arr == CANAL_LABEL)
     canal_x = None
     if len(canal[0]):
-        canal_x = float(np.median(origin[0] + (canal[2] * spacing[0] * direction[0, 0])))
+        # Same index -> LPS transform as the discs (full direction matrix, not only its x term).
+        cidx = np.stack([canal[2], canal[1], canal[0]], axis=1).astype(np.float64)
+        canal_x = float(np.median((origin + (cidx * spacing) @ direction.T)[:, 0]))
     return discs, canal_x
 
 
