@@ -191,5 +191,21 @@ class Config:
     # Side classification: a slice is "central" when within half a slice spacing of the midline.
     side_central_spacing_fraction: float = 0.5
 
+    # ---- anatomy: label verification (verify.py, Anchors corrections) ----
+    # Confidence written to numbering['confidence'] after a reviewed correction. Judgement defaults, not
+    # calibrated: a human confirmation is trusted more than an AI reader's answer on a 2-D packet.
+    review_confidence_human: float = 0.95
+    review_confidence_ai: float = 0.85
+    # Numbering confidence when the reader answers 'unsure' (no structural change is made).
+    review_unsure_confidence: float = 0.3
+    # Penalty per reader-named disc that could not be placed (no neighbours to place it between).
+    review_unplaced_penalty: float = 0.1
+    # Confidence of a disc the reader asked for and that was placed by interpolation or extrapolation
+    # from its neighbours (its position is a guess, not a measurement).
+    placed_disc_confidence: float = 0.3
+    # Sacrum zoom of the verification packet: centre this far inferior to the lowest disc, crop side (mm).
+    verify_sacrum_offset_mm: float = 30.0
+    verify_sacrum_fov_mm: float = 100.0
+
 
 DEFAULT = Config()
