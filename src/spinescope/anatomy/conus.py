@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import itertools
 import logging
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -77,6 +78,8 @@ class ConusResult:
         None  # "upper third" | "middle third" | "lower third" of the vertebra, or "at disc"
     )
     confidence: float = 0.0
+    #: Confidence before the numbering-status factor (kept so that :func:`refresh_conus` can re-apply the factor).
+    confidence_raw: float | None = None
     low_lying: bool | None = None  # True: below the L2-L3 disc; None: unknown (tip at the field-of-view end)
     fov_end: bool = False
     n_slices: int = 0
@@ -97,6 +100,7 @@ class ConusResult:
             "level": self.level,
             "position": self.position,
             "confidence": round(float(self.confidence), 3),
+            "confidence_raw": None if self.confidence_raw is None else round(float(self.confidence_raw), 3),
             "low_lying": self.low_lying,
             "fov_end": self.fov_end,
             "slices": self.n_slices,
@@ -263,6 +267,77 @@ def low_lying(z: float, level: str | None, anchors: Anchors, cfg: Config = DEFAU
     return None if idx is None else idx <= 3  # vertebra L3 or below
 
 
+def _with_status(raw: float, status: str, cfg: Config) -> tuple[float, float]:
+    """Confidence after the numbering-status factor (``conus_status_factor``), and the factor used.
+
+    An empty status (the conus was located before the numbering was final) leaves the confidence unchanged.
+    """
+    if not status:
+        return float(np.clip(raw, 0.0, 1.0)), 1.0
+    factor = {
+        "confirmed": cfg.conus_status_factor[0],
+        "probable": cfg.conus_status_factor[1],
+        "unconfirmed": cfg.conus_status_factor[2],
+    }.get(status, cfg.conus_status_factor[2])
+    return float(np.clip(raw * factor, 0.0, 1.0)), factor
+
+
+_LOW_LYING_MESSAGES = ("low-lying conus:", "possible low-lying conus at")
+_NAME_EVIDENCE = (
+    "tip ",
+    "gap in disc",
+    "no disc anchors",
+    "level names",
+)  # evidence lines that depend on names
+
+
+def refresh_conus(anchors: Anchors, cfg: Config = DEFAULT) -> None:
+    """Re-derive the names and status-dependent fields of ``anchors.conus`` once the numbering is final.
+
+    The conus is located before the numbering fusion (so its tip can vote), in the pre-fusion names. After the
+    fusion and the applicability check, its level, position, low-lying flag and confidence (status factor) are
+    recomputed from the stored tip height ``z``; the low-lying warnings are rewritten to match. The experimental
+    confidence cap (``conus_max_confidence``) is applied here as well.
+    """
+    c = anchors.conus
+    if not isinstance(c, dict) or c.get("z") is None:
+        return
+    z = float(c["z"])
+    raw = c.get("confidence_raw")
+    raw = float(c.get("confidence", 0.0)) if raw is None else float(raw)
+    status = str(anchors.numbering.get("status", "") or "")
+    level, position, lev_ev = level_at(z, anchors)
+    conf, _factor = _with_status(raw, status, cfg)
+    conf = min(conf, cfg.conus_max_confidence)
+    low = low_lying(z, level, anchors, cfg)
+    anchors.warnings = [w for w in anchors.warnings if not w.startswith(_LOW_LYING_MESSAGES)]
+    if low:
+        if conf >= cfg.conus_low_lying_min_confidence:
+            msg = (
+                f"low-lying conus: tip at {level or 'an unnamed level'} ({position or 'no third'}), below the "
+                f"{cfg.conus_low_lying_disc} disc (confidence {conf:.2f}; {LOW_LYING_REFERENCE}); "
+                "confirm on the sagittal T2 before reporting"
+            )
+        else:
+            msg = (
+                f"possible low-lying conus at {level or 'an unnamed level'}: confidence {conf:.2f} is too low to "
+                "call it; verify manually on the sagittal T2"
+            )
+        anchors.warnings.append(msg)
+    c.update(
+        {
+            "level": level,
+            "position": position,
+            "confidence": round(conf, 3),
+            "low_lying": low,
+            "experimental": True,
+            "evidence": [e for e in c.get("evidence", []) if not e.startswith(_NAME_EVIDENCE)]
+            + lev_ev
+            + ([f"level names: numbering {status}"] if status else []),
+        }
+    )
+
+
 # ------------------------------------------------------------------------------ public API
 def conus_from_segmentation(
     seg: Any,
@@ -325,6 +400,11 @@ def conus_from_segmentation(
     zs = np.array([t.z for t in tips])
     z_med = float(np.median(zs))
     agree = [t for t in tips if abs(t.z - z_med) <= cfg.conus_agree_mm]
+    if not agree:
+        # Tips split into two clusters around an even-count median: take the tips around the tip nearest to it
+        # (lab22 fix; before, the empty set gave a NaN mean and an exception on the item assignment below).
+        nearest = min(tips, key=lambda t: abs(t.z - z_med))
+        agree = [t for t in tips if abs(t.z - nearest.z) <= cfg.conus_agree_mm] or [nearest]
     z = float(np.mean([t.z for t in agree]))
     xyz = np.mean([t.xyz for t in agree], axis=0)
     xyz[2] = z
@@ -338,14 +418,8 @@ def conus_from_segmentation(
         conf = min(conf, 0.5)
     level, position, lev_ev = level_at(z, anchors)
     status = str(anchors.numbering.get("status", "") or "")
-    status_factor = {
-        "confirmed": cfg.conus_status_factor[0],
-        "probable": cfg.conus_status_factor[1],
-        "unconfirmed": cfg.conus_status_factor[2],
-    }.get(status, cfg.conus_status_factor[2])
-    if status:
-        conf *= status_factor
-    conf = float(np.clip(conf, 0.0, 1.0))
+    raw = float(np.clip(conf, 0.0, 1.0))
+    conf, status_factor = _with_status(raw, status, cfg)
     low = low_lying(z, level, anchors, cfg)
     ev = [
         f"cord-like signal inside the thecal sac ends at z={z:.1f} mm on {len(agree)}/{len(ks)} sagittal slice(s) "
@@ -368,6 +442,7 @@ def conus_from_segmentation(
         level=level,
         position=position,
         confidence=conf,
+        confidence_raw=raw,
         low_lying=low,
         fov_end=fov_end,
         n_slices=len(ks),
@@ -410,8 +485,17 @@ def pick_conus_stack(study: Study) -> Stack | None:
     return study.best("sag")
 
 
-def locate_conus(study: Study, anchors: Anchors, cfg: Config = DEFAULT) -> ConusResult:
-    """Locate the conus on the study's sagittal series (see module doc). Missing inputs give warnings."""
+def locate_conus(
+    study: Study,
+    anchors: Anchors,
+    cfg: Config = DEFAULT,
+    segmentations: Mapping[str, Any] | None = None,
+) -> ConusResult:
+    """Locate the conus on the study's sagittal series (see module doc). Missing inputs give warnings.
+
+    ``segmentations`` maps stack keys to network output already computed for this study (a
+    :class:`~spinescope.anatomy.ml.labeller.SegmentedStack`); the network is run only for a stack that is not in it.
+    """
     from ..render.window import contrast_of
     from .ml.labeller import segment_stack
 
@@ -419,18 +503,25 @@ def locate_conus(study: Study, anchors: Anchors, cfg: Config = DEFAULT) -> Conus
     if stack is None:
         return ConusResult(found=False, warnings=["conus not located: no sagittal series"])
     contrast = contrast_of(stack)
-    seg = segment_stack(stack, cfg)
+    seg = (segmentations or {}).get(stack.key)
+    if seg is None:
+        seg = segment_stack(stack, cfg)
     res = conus_from_segmentation(seg, anchors, cfg, contrast=contrast)
     return res
 
 
-def attach_conus(study: Study, anchors: Anchors, cfg: Config = DEFAULT) -> ConusResult:
+def attach_conus(
+    study: Study,
+    anchors: Anchors,
+    cfg: Config = DEFAULT,
+    segmentations: Mapping[str, Any] | None = None,
+) -> ConusResult:
     """Locate the conus and write it to ``anchors.conus`` with its warnings.
 
     A failed search keeps an existing conus (for example the classical tip) and says so; otherwise the
-    conus is ``None`` and a warning is added.
+    conus is ``None`` and a warning is added. ``segmentations``: see :func:`locate_conus`.
     """
-    res = locate_conus(study, anchors, cfg)
+    res = locate_conus(study, anchors, cfg, segmentations)
     if res.found:
         anchors.conus = res.to_dict()
         anchors.warnings.extend(res.warnings)
@@ -454,4 +545,5 @@ __all__ = [
     "locate_conus",
     "low_lying",
     "pick_conus_stack",
+    "refresh_conus",
 ]

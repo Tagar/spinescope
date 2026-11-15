@@ -41,8 +41,11 @@ CANAL_Y = (30.0, 39.0)  # posterior canal edges (mm), AP chord 10 mm
 TILT = np.radians(10.0)
 
 
-def _synthetic_seg(step_posterior: bool = False) -> SegmentedStack:
-    """Segmentation of a synthetic sagittal stack with the layout described in the module docstring."""
+def _synthetic_seg(step_posterior: bool = False, sacrum: bool = False) -> SegmentedStack:
+    """Segmentation of a synthetic sagittal stack with the layout described in the module docstring.
+
+    ``sacrum=True`` adds a body below the lowest disc (down 108 to 124 mm, the S1 body of lab22).
+    """
     row_dir = np.array([0.0, 1.0, 0.0])  # columns increase posterior
     col_dir = np.array([0.0, 0.0, -1.0])  # rows increase inferior
     xs = np.array([-12.0 + 3.0 * k for k in range(N_SL)])
@@ -67,6 +70,8 @@ def _synthetic_seg(step_posterior: bool = False) -> SegmentedStack:
         body[(post >= 30) & (post <= 60) & (down >= d2) & (down <= DISCS["L4-L5"][0])] = True
         # body 3: above D2 (top of the field), inferior endplate only
         body[(post >= 30) & (post <= 60) & (down >= 0) & (down <= DISCS["L3-L4"][0])] = True
+        if sacrum:  # body 0: bone below the lowest disc (S1)
+            body[(post >= 30) & (post <= 60) & (down >= DISCS["L5-S1"][1]) & (down <= 124.0)] = True
         probs[k, BODY] = body.astype(np.float32)
         disc = np.zeros(g.shape, dtype=bool)
         for lo, hi in DISCS.values():
@@ -275,3 +280,23 @@ def test_relabelling_carries_geometry_names():
     assert a.vertebrae["L3"].body["level"] == "L3"
     assert set(a.canal["per_level"]) <= set(a.discs) | set(a.vertebrae)
     assert set(a.posterior_elements["lamina_proxy"]) <= set(a.discs) | set(a.vertebrae)
+
+
+def test_s1_body_below_lowest_disc_is_measured_and_absent_without_bone():
+    """lab22: the bone below the lowest disc (S1 body) is measured before numbering. Analytic: the lowest disc's
+    inferior margin is at z = -104 - 4 = -108 mm and the sacral bone reaches down = 124 mm (about 16 mm below)."""
+    seg = _synthetic_seg(sacrum=True)
+    a = _synthetic_anchors(seg)
+    measure_geometry(seg, a, DEFAULT)
+    s1 = a.vertebrae["S1"].body
+    assert s1 is not None and s1["discs_below"] == 0
+    assert s1["below_lowest_disc_mm"] == pytest.approx(16.0, abs=2.0)
+    assert s1["extent_mm"] is None or s1["extent_mm"] > 0.0  # the mid-sagittal extent is measured when a plane exists
+    # The other bodies carry an extent too; only the bone below the lowest disc is a numbering signal.
+    assert a.vertebrae["L5"].body["below_lowest_disc_mm"] is None
+
+    seg0 = _synthetic_seg(sacrum=False)
+    a0 = _synthetic_anchors(seg0)
+    measure_geometry(seg0, a0, DEFAULT)
+    assert "S1" not in a0.vertebrae or (a0.vertebrae["S1"].body["below_lowest_disc_mm"] or 0.0) < 1.0
+
