@@ -119,6 +119,19 @@ def resample_slice(
     return np.asarray(out, dtype=np.float32)
 
 
+def network_input_volume(stack: Stack) -> NDArray[np.floating]:
+    """The volume the network and its window see: ``stack.vol``, shifted for signed pixel data.
+
+    Signed DICOM (PixelRepresentation 1) with a background below zero records ``signed_offset`` in its metadata
+    (see :mod:`spinescope.io.dicom`); the window assumes a background near zero, so the offset is removed here.
+    Every other stack (unsigned DICOM, NIfTI, MetaImage such as SPIDER) is returned unchanged.
+    """
+    off = float(stack.meta.get("signed_offset", 0.0) or 0.0)
+    if off == 0.0:
+        return stack.vol
+    return (stack.vol - np.float32(off)).astype(np.float32)
+
+
 def intensity_window(
     vol: NDArray[np.floating], pct: tuple[float, float] = (0.5, 99.5), background_frac: float = 0.02
 ) -> tuple[float, float]:

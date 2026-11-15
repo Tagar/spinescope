@@ -38,6 +38,7 @@ from ..geometry import Stack
 from ..study import Study
 from .anchors import Anchors
 from .fusion import stack_z_range
+from .ml.grid import network_input_volume, normalise, resample_slice
 from .ml.labeller import BODY, CANAL, SegmentedStack
 from .ml.postprocess import mid_sagittal
 from .numbering import DEFAULT_STATUS_THRESHOLDS, STATUS_UNCONFIRMED, VERTEBRA_NAMES, numbering_status
@@ -374,6 +375,31 @@ def canal_run_mm(seg: SegmentedStack, cfg: Config = DEFAULT) -> float:
     return float(best) * seg.grids[mid.k].res_mm
 
 
+def contrast_polarity(seg: SegmentedStack) -> float | None:
+    """Canal intensity minus body intensity, in the window-normalised image (about +0.2 on T2, -0.2 on T1).
+
+    Uses the network's own canal and body probabilities on the same grids the labeller sampled, so it reads
+    the pixels, not the header. None when the network found no canal or no body.
+    """
+    stack = seg.stack
+    src = network_input_volume(stack)
+    imgs = np.stack([normalise(resample_slice(stack, g, array=src), seg.window) for g in seg.grids])
+    p_canal = np.asarray(seg.probs[:, CANAL], dtype=np.float64)
+    p_body = np.asarray(seg.probs[:, BODY], dtype=np.float64)
+    if p_canal.sum() <= 0.0 or p_body.sum() <= 0.0:
+        return None
+    return float((p_canal * imgs).sum() / p_canal.sum() - (p_body * imgs).sum() / p_body.sum())
+
+
+def _contradicts_contrast(declared: str, polarity: float, cfg: Config) -> bool:
+    """True when the pixel polarity is on the wrong side of the declared T1/T2 contrast by the margin."""
+    if declared == "t2":
+        return polarity < -cfg.ood_contrast_polarity_min
+    if declared == "t1":
+        return polarity > cfg.ood_contrast_polarity_min
+    return False
+
+
 def output_entropy(seg: SegmentedStack, cfg: Config = DEFAULT) -> tuple[float, float]:
     """(mean normalised entropy over anatomy pixels, fraction of pixels that are anatomy).
 
@@ -579,6 +605,18 @@ def assess_applicability(
         warnings.append(
             f"applicability: network output uncertain (entropy {cues['entropy']:.2f} > {cfg.ood_entropy_max:.2f})"
         )
+    if seg is not None:
+        # The pixels, not the header, say whether this is T1 or T2: a contradiction lowers confidence.
+        pol = contrast_polarity(seg)
+        declared = str(sag.meta.get("role", {}).get("contrast", "unknown"))
+        cues["contrast_polarity"] = None if pol is None else round(pol, 3)
+        if pol is not None and _contradicts_contrast(declared, pol, cfg):
+            factor *= cfg.ood_offdist_factor
+            side = "brighter" if pol > 0 else "darker"
+            warnings.append(
+                f"applicability: intensities contradict the declared {declared.upper()} contrast (canal is "
+                f"{side} than bone): the contrast metadata may be wrong; confidence lowered"
+            )
     if verdict == UNCERTAIN:
         warnings.append(
             "applicability: region not confirmed by the anatomy: levels labelled with lower confidence"

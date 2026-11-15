@@ -44,9 +44,9 @@ def disc_names(n_discs: int) -> list[str]:
     """Disc labels from the bottom up for ``n_discs`` discs, with the lowest disc = L5-S1."""
     out = []
     for k in range(n_discs):
-        upper = VERTEBRA_NAMES[k + 1] if k + 1 < len(VERTEBRA_NAMES) else f"V{k + 1}"
-        lower = VERTEBRA_NAMES[k]
-        out.append(f"{upper}-{lower}")
+        # Beyond the name table (a whole-spine field of view) use the same V<n> fallback as vertebra_name,
+        # instead of raising IndexError.
+        out.append(f"{vertebra_name(k + 1)}-{vertebra_name(k)}")
     return out
 
 

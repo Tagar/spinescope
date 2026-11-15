@@ -8,6 +8,9 @@ from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field
 from typing import Any
 
+import numpy as np
+
+from .config import DEFAULT
 from .geometry import Stack
 from .io.dicom import (
     StudyInfo,
@@ -155,7 +158,41 @@ def _finish(
             report.setdefault("warnings", []).append(msg)
         if load_pixels:
             load_stack_pixels(st)
+            _pixel_qa(key, st, report)
     return Study(stacks=keyed, info=_study_info(list(keyed.values())), report=report)
+
+
+def _pixel_qa(key: str, st: Stack, report: dict[str, Any]) -> None:
+    """Warnings about pixel content that degrades labelling: non-finite values, constant and clipped slices.
+
+    Warnings only (the data are kept): the labeller's applicability check decides whether to label.
+    """
+    msgs: list[str] = []
+    n_bad = int(st.meta.get("nonfinite_voxels", 0) or 0)
+    if n_bad:
+        msgs.append(
+            f"stack {key}: {n_bad} non-finite pixel value(s) (NaN or inf) replaced by the nearest finite extreme"
+        )
+    vol = st.vol
+    if vol.size:
+        const = [k for k in range(st.n) if float(np.ptp(vol[k])) == 0.0]
+        if const:
+            msgs.append(
+                f"stack {key}: {len(const)} of {st.n} slice(s) are constant (every voxel equal: empty, "
+                "zero-filled or saturated)"
+            )
+        hi = float(np.max(vol))
+        clipped = [
+            k
+            for k in range(st.n)
+            if float(np.ptp(vol[k])) > 0.0
+            and np.count_nonzero(vol[k] >= hi) > DEFAULT.saturated_slice_frac * vol[k].size
+        ]
+        if clipped:
+            msgs.append(f"stack {key}: {len(clipped)} slice(s) look saturated (most voxels at the maximum)")
+    for msg in msgs:
+        log.warning(msg)
+        report.setdefault("warnings", []).append(msg)
 
 
 def from_stacks(stacks: list[Stack], *, reorient: bool = True) -> Study:

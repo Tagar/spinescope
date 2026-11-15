@@ -155,6 +155,13 @@ class Config:
     # missing slice (2 x spacing).
     slice_spacing_rel_tol: float = 0.1
     slice_gap_factor: float = 1.5
+    # ImageOrientationPatient must hold two unit, orthogonal vectors to this tolerance (absolute, on the
+    # norms and on the dot product). 0.01 is about 0.6 degrees: far above the 6-decimal rounding of DICOM
+    # headers, far below the skew that makes the slice normal (and so every position) unreliable.
+    iop_orthonormal_tol: float = 0.01
+    # Pixel QA (warnings only): a slice with this fraction of its voxels at the stack maximum is treated as
+    # clipped (saturated). Judgement; a few bright voxels at the top of the range are normal.
+    saturated_slice_frac: float = 0.25
 
     # ---- analysis_core: discs (sagittal, disc frame; mm unless noted) ----
     # Lumbar disc transverse diameter ~40-46 mm (anatomy texts) -> half width used to pick mid-portion slices.
@@ -318,6 +325,12 @@ class Config:
     # Calibrated on SPIDER training: the 99th percentile of real studies is 0.17 (see docs/labeling/lab12_ood.md).
     ood_fg_prob: float = 0.3
     ood_entropy_max: float = 0.2
+    # Contrast polarity: mean normalised intensity of the network's canal pixels minus that of its body pixels.
+    # CSF is bright on T2 and dark on T1, so a T2-declared series with polarity below -ood_contrast_polarity_min
+    # (or a T1-declared one above +min) contradicts its own metadata. Calibrated on 10 SPIDER training T1 and
+    # 10 training T2 volumes (lab23_redteam, seed 0): T1 -0.16..-0.40, T2 +0.21..+0.50, so 0 is the boundary and
+    # the margin keeps only clear contradictions. Phantom T2 +0.23, phantom T1 -0.41.
+    ood_contrast_polarity_min: float = 0.05
     # A vertebral body lying between two adjacent discs longer than this (mm) means a disc between them was missed.
     # Calibrated on SPIDER training (mid-sagittal network bodies: median 30 mm, 99th percentile 41 mm, 2-body
     # merges ~55-65 mm): see docs/labeling/lab12_ood.md.

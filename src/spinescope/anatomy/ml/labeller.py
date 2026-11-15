@@ -33,7 +33,7 @@ from ...config import DEFAULT, Config
 from ...geometry import Stack
 from ...study import Study
 from ..anchors import Anchors
-from .grid import PlaneGrid, intensity_window, normalise, plane_grid, resample_slice
+from .grid import PlaneGrid, intensity_window, network_input_volume, normalise, plane_grid, resample_slice
 
 if TYPE_CHECKING:  # pragma: no cover
     import onnxruntime as ort
@@ -137,8 +137,9 @@ def segment_stack(
     sess = session if session is not None else load_session()
     res = cfg.ml_resolution_mm
     grids = [plane_grid(stack, k, res) for k in range(stack.n)]
-    window = intensity_window(stack.vol, cfg.ml_intensity_pct, cfg.background_frac)
-    imgs = np.stack([normalise(resample_slice(stack, g), window) for g in grids])
+    src = network_input_volume(stack)  # signed DICOM: background shifted to zero; others unchanged
+    window = intensity_window(src, cfg.ml_intensity_pct, cfg.background_frac)
+    imgs = np.stack([normalise(resample_slice(stack, g, array=src), window) for g in grids])
     probs = run_network(sess, imgs)
     return SegmentedStack(stack=stack, grids=grids, probs=probs, window=window)
 
