@@ -1,0 +1,13 @@
+{
+  "name": "spinescope",
+  "version": "0.1.0",
+  "description": "Spine MRI tools for AI assistants: open a study, label levels, render and measure, run an orchestrated multi-reader read with consensus, and build the offline viewer. Research and education only; not a diagnosis.",
+  "author": {
+    "name": "Ruslan Dautkhanov",
+    "url": "https://github.com/Tagar"
+  },
+  "homepage": "https://github.com/Tagar/spinescope",
+  "repository": "https://github.com/Tagar/spinescope",
+  "license": "Apache-2.0",
+  "keywords": ["mri", "spine", "dicom", "radiology", "research", "education"]
+}
