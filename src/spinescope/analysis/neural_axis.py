@@ -643,7 +643,8 @@ def analyze(study: Study, anchors: Anchors, config: Config | None = None) -> Res
         cyst_rows, cyst_warns, kept = sagittal_cysts(seg, anchors, cfg, contrast=contrast)
         res.rows += cyst_rows
         res.warnings += cyst_warns
-        for row in cyst_rows:
+        # cyst candidates fail specificity on both public sets (docs/analysis/neural_axis.md): rows always, flags opt-in
+        for row in cyst_rows if cfg.neural_axis_cyst_flags else []:
             res.flags.append(
                 {
                     "kind": row["wording"],

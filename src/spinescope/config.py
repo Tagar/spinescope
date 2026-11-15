@@ -191,6 +191,9 @@ class Config:
     )
     # Confidence cap for every neural-axis output: none is validated on a reference (see docs/analysis/neural_axis.md).
     neural_axis_max_confidence: float = 0.5
+    # Raise flags for perineural cyst candidates. Off: specificity was 0.45 on Sudirman weak negatives and SPIDER calls
+    # were implausible (docs/analysis/neural_axis.md), so candidates stay in the rows for a reader and are not flagged.
+    neural_axis_cyst_flags: bool = False
     disc_match_mm: float = 6.0  # tolerance when matching discs between two sagittal series
     # Mid-sagittal plane by mirror symmetry (spinescope.anatomy.midline_robust). Mirror pairs of sagittal
     # slices at x0 +- d are compared; the symmetry axis is the midline. Lengths in mm.

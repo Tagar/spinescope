@@ -331,3 +331,10 @@ def test_neural_axis_is_registered_and_runs_through_the_registry(tmp_path: Path)
     out = base.run_all(study, _anchors(ph), DEFAULT, names=["neural_axis"])
     assert out["neural_axis"].name == "neural_axis"
     assert not any(w.startswith("analysis failed") for w in out["neural_axis"].warnings)
+
+
+def test_cyst_flags_are_opt_in() -> None:
+    """Cyst candidates fail specificity on public data: no flags by default, rows are kept."""
+    from spinescope.config import DEFAULT
+
+    assert DEFAULT.neural_axis_cyst_flags is False
