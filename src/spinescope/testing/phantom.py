@@ -210,6 +210,11 @@ class PhantomSpec:
     realism: str = "cartoon"  # 'cartoon' (default, original look) | 'realistic' (testing/realistic.py)
     supersample: tuple[int, int] = (2, 2)  # realistic only: (through-plane, in-plane per axis) sub-samples
     gibbs: bool = False  # realistic only: Gibbs ringing from truncated k-space
+    # ---- listhesis (spondylolisthesis) option, added for the alignment analysis. Off by default.
+    # disc -> translation in mm of the body ABOVE that disc, with every structure above it (the column moves as one),
+    # along that body's anterior-posterior axis. Positive = posterior (retrolisthesis), negative = anterior
+    # (anterolisthesis). The disc at the slip level takes half the shift (it shears between the two bodies).
+    slip: dict[str, float] = field(default_factory=dict)
 
 
 def _segment_distance(pts: np.ndarray, a: np.ndarray, b: np.ndarray) -> np.ndarray:
@@ -375,6 +380,9 @@ class SpinePhantom:
             )
             if not valid:
                 raise ValueError(f"unknown hardware {item!r}: use 'rod', 'screws:<body>' or 'cage:<disc>'")
+        self._slip_truth: dict[str, dict[str, float]] = {}
+        if sp.slip:
+            self._apply_slip()
         if sp.scoliosis_mm or sp.scoliosis_rot_deg:
             self._apply_scoliosis()
         canal = [bodies[b]["center"] + bodies[b]["ap"] * sp.canal_offset for b in (*body_names, sacrum)]
@@ -410,12 +418,55 @@ class SpinePhantom:
             "transitional": sp.transitional,
             "findings": findings,
         }
+        if self._slip_truth:
+            self.truth["listhesis"] = {k: dict(v) for k, v in self._slip_truth.items()}
         if sp.transitional == "sacralised_l5":
             self.truth["discs"]["L5-S1"]["partial"] = True  # only one side of the L5-S1 disc is preserved
         if sp.transitional == "lumbarised_s1":
             self.truth["discs"][disc_names[-1]]["anatomical"] = (
                 "S1-S2"  # the full disc below the lumbarised S1
             )
+
+    def _apply_slip(self) -> None:
+        """Translate the column above each slipped disc in AP (listhesis). Rigid for the column above, half shift at the disc."""
+        sp = self.spec
+        for disc, shift in sp.slip.items():
+            if disc not in self.discs:
+                raise ValueError(f"unknown slip level {disc!r}; discs are {sorted(self.discs)}")
+            upper = self._body_above(disc)
+            ap_u = self.bodies[upper]["ap"]
+            s_vec = float(shift) * ap_u
+            z_disc = float(self.discs[disc]["center"][2])
+            items: list[dict[str, Any]] = [v for v in self.discs.values() if v is not self.discs[disc]]
+            items += [v for v in self.bodies.values()]
+            for v in items:
+                if (
+                    float(v["center"][2]) > z_disc
+                ):  # the column above the disc (bodies and discs), moved as one
+                    v["center"] = v["center"] + s_vec
+                    for key in ("anterior", "posterior"):
+                        if key in v:
+                            v[key] = v[key] + s_vec
+            d = self.discs[disc]
+            d["center"] = d["center"] + 0.5 * s_vec
+            for key in ("anterior", "posterior"):
+                if key in d:
+                    d[key] = d[key] + 0.5 * s_vec
+            lower = self._body_below(disc)
+            ap_l = self.bodies[lower]["ap"]
+            self._slip_truth[disc] = {
+                "slip_mm": float(shift),
+                # Anterior-positive translation of the upper body on the lower one, along the lower body's AP axis.
+                "translation_anterior_mm": float(-shift * float(ap_u @ ap_l)),
+            }
+
+    def _body_above(self, disc: str) -> str:
+        """Name of the vertebral body directly above a disc (the first name of the disc label)."""
+        return disc.split("-")[0]
+
+    def _body_below(self, disc: str) -> str:
+        """Name of the vertebral body directly below a disc (the second name of the disc label)."""
+        return disc.split("-")[1]
 
     def _apply_scoliosis(self) -> None:
         """C-shaped thoracolumbar curve: lateral shift and axial rotation, largest at L2, zero at the sacrum."""

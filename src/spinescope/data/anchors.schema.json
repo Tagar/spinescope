@@ -169,6 +169,14 @@
         },
         "angle_deg": {
           "type": "number"
+        },
+        "anterior_wall": {
+          "$ref": "#/$defs/LPS",
+          "description": "Anterior body-wall corner of this endplate (optional; vertebrae.body_plane_geometry)."
+        },
+        "posterior_wall": {
+          "$ref": "#/$defs/LPS",
+          "description": "Posterior body-wall corner of this endplate (optional; used for listhesis)."
         }
       }
     },

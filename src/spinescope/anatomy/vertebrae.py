@@ -66,6 +66,35 @@ def _fit_line(p: FloatArray, d: FloatArray) -> tuple[float, float]:
     return float(a), float(b)
 
 
+def _wall_line(mask: BoolArray, grid: PlaneGrid, posterior: bool) -> tuple[float, float] | None:
+    """Anterior or posterior wall of a body as a line ``post = a + b * down`` (plane mm), fitted to the most extreme
+    body column of each row in the middle 60% of the body's height (the rounded corners are left out)."""
+    rows = np.nonzero(mask.any(axis=1))[0]
+    if rows.size < 5:
+        return None
+    r0, r1 = int(rows[0]), int(rows[-1])
+    span = r1 - r0
+    sel = rows[(rows >= r0 + 0.2 * span) & (rows <= r1 - 0.2 * span)]
+    if sel.size < 3:
+        return None
+    cols = np.array(
+        [np.nonzero(mask[r])[0].max() if posterior else np.nonzero(mask[r])[0].min() for r in sel]
+    )
+    down, post = grid.mm_of_index(sel, cols)
+    if np.ptp(down) < 1e-6:
+        return None
+    b, a = np.polyfit(down, post, 1)
+    return float(a), float(b)
+
+
+def _wall_corner(endplate: tuple[float, float], wall: tuple[float, float]) -> tuple[float, float]:
+    """Corner (down, post) where an endplate line ``down = a + b * post`` meets a wall line ``post = c + d * down``."""
+    a, b = endplate
+    c, d = wall
+    down = (a + b * c) / (1.0 - b * d)
+    return float(down), float(c + d * down)
+
+
 def body_plane_geometry(
     mask: BoolArray, grid: PlaneGrid, sup: bool, inf: bool, cfg: Config = DEFAULT
 ) -> dict[str, Any] | None:
@@ -96,12 +125,20 @@ def body_plane_geometry(
         lines["sup"] = _fit_line(post[core], d_top[core])
     if inf:
         lines["inf"] = _fit_line(post[core], d_bot[core])
+    wall_a = _wall_line(mask, grid, posterior=False)
+    wall_p = _wall_line(mask, grid, posterior=True)
     for key, (a, b) in lines.items():
         out[key] = {
             "anterior": [a + b * p_lo, p_lo],
             "posterior": [a + b * p_hi, p_hi],
             "angle_deg": float(np.degrees(np.arctan(b))),
         }
+        # Corners on the body walls (additive, for listhesis): the endplate line meets the wall line. The corners above
+        # sit at the body's global AP extent, which is wrong for a tilted body (the wall is tilted with it).
+        if wall_a is not None:
+            out[key]["anterior_wall"] = list(_wall_corner((a, b), wall_a))
+        if wall_p is not None:
+            out[key]["posterior_wall"] = list(_wall_corner((a, b), wall_p))
     if "sup" in lines:  # AP depth = length of the superior endplate between its corners
         s_b = lines["sup"][1]
         out["ap_mm"] = float(np.hypot(span, s_b * span))
@@ -255,6 +292,9 @@ def _body_record(
                     "posterior": _plane_point_lps(grid, e["posterior"]),
                     "angle_deg": round(e["angle_deg"], 3),
                 }
+                if "posterior_wall" in e and "anterior_wall" in e:
+                    rec[out_key]["anterior_wall"] = _plane_point_lps(grid, e["anterior_wall"])
+                    rec[out_key]["posterior_wall"] = _plane_point_lps(grid, e["posterior_wall"])
         if "height_mm" in plane:
             rec["height_mm"] = {key: round(v, 3) for key, v in plane["height_mm"].items()}
             rec["height_mm"]["mean"] = round(float(np.mean(list(plane["height_mm"].values()))), 3)
