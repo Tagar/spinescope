@@ -538,7 +538,11 @@ def label_spine_details(
         from .ml import label_spine_ml
 
         primary = label_spine_ml(study, cfg)
-        return _finalise(study, primary, "ml", cfg, calibrate)
+        det = _finalise(study, primary, "ml", cfg, calibrate)
+        from .vertebrae import attach_geometry  # lab15: body, canal and posterior geometry (additive)
+
+        attach_geometry(study, det.anchors, cfg)
+        return det
     primary = _label_classical(study, cfg)
     return _finalise(study, primary, "classical", cfg, calibrate)
 

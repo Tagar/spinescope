@@ -258,5 +258,38 @@ class Config:
     # median), while SPIDER's own normals are 3-D masks, so the SPIDER gain is partly definitional.
     ml_disc_normal_3d: bool = False
 
+    # ---- vertebral geometry (anatomy/vertebrae.py, anatomy/canal_ml.py; lab15) ----
+    # Endplate lines are fitted on the central part of each body: this fraction of its AP depth is cut at each end,
+    # so the rounded corners do not bias the line. Judgement default, checked on SPIDER training.
+    vert_core_fraction: float = 0.2
+    # A body narrower than this in AP on the mid-sagittal plane is not measured (a fragment, not a vertebral body).
+    # Lumbar bodies are about 25-35 mm AP (anatomy; the disc AP length is ~35 mm); 15 mm rejects fragments.
+    vert_min_ap_mm: float = 15.0
+    # 3-D body width needs slices spanning at least this far (lateral extent cannot be seen on fewer slices).
+    vert_width_min_span_mm: float = 20.0
+    # 3-D width uses the slices holding at least this fraction of the body's largest slice count. Calibrated on SPIDER
+    # training (60 volumes, lab15): 0.0 (all slices) gave the lowest median absolute width error, 6.7 mm, against 9.6 mm
+    # at 0.25 and 13.2 mm at 0.5. Width stays low-confidence (p90 about 28 mm), see docs/labeling/lab15_vertebrae.md.
+    vert_width_slice_fraction: float = 0.0
+    # Canal centreline: z bins (mm), each needs canal pixels from at least two slices.
+    canal_z_bin_mm: float = 5.0
+    canal_min_bin_slices: int = 2
+    # A slice joins the bin's centre only if it holds this fraction of the bin's largest slice count (lateral strays).
+    canal_bin_slice_fraction: float = 0.3
+    # AP diameter at a level: mid-sagittal canal rows within this distance (mm) of the level are used (median chord).
+    canal_level_band_mm: float = 2.0
+    # Calibrated on SPIDER training (lab15): the mid-sagittal AP chord of the labeller's canal is a median 0.5 mm wider
+    # than the truth chord (one-pixel boundary effect); subtracting this removes it (median abs error 1.0 -> 0.5 mm).
+    canal_ap_bias_mm: float = 0.5
+    # The centreline is reported this far (mm) beyond the lowest and highest disc, within the canal's extent.
+    canal_zone_margin_mm: float = 10.0
+    # Posterior elements (approximations, no training labels exist for them; see docs/labeling/lab15_vertebrae.md).
+    # Spinous tip: search from this gap behind the posterior canal edge out to the search depth, for the posterior-most
+    # intensity edge at least spinous_edge_per_mm (window-normalised intensity per mm) strong.
+    spinous_gap_mm: float = 3.0
+    spinous_search_mm: float = 45.0
+    spinous_smooth_mm: float = 1.0
+    spinous_edge_per_mm: float = 0.03
+
 
 DEFAULT = Config()
