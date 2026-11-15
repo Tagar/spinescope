@@ -667,6 +667,13 @@
         "midline_evidence": {
           "type": "string"
         },
+        "counting": {
+          "description": "Top-chain evidence from wider sagittal series (counting.py). Evidence only: landmark and vote stay null until a verifiable top-landmark detector exists.",
+          "type": [
+            "object",
+            "null"
+          ]
+        },
         "lumbosacral": {
           "description": "Sacral-disc check (learned labeller). keep: no change; drop: sacral discs removed; unsure: the status is capped at unconfirmed; not_assessed: no model or no candidates.",
           "type": [

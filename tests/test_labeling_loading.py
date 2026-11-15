@@ -10,11 +10,12 @@ from spinescope.anatomy.pipeline import labelling_keys, load_labelling_study
 from spinescope.study import Study
 
 
-def test_labelling_keys_drop_coronal_and_localizer_sagittal(phantom_study: Study) -> None:
+def test_labelling_keys_drop_coronal_and_keep_sagittal_localizers(phantom_study: Study) -> None:
+    # Sagittal localizers are read by the top-chain check (counting.py, lab34); coronal series are not.
     keys = labelling_keys(phantom_study)
     assert keys[0] == phantom_study.best("sag").key
     assert "loc_cor" not in keys
-    assert "loc_sag" not in keys
+    assert "loc_sag" in keys
     assert all(phantom_study.stacks[k].plane in ("sag", "ax") for k in keys)
     assert len(keys) == len(set(keys))
 

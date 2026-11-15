@@ -790,6 +790,7 @@ def label_spine_details(
     calibrate: bool = True,
     lumbosacral: bool = True,
     fusion: FusionConfig | None = None,
+    counting: bool = True,
 ) -> LabelDetails:
     """As :func:`label_spine`, but also returns the fusion record, raw confidences and calibration features.
 
@@ -799,6 +800,9 @@ def label_spine_details(
     ``lumbosacral=False`` skips the sacral-disc check (:mod:`.lumbosacral`): the labeller-only numbering, used as
     the "before" in evaluations. The default check is on. ``fusion`` overrides the fusion settings (e.g.
     ``FusionConfig(use_axial=True)`` for the axial T1 slab cue); the default is :data:`fusion.DEFAULT_FUSION`.
+
+    ``counting`` records the top-chain evidence of wider sagittal series in ``anchors.numbering["counting"]``
+    (:mod:`.counting`; evidence only, no name changes, no warnings added to the labels). ML backend only.
     """
     if backend not in BACKENDS:
         raise ValueError(f"unknown labelling backend {backend!r}; available: {', '.join(BACKENDS)}")
@@ -824,6 +828,8 @@ def label_spine_details(
             fusion_cfg=fusion,
             segs=segs,
         )
+        if counting:
+            _counting_stage(study, det.anchors, cfg, segs)
     else:
         primary = _label_classical(study, cfg)
         det = _finalise(study, primary, "classical", cfg, calibrate, fusion_cfg=fusion)
@@ -841,6 +847,19 @@ def label_spine_details(
     _lstv_stage(det.anchors)
     stamp_study(det.anchors, study)  # binds the labels to this study (corrected files are checked against it)
     return det
+
+
+def _counting_stage(study: Study, anchors: Anchors, cfg: Config, segs: dict[str, SegmentedStack]) -> None:
+    """Record the top-chain evidence of the wider sagittal series in ``anchors.numbering["counting"]`` (never changes names)."""
+    from .counting import count_evidence
+
+    try:
+        res = count_evidence(study, anchors, primary_stack=study.best("sag"), config=cfg, segs=segs)
+    except Exception as exc:  # evidence only: a failure must never sink the labels
+        log.warning("counting evidence failed: %s", exc)
+        anchors.numbering["counting"] = {"available": False, "reason": f"failed ({type(exc).__name__})"}
+        return
+    anchors.numbering["counting"] = res.to_dict()
 
 
 def _conus_after_labels(study: Study, anchors: Anchors, cfg: Config) -> None:
@@ -909,8 +928,9 @@ def _attach_conus(anchors: Anchors, res: StackResult) -> None:
 
 
 def labelling_keys(study: Study) -> list[str]:
-    """Keys of the stacks :func:`label_spine` reads: the primary sagittal, the second sagittal series, and every
-    axial stack (midline refinement and numbering cues). Localizers, coronal and other series are not needed."""
+    """Keys of the stacks :func:`label_spine` reads: the primary sagittal, the second sagittal series, every sagittal
+    stack (localizers included: the top-chain check, :mod:`.counting`, reads them), and every axial stack (midline
+    refinement and numbering cues). Coronal and other series are not needed."""
     keys: list[str] = []
     primary = study.best("sag")
     if primary is not None:
@@ -918,6 +938,7 @@ def labelling_keys(study: Study) -> list[str]:
         second = _second_sagittal(study, primary.key)
         if second is not None:
             keys.append(second.key)
+    keys += [st.key for st in study.stacks.values() if st.plane == "sag"]
     keys += [st.key for st in study.stacks.values() if st.plane == "ax"]
     return list(dict.fromkeys(keys))
 
