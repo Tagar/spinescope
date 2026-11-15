@@ -1,0 +1,2080 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Tagar/spinescope/blob/main/src/spinescope/data/findings.schema.json",
+  "title": "spinescope findings: one reader's structured spine MRI read",
+  "description": "Structured findings for one spine MRI read by a human or an AI reader. Every field is {value, confidence, evidence, notes}. Missing key = not assessed. null value = indeterminate (looked, could not decide). Research use only; not a diagnosis.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "reader",
+    "scope"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "reader": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[A-Za-z0-9_.-]+$",
+      "description": "Reader name, e.g. ai_reader_a or radiologist_1. No patient identifiers."
+    },
+    "scope": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Which levels and sections were examined, and how."
+    },
+    "levels": {
+      "type": "object",
+      "title": "Disc levels",
+      "description": "Keys are disc labels such as L4-L5, T12-L1 or L5-S1.",
+      "patternProperties": {
+        "^(C|T|L)\\d{1,2}-(C|T|L|S)\\d{1,2}$": {
+          "$ref": "#/$defs/Level"
+        }
+      },
+      "additionalProperties": false
+    },
+    "global": {
+      "$ref": "#/$defs/Global"
+    },
+    "focal_lesions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/FocalLesion"
+      }
+    },
+    "incidental_findings": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/IncidentalFinding"
+      }
+    },
+    "pain_generator_hypotheses": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/PainGeneratorHypothesis"
+      }
+    },
+    "notes": {
+      "type": "string",
+      "description": "Anything that does not fit above."
+    }
+  },
+  "$defs": {
+    "Confidence": {
+      "title": "Confidence",
+      "description": "How sure the reader is of this field.",
+      "enum": [
+        "low",
+        "medium",
+        "high"
+      ]
+    },
+    "Evidence": {
+      "type": "object",
+      "title": "Evidence",
+      "description": "One image the reader actually looked at.",
+      "required": [
+        "image",
+        "series",
+        "slices"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "image": {
+          "type": "string",
+          "minLength": 1,
+          "description": "PNG path (relative to the working directory, or absolute)."
+        },
+        "series": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_.-]+$",
+          "description": "Stack key of the series, e.g. sag_t2, sag_stir, ax_t2, obl_ax_t2_4."
+        },
+        "slices": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "description": "Slice indices shown in the image; [] if the whole series."
+        }
+      }
+    },
+    "EvidenceList": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/Evidence"
+      },
+      "description": "Every field needs at least one image."
+    },
+    "Disc": {
+      "type": "object",
+      "title": "Disc",
+      "description": "Intervertebral disc at this level.",
+      "additionalProperties": false,
+      "properties": {
+        "pfirrmann": {
+          "type": "object",
+          "title": "Pfirrmann grade",
+          "description": "1 homogeneous bright T2 signal ... 5 inhomogeneous grey, collapsed disc.",
+          "required": [
+            "value",
+            "confidence",
+            "evidence",
+            "notes"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1,
+              "maximum": 5
+            },
+            "confidence": {
+              "$ref": "#/$defs/Confidence"
+            },
+            "evidence": {
+              "$ref": "#/$defs/EvidenceList"
+            },
+            "notes": {
+              "type": "string",
+              "description": "One line of reasoning. May be empty."
+            }
+          }
+        },
+        "height_loss": {
+          "type": "object",
+          "title": "Disc height loss",
+          "description": "Qualitative disc height loss.",
+          "required": [
+            "value",
+            "confidence",
+            "evidence",
+            "notes"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "value": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "none",
+                "mild",
+                "moderate",
+                "severe",
+                null
+              ]
+            },
+            "confidence": {
+              "$ref": "#/$defs/Confidence"
+            },
+            "evidence": {
+              "$ref": "#/$defs/EvidenceList"
+            },
+            "notes": {
+              "type": "string",
+              "description": "One line of reasoning. May be empty."
+            }
+          }
+        },
+        "contour": {
+          "type": "object",
+          "title": "Disc contour (Fardon 2014)",
+          "description": "Overall contour of the disc.",
+          "required": [
+            "value",
+            "confidence",
+            "evidence",
+            "notes"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "value": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "normal",
+                "bulge",
+                "protrusion",
+                "extrusion",
+                "sequestration",
+                null
+              ]
+            },
+            "confidence": {
+              "$ref": "#/$defs/Confidence"
+            },
+            "evidence": {
+              "$ref": "#/$defs/EvidenceList"
+            },
+            "notes": {
+              "type": "string",
+              "description": "One line of reasoning. May be empty."
+            }
+          }
+        },
+        "herniation_location": {
+          "type": "object",
+          "title": "Herniation location zone",
+          "description": "none if no herniation. Side suffix _R / _L is the patient's right / left.",
+          "required": [
+            "value",
+            "confidence",
+            "evidence",
+            "notes"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "value": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "none",
+                "central",
+                "paracentral_R",
+                "paracentral_L",
+                "subarticular_R",
+                "subarticular_L",
+                "foraminal_R",
+                "foraminal_L",
+                "extraforaminal_R",
+                "extraforaminal_L",
+                null
+              ]
+            },
+            "confidence": {
+              "$ref": "#/$defs/Confidence"
+            },
+            "evidence": {
+              "$ref": "#/$defs/EvidenceList"
+            },
+            "notes": {
+              "type": "string",
+              "description": "One line of reasoning. May be empty."
+            }
+          }
+        },
+        "herniation_size_mm": {
+          "type": "object",
+          "title": "Herniation size (mm)",
+          "description": "Largest dimension. 0 if none.",
+          "required": [
+            "value",
+            "confidence",
+            "evidence",
+            "notes"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "value": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "confidence": {
+              "$ref": "#/$defs/Confidence"
+            },
+            "evidence": {
+              "$ref": "#/$defs/EvidenceList"
+            },
+            "notes": {
+              "type": "string",
+              "description": "One line of reasoning. May be empty."
+            }
+          }
+        },
+        "annular_fissure": {
+          "type": "object",
+          "title": "Annular fissure",
+          "description": "Direction of the annular fissure, if any.",
+          "required": [
+            "value",
+            "confidence",
+            "evidence",
+            "notes"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "value": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "none",
+                "concentric",
+                "radial",
+                "transverse",
+                null
+              ]
+            },
+            "confidence": {
+              "$ref": "#/$defs/Confidence"
+            },
+            "evidence": {
+              "$ref": "#/$defs/EvidenceList"
+            },
+            "notes": {
+              "type": "string",
+              "description": "One line of reasoning. May be empty."
+            }
+          }
+        },
+        "hiz": {
+          "type": "object",
+          "title": "High-intensity zone (T2)",
+          "description": "Posterior annular high-intensity zone on T2.",
+          "required": [
+            "value",
+            "confidence",
+            "evidence",
+            "notes"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "value": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "absent",
+                "present",
+                null
+              ]
+            },
+            "confidence": {
+              "$ref": "#/$defs/Confidence"
+            },
+            "evidence": {
+              "$ref": "#/$defs/EvidenceList"
+            },
+            "notes": {
+              "type": "string",
+              "description": "One line of reasoning. May be empty."
+            }
+          }
+        },
+        "migration": {
+          "type": "object",
+          "title": "Fragment migration",
+          "description": "Migration of a herniated fragment.",
+          "required": [
+            "value",
+            "confidence",
+            "evidence",
+            "notes"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "value": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "none",
+                "cranial",
+                "caudal",
+                null
+              ]
+            },
+            "confidence": {
+              "$ref": "#/$defs/Confidence"
+            },
+            "evidence": {
+              "$ref": "#/$defs/EvidenceList"
+            },
+            "notes": {
+              "type": "string",
+              "description": "One line of reasoning. May be empty."
+            }
+          }
+        }
+      }
+    },
+    "CentralCanal": {
+      "type": "object",
+      "title": "Central canal",
+      "description": "Central spinal canal at this level.",
+      "additionalProperties": false,
+      "properties": {
+        "stenosis": {
+          "type": "object",
+          "title": "Central canal stenosis",
+          "description": "Qualitative grade.",
+          "required": [
+            "value",
+            "confidence",
+            "evidence",
+            "notes"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "value": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "none",
+                "mild",
+                "moderate",
+                "severe",
+                null
+              ]
+            },
+            "confidence": {
+              "$ref": "#/$defs/Confidence"
+            },
+            "evidence": {
+              "$ref": "#/$defs/EvidenceList"
+            },
+            "notes": {
+              "type": "string",
+              "description": "One line of reasoning. May be empty."
+            }
+          }
+        },
+        "area_mm2": {
+          "type": "object",
+          "title": "Dural sac area (mm2)",
+          "description": "Measured cross-sectional area, if measured.",
+          "required": [
+            "value",
+            "confidence",
+            "evidence",
+            "notes"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "value": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "confidence": {
+              "$ref": "#/$defs/Confidence"
+            },
+            "evidence": {
+              "$ref": "#/$defs/EvidenceList"
+            },
+            "notes": {
+              "type": "string",
+              "description": "One line of reasoning. May be empty."
+            }
+          }
+        }
+      }
+    },
+    "LateralRecess": {
+      "type": "object",
+      "title": "Lateral recess",
+      "description": "Lateral recess; side is in the definition name.",
+      "additionalProperties": false,
+      "properties": {
+        "stenosis": {
+          "type": "object",
+          "title": "Lateral recess stenosis",
+          "description": "Qualitative grade for this side.",
+          "required": [
+            "value",
+            "confidence",
+            "evidence",
+            "notes"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "value": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "none",
+                "mild",
+                "moderate",
+                "severe",
+                null
+              ]
+            },
+            "confidence": {
+              "$ref": "#/$defs/Confidence"
+            },
+            "evidence": {
+              "$ref": "#/$defs/EvidenceList"
+            },
+            "notes": {
+              "type": "string",
+              "description": "One line of reasoning. May be empty."
+            }
+          }
+        }
+      }
+    },
+    "Foramen": {
+      "type": "object",
+      "title": "Foramen",
+      "description": "Neural foramen; side is in the definition name.",
+      "additionalProperties": false,
+      "properties": {
+        "lee_grade": {
+          "type": "object",
+          "title": "Foramen Lee grade",
+          "description": "Lee 1980: 0 normal, 1 mild, 2 moderate, 3 severe.",
+          "required": [
+            "value",
+            "confidence",
+            "evidence",
+            "notes"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0,
+              "maximum": 3
+            },
+            "confidence": {
+              "$ref": "#/$defs/Confidence"
+            },
+            "evidence": {
+              "$ref": "#/$defs/EvidenceList"
+            },
+            "notes": {
+              "type": "string",
+              "description": "One line of reasoning. May be empty."
+            }
+          }
+        }
+      }
+    },
+    "Facet": {
+      "type": "object",
+      "title": "Facet",
+      "description": "Facet joint; side is in the definition name.",
+      "additionalProperties": false,
+      "properties": {
+        "arthropathy": {
+          "type": "object",
+          "title": "Facet arthropathy",
+          "description": "Qualitative grade.",
+          "required": [
+            "value",
+            "confidence",
+            "evidence",
+            "notes"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "value": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "none",
+                "mild",
+                "moderate",
+                "severe",
+                null
+              ]
+            },
+            "confidence": {
+              "$ref": "#/$defs/Confidence"
+            },
+            "evidence": {
+              "$ref": "#/$defs/EvidenceList"
+            },
+            "notes": {
+              "type": "string",
+              "description": "One line of reasoning. May be empty."
+            }
+          }
+        },
+        "effusion": {
+          "type": "object",
+          "title": "Facet effusion",
+          "description": "Joint effusion on fluid-sensitive sequences.",
+          "required": [
+            "value",
+            "confidence",
+            "evidence",
+            "notes"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "value": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "absent",
+                "present",
+                null
+              ]
+            },
+            "confidence": {
+              "$ref": "#/$defs/Confidence"
+            },
+            "evidence": {
+              "$ref": "#/$defs/EvidenceList"
+            },
+            "notes": {
+              "type": "string",
+              "description": "One line of reasoning. May be empty."
+            }
+          }
+        }
+      }
+    },
+    "LigamentumFlavum": {
+      "type": "object",
+      "title": "Ligamentum flavum",
+      "description": "Ligamentum flavum at this level.",
+      "additionalProperties": false,
+      "properties": {
+        "thickening": {
+          "type": "object",
+          "title": "Ligamentum flavum thickening",
+          "description": "Qualitative grade.",
+          "required": [
+            "value",
+            "confidence",
+            "evidence",
+            "notes"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "value": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "none",
+                "mild",
+                "moderate",
+                "severe",
+                null
+              ]
+            },
+            "confidence": {
+              "$ref": "#/$defs/Confidence"
+            },
+            "evidence": {
+              "$ref": "#/$defs/EvidenceList"
+            },
+            "notes": {
+              "type": "string",
+              "description": "One line of reasoning. May be empty."
+            }
+          }
+        }
+      }
+    },
+    "NerveRoot": {
+      "type": "object",
+      "title": "Nerve root",
+      "description": "Nerve root; side is in the definition name.",
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "type": "object",
+          "title": "Nerve root status",
+          "description": "Contact, displacement or compression by disc or bone.",
+          "required": [
+            "value",
+            "confidence",
+            "evidence",
+            "notes"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "value": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "none",
+                "contact",
+                "displacement",
+                "compression",
+                null
+              ]
+            },
+            "confidence": {
+              "$ref": "#/$defs/Confidence"
+            },
+            "evidence": {
+              "$ref": "#/$defs/EvidenceList"
+            },
+            "notes": {
+              "type": "string",
+              "description": "One line of reasoning. May be empty."
+            }
+          }
+        },
+        "root": {
+          "type": "object",
+          "title": "Root label",
+          "description": "Name of the root, e.g. L5, S1, or unknown.",
+          "required": [
+            "value",
+            "confidence",
+            "evidence",
+            "notes"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "value": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "minLength": 1,
+              "pattern": "^((C|T|L|S)\\d{1,2}|unknown)$"
+            },
+            "confidence": {
+              "$ref": "#/$defs/Confidence"
+            },
+            "evidence": {
+              "$ref": "#/$defs/EvidenceList"
+            },
+            "notes": {
+              "type": "string",
+              "description": "One line of reasoning. May be empty."
+            }
+          }
+        },
+        "course": {
+          "type": "object",
+          "title": "Root course",
+          "description": "Traversing (in the canal) or exiting (in the foramen).",
+          "required": [
+            "value",
+            "confidence",
+            "evidence",
+            "notes"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "value": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "traversing",
+                "exiting",
+                null
+              ]
+            },
+            "confidence": {
+              "$ref": "#/$defs/Confidence"
+            },
+            "evidence": {
+              "$ref": "#/$defs/EvidenceList"
+            },
+            "notes": {
+              "type": "string",
+              "description": "One line of reasoning. May be empty."
+            }
+          }
+        }
+      }
+    },
+    "Endplate": {
+      "type": "object",
+      "title": "Endplate",
+      "description": "Endplate of the vertebra above or below the disc.",
+      "additionalProperties": false,
+      "properties": {
+        "modic": {
+          "type": "object",
+          "title": "Modic type",
+          "description": "0, 1, 2, 3 or mixed (1/2). null = indeterminate.",
+          "required": [
+            "value",
+            "confidence",
+            "evidence",
+            "notes"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "value": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "0",
+                "1",
+                "2",
+                "3",
+                "mixed",
+                null
+              ]
+            },
+            "confidence": {
+              "$ref": "#/$defs/Confidence"
+            },
+            "evidence": {
+              "$ref": "#/$defs/EvidenceList"
+            },
+            "notes": {
+              "type": "string",
+              "description": "One line of reasoning. May be empty."
+            }
+          }
+        }
+      }
+    },
+    "Listhesis": {
+      "type": "object",
+      "title": "Listhesis",
+      "description": "Vertebral listhesis at this level.",
+      "additionalProperties": false,
+      "properties": {
+        "direction": {
+          "type": "object",
+          "title": "Listhesis direction",
+          "description": "Direction of slip.",
+          "required": [
+            "value",
+            "confidence",
+            "evidence",
+            "notes"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "value": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "none",
+                "anterolisthesis",
+                "retrolisthesis",
+                null
+              ]
+            },
+            "confidence": {
+              "$ref": "#/$defs/Confidence"
+            },
+            "evidence": {
+              "$ref": "#/$defs/EvidenceList"
+            },
+            "notes": {
+              "type": "string",
+              "description": "One line of reasoning. May be empty."
+            }
+          }
+        },
+        "meyerding_grade": {
+          "type": "object",
+          "title": "Meyerding grade",
+          "description": "Percent slip grade I to V.",
+          "required": [
+            "value",
+            "confidence",
+            "evidence",
+            "notes"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "value": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "none",
+                "I",
+                "II",
+                "III",
+                "IV",
+                "V",
+                null
+              ]
+            },
+            "confidence": {
+              "$ref": "#/$defs/Confidence"
+            },
+            "evidence": {
+              "$ref": "#/$defs/EvidenceList"
+            },
+            "notes": {
+              "type": "string",
+              "description": "One line of reasoning. May be empty."
+            }
+          }
+        },
+        "translation_mm": {
+          "type": "object",
+          "title": "Translation (mm)",
+          "description": "Signed; positive = anterior.",
+          "required": [
+            "value",
+            "confidence",
+            "evidence",
+            "notes"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "value": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "confidence": {
+              "$ref": "#/$defs/Confidence"
+            },
+            "evidence": {
+              "$ref": "#/$defs/EvidenceList"
+            },
+            "notes": {
+              "type": "string",
+              "description": "One line of reasoning. May be empty."
+            }
+          }
+        }
+      }
+    },
+    "Alignment": {
+      "type": "object",
+      "title": "Alignment",
+      "description": "Sagittal and coronal alignment of the spine in view.",
+      "additionalProperties": false,
+      "properties": {
+        "lumbar_lordosis_deg": {
+          "type": "object",
+          "title": "Lumbar lordosis (deg)",
+          "description": "Lumbar lordosis angle.",
+          "required": [
+            "value",
+            "confidence",
+            "evidence",
+            "notes"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "value": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "confidence": {
+              "$ref": "#/$defs/Confidence"
+            },
+            "evidence": {
+              "$ref": "#/$defs/EvidenceList"
+            },
+            "notes": {
+              "type": "string",
+              "description": "One line of reasoning. May be empty."
+            }
+          }
+        },
+        "scoliosis": {
+          "type": "object",
+          "title": "Scoliosis",
+          "description": "Qualitative grade.",
+          "required": [
+            "value",
+            "confidence",
+            "evidence",
+            "notes"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "value": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "none",
+                "mild",
+                "moderate",
+                "severe",
+                null
+              ]
+            },
+            "confidence": {
+              "$ref": "#/$defs/Confidence"
+            },
+            "evidence": {
+              "$ref": "#/$defs/EvidenceList"
+            },
+            "notes": {
+              "type": "string",
+              "description": "One line of reasoning. May be empty."
+            }
+          }
+        },
+        "scoliosis_cobb_deg": {
+          "type": "object",
+          "title": "Scoliosis Cobb angle (deg)",
+          "description": "Cobb angle, if measured.",
+          "required": [
+            "value",
+            "confidence",
+            "evidence",
+            "notes"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "value": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "confidence": {
+              "$ref": "#/$defs/Confidence"
+            },
+            "evidence": {
+              "$ref": "#/$defs/EvidenceList"
+            },
+            "notes": {
+              "type": "string",
+              "description": "One line of reasoning. May be empty."
+            }
+          }
+        }
+      }
+    },
+    "Marrow": {
+      "type": "object",
+      "title": "Marrow",
+      "description": "Bone marrow, global impression.",
+      "additionalProperties": false,
+      "properties": {
+        "marrow_global": {
+          "type": "object",
+          "title": "Marrow, global impression",
+          "description": "Overall marrow impression. Local findings go in focal_lesions.",
+          "required": [
+            "value",
+            "confidence",
+            "evidence",
+            "notes"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "value": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "normal",
+                "reactive_or_degenerative",
+                "diffuse_abnormal",
+                null
+              ]
+            },
+            "confidence": {
+              "$ref": "#/$defs/Confidence"
+            },
+            "evidence": {
+              "$ref": "#/$defs/EvidenceList"
+            },
+            "notes": {
+              "type": "string",
+              "description": "One line of reasoning. May be empty."
+            }
+          }
+        }
+      }
+    },
+    "ConusCord": {
+      "type": "object",
+      "title": "Conus and cord",
+      "description": "Conus medullaris and spinal cord.",
+      "additionalProperties": false,
+      "properties": {
+        "conus_tip_level": {
+          "type": "object",
+          "title": "Conus tip",
+          "description": "Vertebral level of the conus tip, or not_in_field.",
+          "required": [
+            "value",
+            "confidence",
+            "evidence",
+            "notes"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "value": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "minLength": 1,
+              "pattern": "^((T|L)\\d{1,2}|not_in_field)$"
+            },
+            "confidence": {
+              "$ref": "#/$defs/Confidence"
+            },
+            "evidence": {
+              "$ref": "#/$defs/EvidenceList"
+            },
+            "notes": {
+              "type": "string",
+              "description": "One line of reasoning. May be empty."
+            }
+          }
+        },
+        "cord_signal": {
+          "type": "object",
+          "title": "Conus / cord signal",
+          "description": "Signal and morphology of the conus or cord.",
+          "required": [
+            "value",
+            "confidence",
+            "evidence",
+            "notes"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "value": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "normal",
+                "abnormal",
+                "not_in_field",
+                null
+              ]
+            },
+            "confidence": {
+              "$ref": "#/$defs/Confidence"
+            },
+            "evidence": {
+              "$ref": "#/$defs/EvidenceList"
+            },
+            "notes": {
+              "type": "string",
+              "description": "One line of reasoning. May be empty."
+            }
+          }
+        }
+      }
+    },
+    "PosteriorElements": {
+      "type": "object",
+      "title": "Posterior elements",
+      "description": "Pars, spinous processes, posterior arch.",
+      "additionalProperties": false,
+      "properties": {
+        "pars_interarticularis": {
+          "type": "object",
+          "title": "Pars interarticularis",
+          "description": "Overall pars impression. Levels go in the notes.",
+          "required": [
+            "value",
+            "confidence",
+            "evidence",
+            "notes"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "value": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "normal",
+                "edema",
+                "lysis",
+                null
+              ]
+            },
+            "confidence": {
+              "$ref": "#/$defs/Confidence"
+            },
+            "evidence": {
+              "$ref": "#/$defs/EvidenceList"
+            },
+            "notes": {
+              "type": "string",
+              "description": "One line of reasoning. May be empty."
+            }
+          }
+        },
+        "baastrup_interspinous_contact": {
+          "type": "object",
+          "title": "Baastrup (interspinous contact)",
+          "description": "Contact between spinous processes.",
+          "required": [
+            "value",
+            "confidence",
+            "evidence",
+            "notes"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "value": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "absent",
+                "present",
+                null
+              ]
+            },
+            "confidence": {
+              "$ref": "#/$defs/Confidence"
+            },
+            "evidence": {
+              "$ref": "#/$defs/EvidenceList"
+            },
+            "notes": {
+              "type": "string",
+              "description": "One line of reasoning. May be empty."
+            }
+          }
+        }
+      }
+    },
+    "Paraspinal": {
+      "type": "object",
+      "title": "Paraspinal muscles",
+      "description": "Paraspinal muscles.",
+      "additionalProperties": false,
+      "properties": {
+        "multifidus_goutallier_R": {
+          "type": "object",
+          "title": "Multifidus fatty infiltration, right (Goutallier)",
+          "description": "0 normal ... 4 no muscle.",
+          "required": [
+            "value",
+            "confidence",
+            "evidence",
+            "notes"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0,
+              "maximum": 4
+            },
+            "confidence": {
+              "$ref": "#/$defs/Confidence"
+            },
+            "evidence": {
+              "$ref": "#/$defs/EvidenceList"
+            },
+            "notes": {
+              "type": "string",
+              "description": "One line of reasoning. May be empty."
+            }
+          }
+        },
+        "multifidus_goutallier_L": {
+          "type": "object",
+          "title": "Multifidus fatty infiltration, left (Goutallier)",
+          "description": "0 normal ... 4 no muscle.",
+          "required": [
+            "value",
+            "confidence",
+            "evidence",
+            "notes"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "value": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0,
+              "maximum": 4
+            },
+            "confidence": {
+              "$ref": "#/$defs/Confidence"
+            },
+            "evidence": {
+              "$ref": "#/$defs/EvidenceList"
+            },
+            "notes": {
+              "type": "string",
+              "description": "One line of reasoning. May be empty."
+            }
+          }
+        },
+        "paraspinal_edema": {
+          "type": "object",
+          "title": "Paraspinal edema",
+          "description": "Fluid signal in paraspinal muscles.",
+          "required": [
+            "value",
+            "confidence",
+            "evidence",
+            "notes"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "value": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "absent",
+                "present",
+                null
+              ]
+            },
+            "confidence": {
+              "$ref": "#/$defs/Confidence"
+            },
+            "evidence": {
+              "$ref": "#/$defs/EvidenceList"
+            },
+            "notes": {
+              "type": "string",
+              "description": "One line of reasoning. May be empty."
+            }
+          }
+        }
+      }
+    },
+    "SacrumSI": {
+      "type": "object",
+      "title": "Sacrum and SI joints",
+      "description": "Sacrum and both sacroiliac joints.",
+      "additionalProperties": false,
+      "properties": {
+        "si_joint_R": {
+          "type": "object",
+          "title": "SI joint, right",
+          "description": "Right sacroiliac joint.",
+          "required": [
+            "value",
+            "confidence",
+            "evidence",
+            "notes"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "value": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "normal",
+                "subchondral_edema",
+                "erosion_or_sclerosis",
+                null
+              ]
+            },
+            "confidence": {
+              "$ref": "#/$defs/Confidence"
+            },
+            "evidence": {
+              "$ref": "#/$defs/EvidenceList"
+            },
+            "notes": {
+              "type": "string",
+              "description": "One line of reasoning. May be empty."
+            }
+          }
+        },
+        "si_joint_L": {
+          "type": "object",
+          "title": "SI joint, left",
+          "description": "Left sacroiliac joint.",
+          "required": [
+            "value",
+            "confidence",
+            "evidence",
+            "notes"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "value": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "normal",
+                "subchondral_edema",
+                "erosion_or_sclerosis",
+                null
+              ]
+            },
+            "confidence": {
+              "$ref": "#/$defs/Confidence"
+            },
+            "evidence": {
+              "$ref": "#/$defs/EvidenceList"
+            },
+            "notes": {
+              "type": "string",
+              "description": "One line of reasoning. May be empty."
+            }
+          }
+        },
+        "sacral_variant": {
+          "type": "object",
+          "title": "Sacral variant",
+          "description": "Lumbarization of S1 or sacralization of L5, if present.",
+          "required": [
+            "value",
+            "confidence",
+            "evidence",
+            "notes"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "value": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "normal",
+                "lumbarization_of_S1",
+                "sacralization_of_L5",
+                null
+              ]
+            },
+            "confidence": {
+              "$ref": "#/$defs/Confidence"
+            },
+            "evidence": {
+              "$ref": "#/$defs/EvidenceList"
+            },
+            "notes": {
+              "type": "string",
+              "description": "One line of reasoning. May be empty."
+            }
+          }
+        }
+      }
+    },
+    "Level": {
+      "type": "object",
+      "title": "Disc level",
+      "description": "One disc level. A missing key means not assessed; a null value means indeterminate.",
+      "additionalProperties": false,
+      "properties": {
+        "disc": {
+          "$ref": "#/$defs/Disc"
+        },
+        "central_canal": {
+          "$ref": "#/$defs/CentralCanal"
+        },
+        "lateral_recess_R": {
+          "$ref": "#/$defs/LateralRecess"
+        },
+        "lateral_recess_L": {
+          "$ref": "#/$defs/LateralRecess"
+        },
+        "foramen_R": {
+          "$ref": "#/$defs/Foramen"
+        },
+        "foramen_L": {
+          "$ref": "#/$defs/Foramen"
+        },
+        "facet_R": {
+          "$ref": "#/$defs/Facet"
+        },
+        "facet_L": {
+          "$ref": "#/$defs/Facet"
+        },
+        "ligamentum_flavum": {
+          "$ref": "#/$defs/LigamentumFlavum"
+        },
+        "nerve_root_R": {
+          "$ref": "#/$defs/NerveRoot"
+        },
+        "nerve_root_L": {
+          "$ref": "#/$defs/NerveRoot"
+        },
+        "endplate_above": {
+          "$ref": "#/$defs/Endplate"
+        },
+        "endplate_below": {
+          "$ref": "#/$defs/Endplate"
+        },
+        "listhesis": {
+          "$ref": "#/$defs/Listhesis"
+        }
+      }
+    },
+    "Global": {
+      "type": "object",
+      "title": "Global sections",
+      "description": "Whole-study sections. A missing key means not assessed; a null value means indeterminate.",
+      "additionalProperties": false,
+      "properties": {
+        "alignment": {
+          "$ref": "#/$defs/Alignment"
+        },
+        "marrow": {
+          "$ref": "#/$defs/Marrow"
+        },
+        "conus_cord": {
+          "$ref": "#/$defs/ConusCord"
+        },
+        "posterior_elements": {
+          "$ref": "#/$defs/PosteriorElements"
+        },
+        "paraspinal": {
+          "$ref": "#/$defs/Paraspinal"
+        },
+        "sacrum_si": {
+          "$ref": "#/$defs/SacrumSI"
+        }
+      }
+    },
+    "FocalLesion": {
+      "type": "object",
+      "title": "Focal lesion",
+      "description": "Focal marrow, bone or posterior-element lesion.",
+      "required": [
+        "level",
+        "kind",
+        "summary",
+        "confidence",
+        "evidence",
+        "notes"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "level": {
+          "type": "string",
+          "pattern": "^(global|(C|T|L)\\d{1,2}-(C|T|L|S)\\d{1,2}|(C|T|L|S)\\d{1,2})$",
+          "description": "Disc label (L4-L5), vertebra (L4), or global."
+        },
+        "kind": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9_]{0,59}$",
+          "description": "Short snake_case slug, e.g. l5_root_compression_l."
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "One sentence."
+        },
+        "confidence": {
+          "$ref": "#/$defs/Confidence"
+        },
+        "evidence": {
+          "$ref": "#/$defs/EvidenceList"
+        },
+        "notes": {
+          "type": "string"
+        },
+        "attributes": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "site": {
+              "type": "object",
+              "title": "Site",
+              "description": "Where the lesion is.",
+              "required": [
+                "value",
+                "confidence",
+                "evidence",
+                "notes"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "value": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "enum": [
+                    "vertebral_body",
+                    "posterior_element",
+                    "sacrum",
+                    "other",
+                    null
+                  ]
+                },
+                "confidence": {
+                  "$ref": "#/$defs/Confidence"
+                },
+                "evidence": {
+                  "$ref": "#/$defs/EvidenceList"
+                },
+                "notes": {
+                  "type": "string",
+                  "description": "One line of reasoning. May be empty."
+                }
+              }
+            },
+            "size_mm": {
+              "type": "object",
+              "title": "Size (mm)",
+              "description": "Largest dimension.",
+              "required": [
+                "value",
+                "confidence",
+                "evidence",
+                "notes"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "value": {
+                  "type": [
+                    "number",
+                    "null"
+                  ],
+                  "minimum": 0
+                },
+                "confidence": {
+                  "$ref": "#/$defs/Confidence"
+                },
+                "evidence": {
+                  "$ref": "#/$defs/EvidenceList"
+                },
+                "notes": {
+                  "type": "string",
+                  "description": "One line of reasoning. May be empty."
+                }
+              }
+            },
+            "signal_pattern": {
+              "type": "object",
+              "title": "Signal pattern",
+              "description": "Free-text signal description.",
+              "required": [
+                "value",
+                "confidence",
+                "evidence",
+                "notes"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "value": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "minLength": 1
+                },
+                "confidence": {
+                  "$ref": "#/$defs/Confidence"
+                },
+                "evidence": {
+                  "$ref": "#/$defs/EvidenceList"
+                },
+                "notes": {
+                  "type": "string",
+                  "description": "One line of reasoning. May be empty."
+                }
+              }
+            },
+            "characterization": {
+              "type": "object",
+              "title": "Characterization",
+              "description": "Benign-likely or suspicious; null if you cannot decide.",
+              "required": [
+                "value",
+                "confidence",
+                "evidence",
+                "notes"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "value": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "enum": [
+                    "benign_likely",
+                    "suspicious",
+                    null
+                  ]
+                },
+                "confidence": {
+                  "$ref": "#/$defs/Confidence"
+                },
+                "evidence": {
+                  "$ref": "#/$defs/EvidenceList"
+                },
+                "notes": {
+                  "type": "string",
+                  "description": "One line of reasoning. May be empty."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "IncidentalFinding": {
+      "type": "object",
+      "title": "Incidental finding",
+      "description": "Outside the spine, or not spine-specific.",
+      "required": [
+        "level",
+        "kind",
+        "summary",
+        "confidence",
+        "evidence",
+        "notes"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "level": {
+          "type": "string",
+          "pattern": "^(global|(C|T|L)\\d{1,2}-(C|T|L|S)\\d{1,2}|(C|T|L|S)\\d{1,2})$",
+          "description": "Disc label (L4-L5), vertebra (L4), or global."
+        },
+        "kind": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9_]{0,59}$",
+          "description": "Short snake_case slug, e.g. l5_root_compression_l."
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "One sentence."
+        },
+        "confidence": {
+          "$ref": "#/$defs/Confidence"
+        },
+        "evidence": {
+          "$ref": "#/$defs/EvidenceList"
+        },
+        "notes": {
+          "type": "string"
+        },
+        "attributes": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "organ": {
+              "type": "object",
+              "title": "Organ",
+              "description": "Organ or structure.",
+              "required": [
+                "value",
+                "confidence",
+                "evidence",
+                "notes"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "value": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "minLength": 1
+                },
+                "confidence": {
+                  "$ref": "#/$defs/Confidence"
+                },
+                "evidence": {
+                  "$ref": "#/$defs/EvidenceList"
+                },
+                "notes": {
+                  "type": "string",
+                  "description": "One line of reasoning. May be empty."
+                }
+              }
+            },
+            "size_mm": {
+              "type": "object",
+              "title": "Size (mm)",
+              "description": "Largest dimension.",
+              "required": [
+                "value",
+                "confidence",
+                "evidence",
+                "notes"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "value": {
+                  "type": [
+                    "number",
+                    "null"
+                  ],
+                  "minimum": 0
+                },
+                "confidence": {
+                  "$ref": "#/$defs/Confidence"
+                },
+                "evidence": {
+                  "$ref": "#/$defs/EvidenceList"
+                },
+                "notes": {
+                  "type": "string",
+                  "description": "One line of reasoning. May be empty."
+                }
+              }
+            },
+            "urgency": {
+              "type": "object",
+              "title": "Urgency",
+              "description": "How soon it needs attention.",
+              "required": [
+                "value",
+                "confidence",
+                "evidence",
+                "notes"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "value": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "enum": [
+                    "none",
+                    "routine",
+                    "soon",
+                    "urgent",
+                    null
+                  ]
+                },
+                "confidence": {
+                  "$ref": "#/$defs/Confidence"
+                },
+                "evidence": {
+                  "$ref": "#/$defs/EvidenceList"
+                },
+                "notes": {
+                  "type": "string",
+                  "description": "One line of reasoning. May be empty."
+                }
+              }
+            },
+            "suggested_followup": {
+              "type": "object",
+              "title": "Suggested follow-up",
+              "description": "Free text.",
+              "required": [
+                "value",
+                "confidence",
+                "evidence",
+                "notes"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "value": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "minLength": 1
+                },
+                "confidence": {
+                  "$ref": "#/$defs/Confidence"
+                },
+                "evidence": {
+                  "$ref": "#/$defs/EvidenceList"
+                },
+                "notes": {
+                  "type": "string",
+                  "description": "One line of reasoning. May be empty."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "PainGeneratorHypothesis": {
+      "type": "object",
+      "title": "Pain generator hypothesis",
+      "description": "A hypothesis, not a diagnosis.",
+      "required": [
+        "level",
+        "kind",
+        "summary",
+        "confidence",
+        "evidence",
+        "notes"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "level": {
+          "type": "string",
+          "pattern": "^(global|(C|T|L)\\d{1,2}-(C|T|L|S)\\d{1,2}|(C|T|L|S)\\d{1,2})$",
+          "description": "Disc label (L4-L5), vertebra (L4), or global."
+        },
+        "kind": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9_]{0,59}$",
+          "description": "Short snake_case slug, e.g. l5_root_compression_l."
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "description": "One sentence."
+        },
+        "confidence": {
+          "$ref": "#/$defs/Confidence"
+        },
+        "evidence": {
+          "$ref": "#/$defs/EvidenceList"
+        },
+        "notes": {
+          "type": "string"
+        },
+        "attributes": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "explains_chronic_lbp": {
+              "type": "object",
+              "title": "Explains chronic LBP",
+              "description": "How well this could explain chronic low back pain.",
+              "required": [
+                "value",
+                "confidence",
+                "evidence",
+                "notes"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "value": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "enum": [
+                    "unlikely",
+                    "possible",
+                    "probable",
+                    "strong",
+                    null
+                  ]
+                },
+                "confidence": {
+                  "$ref": "#/$defs/Confidence"
+                },
+                "evidence": {
+                  "$ref": "#/$defs/EvidenceList"
+                },
+                "notes": {
+                  "type": "string",
+                  "description": "One line of reasoning. May be empty."
+                }
+              }
+            },
+            "evidence_strength": {
+              "type": "object",
+              "title": "Evidence strength",
+              "description": "Strength of the imaging evidence for this hypothesis.",
+              "required": [
+                "value",
+                "confidence",
+                "evidence",
+                "notes"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "value": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "enum": [
+                    "weak",
+                    "moderate",
+                    "strong",
+                    null
+                  ]
+                },
+                "confidence": {
+                  "$ref": "#/$defs/Confidence"
+                },
+                "evidence": {
+                  "$ref": "#/$defs/EvidenceList"
+                },
+                "notes": {
+                  "type": "string",
+                  "description": "One line of reasoning. May be empty."
+                }
+              }
+            },
+            "what_would_confirm": {
+              "type": "object",
+              "title": "What would confirm it",
+              "description": "Test or finding that would confirm or refute it.",
+              "required": [
+                "value",
+                "confidence",
+                "evidence",
+                "notes"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "value": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "minLength": 1
+                },
+                "confidence": {
+                  "$ref": "#/$defs/Confidence"
+                },
+                "evidence": {
+                  "$ref": "#/$defs/EvidenceList"
+                },
+                "notes": {
+                  "type": "string",
+                  "description": "One line of reasoning. May be empty."
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -18,6 +18,14 @@ class Config:
     # Stenosis reference thresholds (dural sac CSA; Hamanishi 1994 / Schizas 2010, approximate).
     sac_area_relative_mm2: float = 100.0
     sac_area_absolute_mm2: float = 75.0
+    # Reader consensus (report/merge.py). Judgement defaults, not literature: relative weight of a
+    # reader's vote at low / medium / high self-reported confidence (used only with use_confidence=True).
+    findings_confidence_weights: tuple[float, float, float] = (0.25, 0.5, 1.0)
+    # Continuous findings (mm, deg, mm2) agree when their spread is within this fraction of the consensus
+    # value (and at least 1 unit). Judgement default for inter-reader variability.
+    findings_numeric_rel_tol: float = 0.2
+    # Item kinds from different readers are grouped when their normalised slugs have a difflib ratio >= this.
+    findings_kind_min_similarity: float = 0.85
     # Rendering
     max_png_side_px: int = 2000
 
