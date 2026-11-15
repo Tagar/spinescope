@@ -21,7 +21,7 @@ Setup: `python -m pip install -e ".[dev]"` (or `uv pip install -e ".[dev]"` in a
 | Who | Command | Data | Time (this Mac, 14 cores, cold cache) |
 |---|---|---|---|
 | anyone, CI | `tools/benchmark.py --suites phantom --check benchmarks/golden.json` | none (phantom only) | about 40 s |
-| maintainer with the datasets | `tools/benchmark.py --check benchmarks/golden.json` | SPIDER, Sudirman, qx5rt, phantom | about 9 min (Sudirman is most of it) |
+| maintainer with the datasets | `tools/benchmark.py --check benchmarks/golden.json` | SPIDER, Sudirman, qx5rt, phantom | about 12 min (Sudirman is most of it) |
 | development | `tools/benchmark.py --limit 10 --suites spider` | any | minutes; scales with the number of cases |
 
 A suite whose data is not installed is **skipped with a note**, never failed. The run on a machine without datasets
@@ -85,6 +85,9 @@ Protocol decisions:
   behind the status numbers in `docs/labeling/lab18_reliability.md` and `lab22_confirmed.md`.
 - **Sudirman and qx5rt** annotate only a few discs per study, so precision is not defined there (shown as n/a); the
   level-wise recall, label accuracy and centre error are the primary measures.
+- **Sudirman is not a held-out set in this benchmark.** The calibration fit used 120 of the patients (lab18 protocol), and the
+  benchmark runs all 515. The held-out Sudirman number needs the calibration protocol (`tools/calibrate_labeling.py`).
+  qx5rt was never used for fitting.
 
 ## 3. What each metric means
 
@@ -133,8 +136,11 @@ group (phantom). They are informational and not gated, since most groups are sma
 
 ## 4. Current numbers
 
-Labeller fingerprint `f37cf61ff4276b23` (spinescope `0.1.0.dev0`, main at `dccbf9a`). Full run, 8 workers, cold cache,
-8.4 minutes wall time. Every case ran; no errors. These are exactly the numbers in `benchmarks/golden.json`.
+Labeller fingerprint `fc320eaac6e0eb2f` (spinescope `0.1.0.dev0`, main at `1f7612a`, 2026-11-15). Full run with `--refresh`
+(no cache), 8 workers, 11.8 minutes wall time. Every case ran; no errors. The numbers match `benchmarks/golden.json` to the
+printed precision, except the phantom realistic disc AUROC and ECE, which moved by 0.002 and are within tolerance. The golden
+file was updated to this run (fingerprint `fc320eaac6e0eb2f`); the previous fingerprint was `f37cf61ff4276b23` (main at `dccbf9a`),
+whose numbers are the same to the printed precision.
 
 | Section | Cases | Recall | Label acc (matched) | Label acc (all truth) | Fully correct | Centre median / p90 (mm) | Announced cov. | Announced precision | Wrong announced |
 |---|---|---|---|---|---|---|---|---|---|
@@ -148,21 +154,22 @@ Disc precision (volume suites): SPIDER 99.2%, cartoon phantom 89.4%, realistic p
 Sudirman and qx5rt. The table is the headline set. Other figures from the same run:
 
 - SPIDER: disc precision 99.2%; numbering status precision confirmed 100% (38 studies), probable 100% (21), unconfirmed 93%
-  (28, 2 wrong). Numbering ECE 0.064. Labelling time median 5.4 s per study under 8 parallel workers.
+  (28, 2 wrong). Numbering ECE 0.064. Labelling time median 7.8 s per study (90th percentile 36 s) under 8 parallel workers.
 - Sudirman: numbering status precision confirmed 100% (94), probable 95% (216, 11 wrong), unconfirmed 78% (205, 45 wrong).
-  Labelling time median 5.1 s.
-- qx5rt: confirmed 100% (11), probable 100% (11), unconfirmed 76% (33). Labelling time median 2.2 s.
+  Labelling time median 6.5 s.
+- qx5rt: confirmed 100% (11), probable 100% (11), unconfirmed 76% (33). Labelling time median 5.9 s.
+- The times above were recorded while a model evaluation ran on the same machine. They are not a speed benchmark (section 8).
 - Phantom, cartoon: outcomes 3 pass, 1 unsure, 19 silent error. Confidence is poorly calibrated there (numbering ECE 0.45).
 - Phantom, realistic: outcomes 1 pass, 22 unsure, no silent error. All 23 scenarios are unconfirmed; numbering AUROC 0.38.
 
 ### SPIDER protocol note
 
-The model card (`docs/model_card.md`, held-out table) reports SPIDER validation with label accuracy of matched discs 0.962,
-all truth 0.955 and median centre error 1.5 mm. This run gives 0.981, 0.976 and 0.60 mm. Recall (0.994 there, 0.995 here)
-agrees. The two runs use different code paths: the model card comes from `tools/train_labeller.py evaluate`, while the
-benchmark uses the shipped `label_spine` with T2 paired with its T1 sibling. The cause of the centre-error gap has not been
-established here; it is recorded as an open question for whoever maintains the model card. The golden numbers are the
-benchmark's own, and the regression check does not compare them with the model card.
+An earlier version of the model card reported SPIDER validation with label accuracy of matched discs 0.962, all truth 0.955 and
+median centre error 1.5 mm. That table was the result before the lab09 post-processing fixes. It has been replaced. On
+`1f7612a` the model card's own evaluation (`tools/train_labeller.py evaluate --subset validation`, single volumes, no
+T1 pairing) gives the same numbers as this benchmark (paired T2 with its T1 sibling) to four decimals: label accuracy 0.981 and
+0.976, centre median 0.60 mm, recall 0.995. The pairing therefore does not change the disc and centre numbers on this commit.
+The status numbers (section 4 above) do depend on the paired series.
 
 ## 5. Golden numbers and the regression check
 

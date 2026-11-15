@@ -1,6 +1,6 @@
 {
   "description": "Golden numbers of the labelling benchmark (docs/benchmarks.md). Regenerate with tools/benchmark.py --update-golden benchmarks/golden.json only after reviewing the change.",
-  "labeller_fingerprint": "f37cf61ff4276b23",
+  "labeller_fingerprint": "fc320eaac6e0eb2f",
   "schema": 1,
   "sections": {
     "phantom_cartoon": {
@@ -218,13 +218,13 @@
           "direction": "higher",
           "tol": 0.01,
           "unit": "decimal",
-          "value": 0.650149
+          "value": 0.64801
         },
         "disc_ece": {
           "direction": "lower",
           "tol": 0.01,
           "unit": "decimal",
-          "value": 0.198547
+          "value": 0.200248
         },
         "errors": {
           "direction": "count",
