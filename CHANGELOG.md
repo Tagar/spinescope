@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Numbering evidence before the calibrated decision (lab22): the S1 body below the lowest disc is measured before
+  numbering, so `confirmed` is reachable (shipped calibration v2 on the new order: precision 1.00 on held-out sets).
+  Geometry and the conus tip are set before the fusion votes; applicability no longer undoes the status caps.
+  Calibration v3 candidate is not shipped (`docs/labeling/lab22_confirmed.md`).
 - Labelling speed and memory (`docs/labeling/lab14_perf.md`): one network run per study instead of three, the classical
   second opinion is opt-in (`Config.classical_second_opinion`), ONNX threads follow `SPINESCOPE_THREADS` and pool
   workers use one thread each, and `label_spine_cli` reads only the stacks the labeller uses. `import spinescope` no

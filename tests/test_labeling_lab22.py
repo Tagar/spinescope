@@ -153,7 +153,8 @@ def test_calibration_versions_stay_loadable():
     assert v1 is not None and v1.version == 1
     assert v2 is not None and v2.version == 2
     assert load_calibration() is not None
-    assert DEFAULT_CALIBRATION_VERSION in (2, 3)
+    assert DEFAULT_CALIBRATION_VERSION == 2  # v3 is a candidate only (lab22 report)
+    assert load_calibration(version=3) is None  # not packaged
     assert calibration_path(3).name == "calibration_v3.json"
     assert (
         calibration_path(2).name == "calibration_v2.json"

@@ -83,7 +83,8 @@ CALIBRATION_FILE_V1 = (
     "calibration_v1.json"  # lab08 calibration, still loadable (``load_calibration(version=1)``)
 )
 CALIBRATION_FILE_V3 = "calibration_v3.json"  # lab22: numbering after the geometry (S1 body, conus vote)
-#: Calibration version loaded when none is asked for. Stays 2 unless a version 3 file is shipped (lab22).
+#: Calibration version loaded when none is asked for. Stays 2: the version 3 candidate (lab22) met the held-out rule but
+#: moved the realistic T1-only phantom to a silent error (see docs/labeling/lab22_confirmed.md); it is not shipped.
 DEFAULT_CALIBRATION_VERSION = 2
 #: Volume features of version 1 (names of the calibration's volume model in v1 files).
 VOLUME_FEATURES_V1: tuple[str, ...] = VOLUME_FEATURES

@@ -422,7 +422,7 @@ def _plane_z_range(mask: BoolArray, grid: PlaneGrid) -> tuple[float, float] | No
         return None
     down, post = grid.mm_of_index(ii, jj)
     z = np.asarray(grid.to_lps(down, post), dtype=np.float64)[:, 2]
-    return float(z.min()), float(z.max())
+    return float(np.min(z)), float(np.max(z))
 
 
 def _plane_centre(mask: BoolArray, grid: PlaneGrid) -> FloatArray:

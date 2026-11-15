@@ -141,7 +141,7 @@ def test_v1_file_round_trips_and_stays_loadable() -> None:
 
 
 def test_packaged_v2_is_consistent() -> None:
-    cal = load_calibration()
+    cal = load_calibration(version=2)  # the lab18 file stays loadable (the default is v3 since lab22)
     if cal is None:
         pytest.skip("no packaged v2 calibration")
     assert cal.version == 2
