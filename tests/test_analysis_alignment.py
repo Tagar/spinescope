@@ -389,3 +389,13 @@ def test_threshold_sweep_is_deterministic_and_checks_lengths():
     assert a == b
     with pytest.raises(ValueError):
         alignment.threshold_sweep([1.0], [0, 1], ["x"], [3.0])
+
+
+def test_listhesis_flag_confidence_is_capped():
+    """A listhesis flag is a prompt to look: its confidence never exceeds the configured cap."""
+    ph = SpinePhantom(PhantomSpec(slip={"L4-L5": 8.0}, **STRAIGHT))
+    study = phantom_study(ph)
+    res = alignment.analyze(study, with_body_geometry(ph, study))
+    assert res.flags
+    for f in res.flags:
+        assert f["confidence"] <= DEFAULT.alignment_flag_max_confidence

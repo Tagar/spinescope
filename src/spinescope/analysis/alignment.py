@@ -402,8 +402,12 @@ def measure(study: Study, anchors: Anchors, cfg: Config = DEFAULT) -> Result:
                     "disc": lab,
                     "translation_mm": lst["translation_mm"],
                     "percent": lst["percent"],
-                    "confidence": row["confidence"],
-                    "note": "measured translation on one supine study; not a diagnosis of instability",
+                    "confidence": round(min(float(conf), cfg.alignment_flag_max_confidence), 3),
+                    "note": (
+                        "measured translation on one supine study; per-disc measurement noise is about 1.6 mm and "
+                        "most flags at this size are not graded as a slip by radiologists: check the image; "
+                        "not a diagnosis of instability"
+                    ),
                 }
             )
         if stack is not None:

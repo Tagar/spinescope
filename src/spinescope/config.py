@@ -528,6 +528,10 @@ class Config:
     # used cut-off for a clinically relevant (retro- or anterolisthesis) slip; a convention, not validated against
     # outcomes, and fixed before the SPIDER spondylolisthesis comparison (docs/analysis/alignment.md).
     alignment_listhesis_min_mm: float = 3.0
+    # Upper bound on a listhesis flag's confidence. The per-disc measurement is noisy (MAE 1.6 mm against the same
+    # measurement on SPIDER ground-truth masks) and slips are rare, so a flag is a prompt to look, not a finding:
+    # PPV stayed below 0.11 at every threshold on SPIDER training (docs/analysis/alignment.md).
+    alignment_flag_max_confidence: float = 0.3
 
 
 DEFAULT = Config()
