@@ -908,8 +908,11 @@ def write_standard_study(
     px: float = 1.2,
     slabs: bool = True,
     localizer: bool = True,
+    slab_contrasts: tuple[str, ...] = ("t2",),
 ) -> dict[str, Any]:
-    """Write a typical lumbar protocol: sag T2/T1/STIR, ax T2/T1, oblique T2 slabs, 3-plane localizer.
+    """Write a typical lumbar protocol: sag T2/T1/STIR, ax T2/T1, oblique slabs, 3-plane localizer.
+
+    ``slab_contrasts`` sets the contrast of the oblique slabs (default T2, as before; add ``"t1"`` for T1 slabs).
 
     Returns ``{'root': str, 'series': {name: [paths]}, 'truth': phantom.truth}``.
     """
@@ -973,14 +976,14 @@ def write_standard_study(
             frame_uid=frame_uid,
         )
         sn += 1
-    if slabs:
+    for slab_contrast in slab_contrasts if slabs else ():
         slab_uid = generate_uid()
         paths, k0 = [], 1
         for disc in ("L1-L2", "L2-L3", "L3-L4", "L4-L5", "L5-S1"):
             d = phantom.discs[disc]
             st = phantom.render(
                 "ax",
-                "t2",
+                slab_contrast,
                 n=3,
                 spacing=3.5,
                 thickness=3.0,
@@ -995,13 +998,14 @@ def write_standard_study(
                 st,
                 os.path.join(root, f"S{sn:02d}"),
                 series_number=sn,
-                contrast="t2",
+                contrast=slab_contrast,
                 study_uid=study_uid,
                 frame_uid=frame_uid,
-                description="OBL AX T2",
+                description=f"OBL AX {slab_contrast.upper()}",
                 series_uid=slab_uid,
                 start_instance=k0,
             )
             k0 += st.n
-        out["obl_ax_t2"] = paths
+        out[f"obl_ax_{slab_contrast}"] = paths
+        sn += 1
     return {"root": root, "series": out, "truth": phantom.truth}

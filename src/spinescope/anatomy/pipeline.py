@@ -35,6 +35,7 @@ from ..config import DEFAULT, Config
 from ..geometry import Stack
 from ..study import Study
 from .anchors import Anchors, Disc, Vertebra
+from .axial import assess_axial
 from .calibration import (
     disc_feature_rows,
     load_calibration,
@@ -43,7 +44,15 @@ from .calibration import (
     volume_feature_vector,
 )
 from .column import DiscFit, Segment, chain_lines, conus_tip, endplate_profile, find_lines, fit_disc
-from .fusion import FusionResult, fuse_numbering, fusion_record, relabel_anchors, stack_z_range
+from .fusion import (
+    DEFAULT_FUSION,
+    FusionConfig,
+    FusionResult,
+    fuse_numbering,
+    fusion_record,
+    relabel_anchors,
+    stack_z_range,
+)
 from .lumbosacral import (
     PATCH_MM,
     Candidate,
@@ -463,8 +472,10 @@ def _finalise(
     calibrate: bool,
     seg: SegmentedStack | None = None,
     lumbosacral: bool = True,
+    fusion_cfg: FusionConfig | None = None,
 ) -> LabelDetails:
     """Second series, classical opinion, numbering fusion, relabelling, calibration and status."""
+    fcfg = fusion_cfg or DEFAULT_FUSION
     det = LabelDetails(anchors=primary, backend=kind)
     if not primary.discs:
         primary.numbering = {**primary.numbering, "status": STATUS_UNCONFIRMED, "calibrated": False}
@@ -513,6 +524,8 @@ def _finalise(
             log.warning("classical second opinion failed: %s", exc)
             warn.append(f"classical second opinion failed ({type(exc).__name__}): not used")
 
+    # Axial T1 slabs: computed only when the cue is on, so the default path is unchanged (see fusion.FusionConfig).
+    axial_rep = assess_axial(study, primary) if fcfg.use_axial else None
     fus = fuse_numbering(
         primary,
         study=study,
@@ -521,6 +534,8 @@ def _finalise(
         classical=classical,
         coverage_z=z_cov,
         sacrum_below=sacrum_below,
+        cfg=fcfg,
+        axial=axial_rep,
     )
     det.fusion = fus
     # Features are taken before the names shift: the T1/T2 comparison is between count-based names.
@@ -631,11 +646,13 @@ def label_spine_details(
     backend: str = "auto",
     calibrate: bool = True,
     lumbosacral: bool = True,
+    fusion: FusionConfig | None = None,
 ) -> LabelDetails:
     """As :func:`label_spine`, but also returns the fusion record, raw confidences and calibration features.
 
     ``lumbosacral=False`` skips the sacral-disc check (:mod:`.lumbosacral`): the labeller-only numbering, used as
-    the "before" in evaluations. The default check is on.
+    the "before" in evaluations. The default check is on. ``fusion`` overrides the fusion settings (e.g.
+    ``FusionConfig(use_axial=True)`` for the axial T1 slab cue); the default is :data:`fusion.DEFAULT_FUSION`.
     """
     if backend not in BACKENDS:
         raise ValueError(f"unknown labelling backend {backend!r}; available: {', '.join(BACKENDS)}")
@@ -649,10 +666,12 @@ def label_spine_details(
         from .ml import label_spine_ml_segmented
 
         primary, seg = label_spine_ml_segmented(study, cfg)
-        det = _finalise(study, primary, "ml", cfg, calibrate, seg=seg, lumbosacral=lumbosacral)
+        det = _finalise(
+            study, primary, "ml", cfg, calibrate, seg=seg, lumbosacral=lumbosacral, fusion_cfg=fusion
+        )
     else:
         primary = _label_classical(study, cfg)
-        det = _finalise(study, primary, "classical", cfg, calibrate)
+        det = _finalise(study, primary, "classical", cfg, calibrate, fusion_cfg=fusion)
     # Applicability: when not to label (wrong region, unusable field of view, unseen input). Additive; see ood.py.
     app = assess_applicability(study, det.anchors, seg=seg, cfg=cfg)
     apply_applicability(det.anchors, app, thresholds=det.status_thresholds)
@@ -686,7 +705,9 @@ def _conus_after_labels(study: Study, anchors: Anchors, cfg: Config) -> None:
         anchors.conus["experimental"] = True
 
 
-def label_spine(study: Study, config: Config | None = None, *, backend: str = "auto") -> Anchors:
+def label_spine(
+    study: Study, config: Config | None = None, *, backend: str = "auto", fusion: FusionConfig | None = None
+) -> Anchors:
     """Detect discs, vertebrae and the conus of a lumbar MRI study and number them from the sacrum.
 
     Uses the best sagittal stack (``study.best('sag')``). Returns :class:`Anchors` in LPS mm with
@@ -700,7 +721,7 @@ def label_spine(study: Study, config: Config | None = None, *, backend: str = "a
     (:mod:`spinescope.anatomy.fusion`). ``anchors.numbering['status']`` is ``confirmed``, ``probable`` or
     ``unconfirmed``; see docs/labeling/lab08_fusion.md for the abstain policy.
     """
-    return label_spine_details(study, config, backend=backend).anchors
+    return label_spine_details(study, config, backend=backend, fusion=fusion).anchors
 
 
 def _midline_x(stack: Stack, d_mid: float) -> float | None:

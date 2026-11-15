@@ -1,0 +1,75 @@
+{
+ "version": "v1",
+ "features": [
+  "mean",
+  "cv",
+  "ring"
+ ],
+ "disc": {
+  "mean": [
+   0.2235437648091836,
+   0.22195260982342738,
+   -0.025083563230878354
+  ],
+  "var": [
+   0.00332814253882804,
+   0.0024100781688828903,
+   0.004047822545744177
+  ]
+ },
+ "non": {
+  "mean": [
+   0.26690003547913027,
+   0.6793824180986507,
+   0.02072147692025308
+  ],
+  "var": [
+   0.07696232810541533,
+   0.21526497837229117,
+   0.009648733009498115
+  ]
+ },
+ "support_llr": 0.7900382342573282,
+ "missed_llr": 4.150886461169071,
+ "provenance": {
+  "dataset": "Sudirman lumbar DICOM (CC BY 4.0), axial T1 slabs, labelled slices",
+  "split": "patients sorted by id: even = fit, odd = test",
+  "patients": 515,
+  "fit": {
+   "positives": 774,
+   "negatives": 6192,
+   "support_tpr": 0.9496124031007752,
+   "missed": {
+    "peaks_flagged": 1262,
+    "precision": 0.46909667194928684,
+    "recall": 0.7648578811369509,
+    "fp_per_slice_proxy": 670
+   },
+   "f1_at_threshold": 0.581532416502947
+  },
+  "test": {
+   "positives": 771,
+   "negatives": 6168,
+   "support_tpr": 0.9494163424124513,
+   "support_fpr": 0.011997405966277562,
+   "missed": {
+    "peaks_flagged": 1311,
+    "precision": 0.45461479786422576,
+    "recall": 0.7730220492866408,
+    "fp_per_slice_proxy": 715
+   }
+  },
+  "config": {
+   "contrasts": [
+    "t1"
+   ],
+   "slab_match_angle_deg": 12.0,
+   "ellipse_lr_mm": 20.0,
+   "ellipse_ap_mm": 16.0,
+   "ring_outer": 1.5,
+   "missed_mm": 12.0
+  },
+  "negatives": ">= 25 mm from labelled regions, 8 per labelled slice",
+  "limitations": "T1 only; negatives contain no vertebral bodies; level names unused"
+ }
+}
