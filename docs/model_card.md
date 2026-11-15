@@ -138,6 +138,96 @@ variants, which isolates the failure to the network's inputs.
 - Phantom and out-of-distribution inputs fail as described above. Check the midline confidence and the
   warnings before using any output.
 
+## Candidate `labeller_v2` (lab07): trained, evaluated, not shipped
+
+`labeller_v2` adds a fifth class, the sacrum, and was trained with stronger augmentation. It is **not** packaged:
+it scored below `labeller_v1` on the same SPIDER validation protocol, so `v1` stays the default. Weights were
+not committed; the recipe and tooling are in `tools/train_labeller.py` (`--out` directory, `train` then
+`evaluate --model <file>`), and `Config.ml_model` selects a packaged file by name.
+
+### Recipe (differences from v1)
+
+- Classes: background, vertebral body (1-99), disc (200-299), spinal canal (100), sacrum (new). Class weights
+  (0.5, 1, 2, 2, 2). 1,377,989 parameters, same U-Net widths 16/32/64/128/128.
+- Sacrum pseudo-labels (`sacrum-box-v1`): SPIDER has no sacrum label. On each slice, the box directly below the
+  lowest disc (label 201) is labelled sacrum, in that disc's columns, starting 2 mm below its inferior edge and
+  ending at 40 mm or at the acquired field of view, whichever is first. Canal pixels are excluded. A box shorter
+  than 8 mm (field of view ends above the sacrum) or a lowest disc under 30 mm2 gives no label, so the network
+  also sees "no sacrum in view". **The pseudo-label is a position rule, not bone segmentation.** It teaches
+  "bone directly below the lowest visible disc", which is not the same as "this bone is S1".
+- Augmentation (in addition to v1's rotation, scale, translation, gamma, bias field, noise): partial field of
+  view cuts (inferior p=0.3, superior p=0.1, labels cut with the image), in-plane resolution reduction (p=0.3),
+  Gaussian blur (p=0.3), stronger bias field, contrast and brightness, a random monotone intensity curve
+  (p=0.4, a proxy for other contrasts), and Rician noise (p=0.3). No flips.
+- Same optimiser, schedule, batch, seed (20260), epochs (50) and split as v1. Trained on the 360 SPIDER training
+  volumes only, on MPS, 2,969 s. Metadata in `train_meta.json`.
+- Post-processing: sacrum area below the lowest disc (at least 150 mm2) confirms the lowest disc as L5-S1,
+  with the same confidence formula as a body below it (0.9 times the disc term); a field of view that ends less than 8 mm below the lowest disc vetoes that
+  confirmation, with a warning. With the v1 model (no sacrum channel) the code path is inert and output is
+  unchanged except for two extra `numbering` keys (`sacrum_confirmed`, `fov_below_lowest_disc_mm`).
+
+### Results, SPIDER `validation` (87 volumes, same scorer and protocol, 4 intra-op threads)
+
+| metric | v1 (shipped) | v2 (candidate) |
+|---|---|---|
+| disc recall | 0.994 | 0.997 |
+| disc precision | 0.986 | 0.959 |
+| label accuracy, of all truth discs | 0.955 | 0.893 |
+| label accuracy, of matched discs | 0.962 | 0.896 |
+| off-by-one level, of all truth discs | 1.7 % | 7.3 % |
+| volumes with every truth disc named right | 90.8 % | 81.6 % |
+| false positives per volume | 0.10 | 0.31 |
+| centre error, median / 90th percentile | 1.5 / 3.1 mm | 1.5 / 3.1 mm |
+| normal error, median | 2.3 deg | 2.3 deg |
+| volumes with a predicted disc below the lowest true disc | 4 | 9 |
+| volumes with over-detection (more predicted than true discs) | 5 | 17 |
+
+Sacrum (v2 only; truth = pseudo-label box on the mid-sagittal slice, 85 volumes with a lowest disc on that slice):
+sensitivity 0.988 (84 of 85), median Dice 0.905. These numbers are **circular**: the truth is the same position
+rule the network was trained on, so they show that the rule was learned, not that the bone is S1.
+
+Numbering confidence (reliability):
+
+| | v1 | v2 |
+|---|---|---|
+| numbering confidence, all 87 volumes | 0.37-0.39 (all unconfirmed) | 0.82-0.88 (86 of 87 confirmed) |
+| volumes with at least one wrong level name (16 for v2, 8 for v1) | confidence 0.39 median, none at 0.5 or above | 94 % at 0.5 or above |
+
+v1's low confidence flags every volume, including the 79 that are fully correct, so it carries no information
+about which numbering is wrong. v2's high confidence is wrong in most of its errors, so it is worse for
+reliability. Neither model's numbering confidence separates right from wrong numbering; the reader must check the
+level names.
+
+### Results, Sudirman lumbar DICOM (100 labelled patients, evenly spaced; 300 levels; in-process)
+
+| metric | v1 | v2 |
+|---|---|---|
+| level recall | 0.990 | 0.913 |
+| label accuracy, of levels | 0.886 | 0.799 |
+| label accuracy by level, L3-L4 / L4-L5 / L5-S1 | 0.859 / 0.879 / 0.919 | 0.755 / 0.791 / 0.854 |
+| centre error, median / 90th percentile | 2.85 / 4.54 mm | 2.82 / 4.57 mm |
+| normal error, median | 2.5 deg | 2.4 deg |
+
+### Robustness, phantom (`tools/robustness_report.py` scenarios, 23 scenarios)
+
+| | v1 | v2 |
+|---|---|---|
+| PASS | 0 of 23 | 2 of 23 (`fov_T10_sacrum`, `scoliosis`) |
+| silent error / unsure | 14 / 9 | 14 / 7 |
+| median label accuracy | 0.00 | 0.67 |
+
+The phantom is out of distribution for both models (see the phantom section above), so these are not
+validation results; they show that both models fail silently in many scenarios.
+
+### Decision
+
+Ship `labeller_v1` as default. `labeller_v2` is worse than v1 on the primary SPIDER metric (label accuracy
+0.893 vs 0.955, off-by-one 7.3 % vs 1.7 %), worse on Sudirman (0.799 vs 0.886) and on numbering reliability. Its
+higher disc recall (0.997 vs 0.994) and better phantom label accuracy do not offset that. The likely cause is
+the sacrum class competing with the disc class: v2 adds disc detections below the true lowest disc (9 volumes
+against 4). That hypothesis is not yet tested. A next attempt would need the sacrum labelled from real sacral
+anatomy, or a sacrum-free numbering rule that does not depend on the pseudo-label.
+
 ## Attribution
 
 Model weights derived from the SPIDER dataset (van der Graaf et al., Scientific Data 2024,
