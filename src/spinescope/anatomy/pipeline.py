@@ -35,8 +35,18 @@ from ..geometry import Stack
 from ..study import Study
 from .anchors import Anchors, Disc, Vertebra
 from .calibration import disc_feature_rows, load_calibration, volume_feature_vector
+from .ml.labeller import METHOD as METHOD_ML
+from .ml.labeller import SegmentedStack
 from .column import DiscFit, Segment, chain_lines, conus_tip, endplate_profile, find_lines, fit_disc
 from .fusion import FusionResult, fuse_numbering, fusion_record, relabel_anchors, stack_z_range
+from .lumbosacral import (
+    LumbosacralDecision,
+    candidate_patches,
+    decide,
+    drop_lowest,
+    load_model as load_lumbosacral_model,
+    lumbosacral_record,
+)
 from .midline import MidlineChoice, pols_for, refine_midline_axial, select_midline
 from .numbering import (
     DEFAULT_STATUS_THRESHOLDS,
@@ -389,15 +399,50 @@ def _second_sagittal(study: Study, primary_key: str) -> Stack | None:
     return others[0] if others else None
 
 
-def _apply_status_caps(status: str, *, sacrum_below: bool, applied: bool, second_extra: bool) -> str:
+def _apply_status_caps(
+    status: str, *, sacrum_below: bool, applied: bool, second_extra: bool, lumbo_status: str = "not_assessed"
+) -> str:
     """Hard caps on the status: confirmed needs bone below the lowest disc, and a relabelled or
-    second-series-contradicted study is at most probable."""
-    if status == STATUS_CONFIRMED and (not sacrum_below or applied or second_extra):
-        return STATUS_PROBABLE
+    second-series-contradicted study is at most probable. A lumbosacral decision that is unsure (a lower disc may
+    be a sacral remnant) caps the status at unconfirmed; a removed sacral disc caps it at probable."""
+    if status == STATUS_CONFIRMED and (not sacrum_below or applied or second_extra or lumbo_status == "drop"):
+        status = STATUS_PROBABLE
+    if lumbo_status == "drop" and status == STATUS_CONFIRMED:
+        status = STATUS_PROBABLE
+    if lumbo_status == "unsure" and status in (STATUS_CONFIRMED, STATUS_PROBABLE):
+        status = STATUS_UNCONFIRMED
     return status
 
 
-def _finalise(study: Study, primary: Anchors, kind: str, cfg: Config, calibrate: bool) -> LabelDetails:
+def _lumbosacral_step(
+    primary: Anchors, seg: SegmentedStack | None, cfg: Config
+) -> tuple[LumbosacralDecision, int]:
+    """Decide whether the lowest candidates are sacral (:mod:`.lumbosacral`) and remove them from ``primary``.
+
+    Returns the decision and the number of discs removed. Without the packaged model or a sagittal segmentation
+    the decision is ``not_assessed`` and nothing changes.
+    """
+    model = load_lumbosacral_model()
+    if seg is None or not primary.discs or model is None:
+        cands, patches = [], np.zeros((0, 0, 0), dtype=np.float32)
+    else:
+        cands, patches = candidate_patches(seg, primary, cfg)
+    dec = decide(cands, patches, model)
+    n = dec.drop if dec.status == "drop" else 0
+    if n:
+        drop_lowest(primary, n)
+        primary.warnings.append(
+            f"{n} lowest disc candidate(s) removed as sacral (S1-S2 remnant or sacral segment); "
+            "level names counted up from the next disc"
+        )
+    if dec.status == "unsure":
+        primary.warnings.extend(dec.warnings)
+    return dec, n
+
+
+def _finalise(
+    study: Study, primary: Anchors, kind: str, cfg: Config, calibrate: bool, seg: SegmentedStack | None = None
+) -> LabelDetails:
     """Second series, classical opinion, numbering fusion, relabelling, calibration and status."""
     det = LabelDetails(anchors=primary, backend=kind)
     if not primary.discs:
@@ -410,6 +455,12 @@ def _finalise(study: Study, primary: Anchors, kind: str, cfg: Config, calibrate:
     z_cov = stack_z_range(stack)
     raw_num = float(primary.numbering.get("confidence", 0.0) or 0.0)
     det.raw_numbering_confidence = raw_num
+    # The labeller's output before any numbering change (the "before" of every evaluation).
+    det.unfused = Anchors.from_dict(primary.to_dict())
+    lumbo_dec: LumbosacralDecision | None = None
+    lumbo_drop = 0
+    if kind == "ml":
+        lumbo_dec, lumbo_drop = _lumbosacral_step(primary, seg, cfg)
     sacrum_below = (
         "S1" in primary.vertebrae and primary.vertebrae["S1"].confidence >= 0.5
         if kind == "ml"
@@ -453,7 +504,6 @@ def _finalise(study: Study, primary: Anchors, kind: str, cfg: Config, calibrate:
     det.fusion = fus
     # Features are taken before the names shift: the T1/T2 comparison is between count-based names.
     raw_pre = {lab: float(d.confidence) for lab, d in primary.discs.items()}
-    det.unfused = Anchors.from_dict(primary.to_dict())
     mapping = relabel_anchors(primary, fus.offset if fus.applied else 0)
     det.raw_disc_confidence = {mapping[lab]: v for lab, v in raw_pre.items()}
     t1t2 = {mapping[lab]: v for lab, v in fus.t1t2_by_label.items()}
@@ -489,14 +539,18 @@ def _finalise(study: Study, primary: Anchors, kind: str, cfg: Config, calibrate:
         thresholds = DEFAULT_STATUS_THRESHOLDS
         warn.append("numbering confidence is uncalibrated (no calibration for this backend)")
     status = numbering_status(conf_num, thresholds)
+    lumbo_status = lumbo_dec.status if lumbo_dec is not None else "not_assessed"
     status = _apply_status_caps(
         status,
         sacrum_below=sacrum_below,
         applied=fus.applied,
         second_extra=bool(fus.second and fus.second["extra_below"]),
+        lumbo_status=lumbo_status,
     )
     rec = fusion_record(fus)
     notes = list(fus.notes)
+    if lumbo_dec is not None:
+        notes.append(f"lumbosacral check: {lumbo_dec.status}" + (f" ({lumbo_drop} sacral disc(s) removed)" if lumbo_drop else ""))
     if not sacrum_below:
         notes.append(
             "no vertebral bone visible below the lowest disc: the lowest name is not confirmed by bone"
@@ -513,6 +567,7 @@ def _finalise(study: Study, primary: Anchors, kind: str, cfg: Config, calibrate:
         "sacrum_below": sacrum_below,
         "notes": "; ".join(notes),
         "second_series_agreement": fus.second["agree"] if fus.second else 0,
+        **({"lumbosacral": lumbosacral_record(lumbo_dec, lumbo_drop)} if lumbo_dec is not None else {}),
     }
     primary.warnings.extend(fus.warnings)
     primary.warnings.extend(warn)
@@ -535,10 +590,18 @@ def label_spine_details(
             log.warning("learned labeller unavailable (pip install onnxruntime); using the classical backend")
     cfg = config or DEFAULT
     if backend == "ml":
-        from .ml import label_spine_ml
+        from .ml import anchors_from_segmentation, segment_primary
 
-        primary = label_spine_ml(study, cfg)
-        return _finalise(study, primary, "ml", cfg, calibrate)
+        seg = segment_primary(study, cfg)
+        if seg is None:
+            primary = Anchors(
+                method=METHOD_ML,
+                warnings=["no sagittal series: spine anatomy cannot be labelled"],
+                numbering={"method": "none", "confidence": 0.0, "notes": "no sagittal"},
+            )
+        else:
+            primary = anchors_from_segmentation(seg, cfg)
+        return _finalise(study, primary, "ml", cfg, calibrate, seg=seg)
     primary = _label_classical(study, cfg)
     return _finalise(study, primary, "classical", cfg, calibrate)
 
