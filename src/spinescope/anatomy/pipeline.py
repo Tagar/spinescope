@@ -542,7 +542,6 @@ def label_spine_details(
     if backend == "ml":
         from .ml import label_spine_ml_segmented
 
-<<<<<<< HEAD
         primary, seg = label_spine_ml_segmented(study, cfg)
         det = _finalise(study, primary, "ml", cfg, calibrate)
     else:
@@ -551,17 +550,11 @@ def label_spine_details(
     # Applicability: when not to label (wrong region, unusable field of view, unseen input). Additive; see ood.py.
     app = assess_applicability(study, det.anchors, seg=seg, cfg=cfg)
     apply_applicability(det.anchors, app, thresholds=det.status_thresholds)
-    return det
-=======
-        primary = label_spine_ml(study, cfg)
-        det = _finalise(study, primary, "ml", cfg, calibrate)
-        from .vertebrae import attach_geometry  # lab15: body, canal and posterior geometry (additive)
+    if backend == "ml" and det.anchors.discs:
+        from .vertebrae import attach_geometry  # body, canal and posterior-element geometry (additive)
 
         attach_geometry(study, det.anchors, cfg)
-        return det
-    primary = _label_classical(study, cfg)
-    return _finalise(study, primary, "classical", cfg, calibrate)
->>>>>>> lab/lab15_vertebrae
+    return det
 
 
 def label_spine(study: Study, config: Config | None = None, *, backend: str = "auto") -> Anchors:
