@@ -310,10 +310,11 @@ def _confidence(m: SliceMeasure, corners: LineCorners, n_slices: int) -> float:
 
 
 def _location(contour: str | None, zone: str | None) -> str | None:
-    """Schema location value (``none`` for a normal contour); None when no zone is known."""
+    """Schema location value of a herniation: ``none`` for a normal contour or a bulge (a bulge is not a herniation,
+    Fardon et al. 2014); the zone for a protrusion or extrusion; None when no zone is known."""
     if contour is None:
         return None
-    if contour == "normal":
+    if contour in ("normal", "bulge"):
         return "none"
     return zone
 

@@ -240,3 +240,11 @@ def test_focal_calls_are_capped_at_the_configured_confidence(herniated_study_and
     assert row["contour"] in ("protrusion", "extrusion")
     assert row["confidence"] <= DEFAULT.herniation_class_max_confidence
     assert "axial" in row["reason"]
+
+
+def test_bulge_has_no_herniation_location() -> None:
+    """A bulge is not a herniation (Fardon 2014): its schema location is "none", a focal call keeps its zone."""
+    assert H._location("bulge", "central") == "none"
+    assert H._location("normal", "central") == "none"
+    assert H._location("protrusion", "central") == "central"
+    assert H._location(None, "central") is None
