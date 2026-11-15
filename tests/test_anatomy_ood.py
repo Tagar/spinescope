@@ -509,6 +509,39 @@ def test_thoracolumbar_fov_caps_thoracic_discs_above_t10() -> None:
 
 
 @requires_ml
+@pytest.mark.xfail(
+    strict=True,
+    reason="realistic phantom, learned labeller (measured): the lumbar verdict and the L5-S1 labels hold, but the "
+    "sacrum is not confirmed below L5-S1 (sacrum_covered is False: SPIDER has no sacrum class), and a spurious upper "
+    "disc T10-T11 is capped by the thoracic rule",
+)
+def test_realistic_lumbar_phantom_is_labelled_without_caps() -> None:
+    from spinescope.anatomy import label_spine
+
+    case = build_case(_scenario("baseline"), "realistic")
+    a = label_spine(case.study)
+    ap = a.applicability
+    assert ap["verdict"] == LUMBAR
+    assert ap["labelled"] is True
+    assert ap["factor"] == pytest.approx(1.0)
+    assert ap["sacrum_covered"] is True
+    assert {"L4-L5", "L5-S1"} <= set(a.disc_labels())
+    assert ap["capped"] == []
+
+
+@requires_ml
+def test_realistic_thoracolumbar_fov_caps_thoracic_discs_above_t10() -> None:
+    from spinescope.anatomy import label_spine
+
+    a = label_spine(build_case(_scenario("fov_T10_sacrum"), "realistic").study)
+    ap = a.applicability
+    assert ap["labelled"] is True
+    assert "T10-T11" in ap["capped"]
+    assert a.discs["T10-T11"].confidence <= DEFAULT.ood_thoracic_cap + 1e-9
+    assert "L5-S1" in a.disc_labels()  # lumbar labels remain
+
+
+@requires_ml
 @pytest.mark.parametrize(
     ("name", "cue"), [("stir_only", "STIR"), ("pd_only", "PD"), ("iso_1mm_3d", "3-D isotropic")]
 )
