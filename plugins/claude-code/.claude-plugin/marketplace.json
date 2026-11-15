@@ -1,0 +1,16 @@
+{
+  "name": "spinescope-local",
+  "owner": {
+    "name": "Ruslan Dautkhanov"
+  },
+  "metadata": {
+    "description": "Local marketplace for the spinescope spine MRI plugin (research and education only)."
+  },
+  "plugins": [
+    {
+      "name": "spinescope",
+      "source": "./spinescope",
+      "description": "Spine MRI tools for AI assistants: open a study, label levels, render and measure, orchestrated multi-reader read, offline viewer. Research and education only."
+    }
+  ]
+}
