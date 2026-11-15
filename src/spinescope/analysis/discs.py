@@ -18,7 +18,10 @@ Method, per disc and sagittal slice (no fixed slice numbers, no per-study consta
 5. Nucleus = central box, annulus = rest of the disc minus a rim at each endplate. Signal is
    normalised to the thecal sac (CSF) found posterior to the disc and to the brightest disc on the same
    slice. HIZ candidates are posterior-annulus foci brighter than the nucleus, not next to CSF.
-6. Pfirrmann suggestion: a uncalibrated grade from four relative features, reported with confidence.
+6. Pfirrmann suggestion: a proportional-odds model on three relative nucleus features (brightness vs CSF,
+   homogeneity, distinction), fitted on SPIDER training (docs/analysis/discs.md), with a confidence from the model's
+   within-one-grade probability and the image and measurement quality. Narrowing: disc height index below the
+   training threshold. Discs whose endplates are not traced are measured on their anchored height (signal only).
 
 Only T2 (then STIR, PD, T1) is used for signal. T1 gives heights only.
 
@@ -31,7 +34,7 @@ from __future__ import annotations
 import itertools
 import logging
 import math
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any
 
 import numpy as np
@@ -305,6 +308,16 @@ def trace_disc(
     )
 
 
+def _anchor_trace(tr: DiscTrace, height_mm: float) -> DiscTrace:
+    """The disc frame of ``tr`` with both endplates at the anchored height, for signal when they are not traced.
+
+    Heights are not measured on such a trace (the caller reports them as NaN) and HIZ foci are not searched on it.
+    """
+    top = np.where(tr.cols, 0.5 * height_mm, np.nan)
+    bot = np.where(tr.cols, -0.5 * height_mm, np.nan)
+    return replace(tr, top=top, bot=bot, contrast=np.zeros(tr.contrast.shape))
+
+
 def _lps(tr: DiscTrace, s: NDArray[np.float64], h: NDArray[np.float64]) -> NDArray[np.float64]:
     return tr.origin + np.asarray(s)[..., None] * tr.u + np.asarray(h)[..., None] * tr.n
 
@@ -387,7 +400,9 @@ def _csf_reference(tr: DiscTrace, cfg: Config) -> tuple[float, NDArray[np.bool_]
     return csf, bright, xyz
 
 
-def _measure_disc(tr: DiscTrace, stack: Stack, cfg: Config, nucleus_ok: bool) -> dict[str, Any]:
+def _measure_disc(
+    tr: DiscTrace, stack: Stack, cfg: Config, nucleus_ok: bool, hiz: bool = True
+) -> dict[str, Any]:
     """Heights and signal for one traced disc. Signal fields are NaN when ``nucleus_ok`` is False."""
     h_thirds = _thirds(tr, tr.top - tr.bot)
     thirds = [h_thirds["ant"], h_thirds["mid"], h_thirds["post"]]
@@ -429,7 +444,7 @@ def _measure_disc(tr: DiscTrace, stack: Stack, cfg: Config, nucleus_ok: bool) ->
         else float("nan"),
         nuc_over_ann=(nuc_mean / ann_mean) if np.isfinite(ann_mean) and ann_mean > 0 else float("nan"),
     )
-    rec["hiz"] = _hiz_candidates(tr, stack, masks, nuc_mean, bright, cfg)
+    rec["hiz"] = _hiz_candidates(tr, stack, masks, nuc_mean, bright, cfg) if hiz else []
     return rec
 
 
@@ -493,41 +508,98 @@ def _body_heights(traces: dict[str, DiscTrace], order: list[str]) -> dict[str, f
     out: dict[str, float] = {}
     for up_lab, lo_lab in itertools.pairwise(order):
         body = up_lab.split("-")[1]
-        if lo_lab.split("-")[0] != body:
-            continue  # not adjacent through a shared vertebra
+        if lo_lab.split("-")[0] != body or up_lab not in traces or lo_lab not in traces:
+            continue  # not adjacent through a shared vertebra, or not traced
         out[body] = _body_height(traces[up_lab], traces[lo_lab])
     return out
 
 
-def _pfirrmann(features: dict[str, float], cfg: Config) -> tuple[int, float, dict[str, int]]:
-    """Grade 1..5 suggestion from relative features, with agreement-based confidence (capped)."""
+# ----------------------------------------------------------------------- grading (Pfirrmann, narrowing)
+#: Features of the Pfirrmann model, in order (see ``_grade_features``).
+PFIRRMANN_FEATURES: tuple[str, ...] = ("log_nuc_over_csf", "nuc_cv", "nuc_ann_contrast")
 
-    def ladder_high(v: float, t: tuple[float, ...]) -> int:  # larger is better
-        for g, th in enumerate(t, start=1):
-            if v >= th:
-                return g
-        return len(t) + 1
 
-    def ladder_low(v: float, t: tuple[float, ...]) -> int:  # smaller is better
-        for g, th in enumerate(t, start=1):
-            if v <= th:
-                return g
-        return len(t) + 1
+def _grade_features(feats: dict[str, float]) -> NDArray[np.float64]:
+    """Model inputs in ``PFIRRMANN_FEATURES`` order; NaN where a feature is missing.
 
-    grades: dict[str, int] = {}
-    if np.isfinite(features.get("nuc_over_csf", np.nan)):
-        grades["brightness"] = ladder_high(features["nuc_over_csf"], cfg.pfirrmann_brightness)
-    if np.isfinite(features.get("nuc_cv", np.nan)):
-        grades["homogeneity"] = ladder_low(features["nuc_cv"], cfg.pfirrmann_cv)
-    if np.isfinite(features.get("nuc_ann_contrast", np.nan)):
-        grades["distinction"] = ladder_high(features["nuc_ann_contrast"], cfg.pfirrmann_contrast)
-    if np.isfinite(features.get("height_ratio", np.nan)):
-        grades["height"] = ladder_high(features["height_ratio"], cfg.pfirrmann_height)
-    if not grades:
-        return 0, 0.0, grades
-    g = math.floor(float(np.median(list(grades.values()))) + 0.5)
-    agree = sum(1 for v in grades.values() if v == g) / len(grades)
-    return g, round(0.75 * agree, 2), grades  # 0.75 cap: thresholds are not yet calibrated
+    The disc height index is not a model input: on SPIDER training it added no information once the three nucleus
+    features were in (see docs/analysis/discs.md). It is used for disc narrowing.
+    """
+    nc = feats.get("nuc_over_csf", float("nan"))
+    return np.array(
+        [
+            math.log(nc) if np.isfinite(nc) and nc > 0 else float("nan"),
+            feats.get("nuc_cv", float("nan")),
+            feats.get("nuc_ann_contrast", float("nan")),
+        ],
+        dtype=np.float64,
+    )
+
+
+def _quality(
+    feats: dict[str, float], traced_frac: float, n_slices: int, cfg: Config
+) -> tuple[float, dict[str, float]]:
+    """Image and measurement quality factor in (0, 1] for a disc's grade."""
+    parts: dict[str, float] = {}
+    parts["geometry"] = traced_frac + (1.0 - traced_frac) * cfg.disc_anchor_geometry_factor
+    snr = feats.get("nuc_snr", float("nan"))
+    parts["snr"] = float(np.clip(snr / cfg.pfirrmann_snr_reference, 0.5, 1.0)) if np.isfinite(snr) else 0.5
+    parts["slices"] = 1.0 if n_slices >= 2 else cfg.pfirrmann_single_slice_factor
+    q = float(np.prod(list(parts.values())))
+    return q, {k: round(v, 3) for k, v in parts.items()}
+
+
+def _pfirrmann(feats: dict[str, float], traced_frac: float, n_slices: int, cfg: Config) -> dict[str, Any]:
+    """Pfirrmann grade 1..5 from a proportional-odds model on relative disc features (see config).
+
+    The grade is the median of the modelled distribution. ``confidence`` is the modelled probability of a grade
+    within one of the suggestion, times the image and measurement quality factor. Returns ``grade=None`` when the
+    nucleus/CSF ratio (required) is missing.
+    """
+    x = _grade_features(feats)
+    if not np.isfinite(x[0]):
+        return {"grade": None, "confidence": 0.0, "parts": {"not_assessed": "no nucleus/CSF signal"}}
+    missing = ~np.isfinite(x)
+    z = np.where(
+        missing, 0.0, (x - np.array(cfg.pfirrmann_feature_mean)) / np.array(cfg.pfirrmann_feature_sd)
+    )
+    w = np.array(cfg.pfirrmann_weights)
+    eta = float(z @ w)
+    cum = np.append(1.0 / (1.0 + np.exp(-(np.array(cfg.pfirrmann_cutpoints) - eta))), 1.0)  # P(grade <= g)
+    p = np.diff(np.concatenate([[0.0], cum]))  # P(grade = g), g = 1..5
+    grade = int(np.searchsorted(cum, 0.5)) + 1
+    within1 = float(p[max(0, grade - 2) : grade + 1].sum())
+    q, qparts = _quality(feats, traced_frac, n_slices, cfg)
+    contrib = {
+        name: round(float(w[i] * z[i]), 3) for i, name in enumerate(PFIRRMANN_FEATURES) if not missing[i]
+    }
+    return {
+        "grade": grade,
+        "confidence": round(within1 * q, 2),
+        "parts": {
+            "linear_predictor": round(eta, 3),
+            "contributions": contrib,
+            "missing": [n for i, n in enumerate(PFIRRMANN_FEATURES) if missing[i]],
+            "probabilities": [round(float(v), 3) for v in p],
+            "quality": qparts,
+        },
+    }
+
+
+def _narrowing(dhi: float, cfg: Config) -> int | None:
+    """Disc narrowing (SPIDER binary) from the disc height index: 1 when below the training threshold."""
+    if not np.isfinite(dhi):
+        return None
+    return int(dhi < cfg.disc_narrowing_dhi_threshold)
+
+
+def _stack_noise(stack: Stack) -> float:
+    """Noise sigma of a stack from in-plane neighbour differences (robust MAD; tissue edges do not inflate it)."""
+    d = np.diff(stack.vol.astype(np.float64), axis=2).ravel()
+    d = d[np.isfinite(d)]
+    if d.size == 0:
+        return float("nan")
+    return float(1.4826 * np.median(np.abs(d - np.median(d))) / math.sqrt(2.0))
 
 
 def _mid_slices(ref: Stack, origin_n: float, cfg: Config) -> tuple[list[int], bool]:
@@ -645,9 +717,14 @@ def _strip_figure(
 
 
 # ----------------------------------------------------------------------- analysis entry point
+def _traced(tr: DiscTrace, cfg: Config) -> bool:
+    """Endplates traced on enough columns to measure heights and the body heights next to the disc."""
+    return bool(tr.valid_fraction() >= cfg.disc_min_valid_fraction and np.isfinite(tr.top - tr.bot).any())
+
+
 @register("discs")
 def analyze(study: Study, anchors: Anchors, config: Config | None = None) -> Result:
-    """Disc heights, nucleus signal, HIZ candidates and Pfirrmann suggestions on sagittal images."""
+    """Disc heights, nucleus signal, HIZ candidates, Pfirrmann grade suggestions and narrowing on sagittal images."""
     cfg = config or DEFAULT
     res = Result(name="discs", meta={"method": "disc-frame DP dark-line endplates, half-max refinement"})
     stacks = sagittal_stacks(study)
@@ -661,6 +738,8 @@ def analyze(study: Study, anchors: Anchors, config: Config | None = None) -> Res
         res.warnings.append("no T2, STIR or PD sagittal stack: disc heights only, no nucleus signal (T1)")
     elif "t2" not in stacks:
         res.warnings.append(f"no sagittal T2: disc signal measured on {contrast.upper()} instead")
+    if "t2" not in stacks:
+        res.warnings.append("Pfirrmann grade needs sagittal T2: not assessed on this study")
     if "stir" not in stacks:
         res.warnings.append("no sagittal STIR stack: STIR-based checks are not available")
     if ref.plane != "sag":
@@ -676,7 +755,7 @@ def analyze(study: Study, anchors: Anchors, config: Config | None = None) -> Res
         if a.anterior is None or a.posterior is None:
             res.warnings.append(f"{lab}: no anterior/posterior margin in anchors; AP length assumed")
 
-    # Mid-portion slices per disc, and every disc traced on each needed slice (for neighbours and brightest)
+    # Mid-portion slices per disc, and every disc measured on each needed slice (neighbours and brightest)
     centre_offset = {lab: float(np.asarray(anchors.discs[lab].center) @ ref.normal) for lab in labels}
     per_disc_slices: dict[str, list[int]] = {}
     for lab in labels:
@@ -689,44 +768,76 @@ def analyze(study: Study, anchors: Anchors, config: Config | None = None) -> Res
         per_disc_slices[lab] = ks
     needed = sorted({k for ks in per_disc_slices.values() for k in ks})
     ref_floor = background(ref)
+    noise = _stack_noise(ref)
     records: dict[int, dict[str, dict[str, Any]]] = {}
-    traces_by_k: dict[int, dict[str, DiscTrace]] = {}
+    figure_traces: dict[int, dict[str, DiscTrace]] = {}
     for k in needed:
         traces = {lab: trace_disc(ref, k, lab, anchors.discs[lab], cfg, floor=ref_floor) for lab in labels}
-        traces_by_k[k] = traces
-        recs = {lab: _measure_disc(traces[lab], ref, cfg, nucleus_ok) for lab in labels}
-        bodies = _body_heights(traces, labels)
-        bright = [recs[lab]["nuc_mean"] for lab in labels if np.isfinite(recs[lab].get("nuc_mean", np.nan))]
-        brightest = max(bright) if bright else float("nan")
+        geom: dict[str, str] = {}
+        measured: dict[str, DiscTrace] = {}
         for lab in labels:
-            r = recs[lab]
-            ab = bodies.get(lab.split("-")[0], float("nan"))
-            be = bodies.get(lab.split("-")[1], float("nan"))
-            r["body_above_h_mm"] = ab
-            r["body_below_h_mm"] = be
+            tr = traces[lab]
+            h_anchor = anchors.discs[lab].height_mm
+            if _traced(tr, cfg):
+                geom[lab], measured[lab] = "traced", tr
+            elif h_anchor is not None and np.isfinite(h_anchor) and h_anchor > 0:
+                anch = _anchor_trace(tr, float(h_anchor))
+                inside = _disc_masks(anch, cfg)["disc"]
+                # the anchored frame is only used when the disc is in the image (not cut by the field of view)
+                if inside.any() and np.isfinite(anch.img[inside]).mean() >= cfg.disc_anchor_min_coverage:
+                    geom[lab], measured[lab] = "anchor", anch
+                else:
+                    geom[lab] = "none"
+            else:
+                geom[lab] = "none"
+        traced = {lab: traces[lab] for lab in labels if geom.get(lab) == "traced"}
+        bodies = _body_heights(traced, labels)
+        recs: dict[str, dict[str, Any]] = {}
+        for lab, tr in measured.items():
+            r = _measure_disc(tr, ref, cfg, nucleus_ok, hiz=geom[lab] == "traced")
+            if geom[lab] == "anchor":
+                r.update(
+                    ant_h_mm=float("nan"),
+                    mid_h_mm=float("nan"),
+                    post_h_mm=float("nan"),
+                    mean_h_mm=float("nan"),
+                )
+                r["valid_fraction"] = traces[lab].valid_fraction()
+            ab = bodies.get(lab.split("-")[0], float("nan")) if geom[lab] == "traced" else float("nan")
+            be = bodies.get(lab.split("-")[1], float("nan")) if geom[lab] == "traced" else float("nan")
+            r["body_above_h_mm"], r["body_below_h_mm"] = ab, be
             bl = [x for x in (ab, be) if np.isfinite(x)]
             r["dhi"] = (
                 (r["mean_h_mm"] / float(np.mean(bl))) if bl and np.isfinite(r["mean_h_mm"]) else float("nan")
             )
+            nuc = r.get("nuc_mean", float("nan"))
+            r["nuc_snr"] = (
+                nuc / noise if np.isfinite(nuc) and np.isfinite(noise) and noise > 0 else float("nan")
+            )
+            r["geometry"] = geom[lab]
+            recs[lab] = r
+        brights = [recs[lab]["nuc_mean"] for lab in recs if np.isfinite(recs[lab].get("nuc_mean", np.nan))]
+        brightest = max(brights) if brights else float("nan")
+        for r in recs.values():
+            nm = r.get("nuc_mean", float("nan"))
             r["nuc_over_brightest"] = (
-                (r.get("nuc_mean", float("nan")) / brightest)
-                if np.isfinite(brightest) and np.isfinite(r.get("nuc_mean", float("nan")))
-                else float("nan")
+                nm / brightest if np.isfinite(brightest) and np.isfinite(nm) else float("nan")
             )
         records[k] = recs
-    if not records:
-        return res
+        figure_traces[k] = traced
 
-    # Study-level height reference (median over discs of their median mean height), for height ratio
+    # Study-level height reference (median over discs of their median traced height), for the height ratio
     slice_rows: list[dict[str, Any]] = []
     per_disc_vals: dict[str, dict[str, list[float]]] = {}
+    n_traced: dict[str, int] = {}
     for lab in labels:
         for k in per_disc_slices.get(lab, []):
-            r = records[k][lab]
-            tr = traces_by_k[k][lab]
-            if tr.valid_fraction() < 0.5 or not np.isfinite(r["mean_h_mm"]):
-                res.warnings.append(f"{lab} slice {k}: endplates not traced on enough columns; skipped")
+            found = records.get(k, {}).get(lab)
+            if found is None:
+                res.warnings.append(f"{lab} slice {k}: no disc frame; not measured on this slice")
                 continue
+            r = found
+            n_traced[lab] = n_traced.get(lab, 0) + (r["geometry"] == "traced")
             row = {
                 "scope": "slice",
                 "disc": lab,
@@ -734,11 +845,13 @@ def analyze(study: Study, anchors: Anchors, config: Config | None = None) -> Res
                 "slice_x_mm": round(float(ref.ipp[k] @ ref.normal), 2),
                 "primary": False,
                 "contrast": contrast,
+                "geometry": r["geometry"],
                 "ap_mm": round(r["ap_mm"], 2),
                 "ant_h_mm": round(r["ant_h_mm"], 2),
                 "mid_h_mm": round(r["mid_h_mm"], 2),
                 "post_h_mm": round(r["post_h_mm"], 2),
                 "mean_h_mm": round(r["mean_h_mm"], 2),
+                "anchor_h_mm": anchors.discs[lab].height_mm,
                 "dhi": round(r["dhi"], 3) if np.isfinite(r["dhi"]) else float("nan"),
                 "body_above_h_mm": round(r["body_above_h_mm"], 2)
                 if np.isfinite(r["body_above_h_mm"])
@@ -755,6 +868,7 @@ def analyze(study: Study, anchors: Anchors, config: Config | None = None) -> Res
                 "nuc_over_brightest": r.get("nuc_over_brightest", float("nan")),
                 "nuc_ann_contrast": r.get("nuc_ann_contrast", float("nan")),
                 "nuc_over_ann": r.get("nuc_over_ann", float("nan")),
+                "nuc_snr": r.get("nuc_snr", float("nan")),
                 "hiz_n": len(r["hiz"]),
                 "hiz_max_peak_over_nucleus": max(
                     [c["peak_over_nucleus"] for c in r["hiz"]], default=float("nan")
@@ -770,18 +884,26 @@ def analyze(study: Study, anchors: Anchors, config: Config | None = None) -> Res
                 "nuc_cv",
                 "nuc_ann_contrast",
                 "nuc_over_ann",
+                "nuc_snr",
             ):
                 per_disc_vals.setdefault(lab, {}).setdefault(key, []).append(float(row[key]))
-            for c in r["hiz"]:
-                res.flags.append(
-                    {
-                        "kind": "hiz_candidate",
-                        "level": lab,
-                        "slice_k": k,
-                        "confidence": 0.4,
-                        **{kk: vv for kk, vv in c.items()},
-                    }
-                )
+            if r["geometry"] == "traced":
+                for c in r["hiz"]:
+                    res.flags.append(
+                        {
+                            "kind": "hiz_candidate",
+                            "level": lab,
+                            "slice_k": k,
+                            "confidence": 0.4,
+                            **{kk: vv for kk, vv in c.items()},
+                        }
+                    )
+    for lab in labels:
+        if lab in per_disc_slices and n_traced.get(lab, 0) < len(per_disc_slices[lab]):
+            res.warnings.append(
+                f"{lab}: endplates traced on {n_traced.get(lab, 0)}/{len(per_disc_slices[lab])} mid-portion "
+                "slices; the others are measured on the anchored disc height (no height, signal only)"
+            )
     if not slice_rows:
         res.warnings.append("no disc could be measured on this study")
         return res
@@ -789,7 +911,9 @@ def analyze(study: Study, anchors: Anchors, config: Config | None = None) -> Res
     height_ref = _median([_median(per_disc_vals.get(lab, {}).get("mean_h_mm", [])) for lab in labels])
     primary_k: dict[str, int] = {}
     for lab in labels:
-        lab_rows = [r for r in slice_rows if r["disc"] == lab]
+        lab_rows = [r for r in slice_rows if r["disc"] == lab and r["geometry"] == "traced"] or [
+            r for r in slice_rows if r["disc"] == lab
+        ]
         if lab_rows:
             best = min(
                 lab_rows, key=lambda r: abs(float(ref.ipp[r["slice_k"]] @ ref.normal) - centre_offset[lab])
@@ -798,28 +922,44 @@ def analyze(study: Study, anchors: Anchors, config: Config | None = None) -> Res
             primary_k[lab] = int(best["slice_k"])
     res.rows.extend(slice_rows)
 
-    # Per-disc summary with a Pfirrmann suggestion
+    # Per-disc summary: medians over slices, Pfirrmann grade and narrowing
     for lab in labels:
         vals = per_disc_vals.get(lab)
         if not vals:
             continue
-        feats = {key: _median(vals.get(key, [])) for key in ("nuc_over_csf", "nuc_cv", "nuc_ann_contrast")}
-        feats["nuc_over_csf"] = _median(vals.get("nuc_over_csf", []))
+        feats = {
+            key: _median(vals.get(key, []))
+            for key in ("nuc_over_csf", "nuc_cv", "nuc_ann_contrast", "dhi", "nuc_snr")
+        }
         mh = _median(vals.get("mean_h_mm", []))
         feats["height_ratio"] = (
             mh / height_ref if height_ref and np.isfinite(height_ref) and np.isfinite(mh) else float("nan")
         )
-        grade, conf, parts = _pfirrmann(feats, cfg)
+        n_sl = len(vals.get("nuc_snr", []))
+        frac = n_traced.get(lab, 0) / n_sl if n_sl else 0.0
+        if contrast == "t2":
+            pf = _pfirrmann(feats, frac, n_sl, cfg)
+        else:
+            pf = {
+                "grade": None,
+                "confidence": 0.0,
+                "parts": {"not_assessed": f"sagittal {contrast.upper()}, T2 required"},
+            }
+        grade = pf["grade"]
+        narrow = _narrowing(feats["dhi"], cfg)
+        geometry = "traced" if frac >= 0.5 else ("anchor" if n_sl else "none")
         summary = {
             "scope": "disc",
             "disc": lab,
-            "n_slices": len(vals.get("mean_h_mm", [])),
+            "n_slices": n_sl,
+            "geometry": geometry,
+            "traced_fraction": round(frac, 2),
             "contrast": contrast,
-            "mean_h_mm": round(mh, 2),
+            "mean_h_mm": round(mh, 2) if np.isfinite(mh) else float("nan"),
             "height_ratio": round(feats["height_ratio"], 3)
             if np.isfinite(feats["height_ratio"])
             else float("nan"),
-            "dhi": round(_median(vals.get("dhi", [])), 3),
+            "dhi": round(feats["dhi"], 3) if np.isfinite(feats["dhi"]) else float("nan"),
             "nuc_over_csf": round(feats["nuc_over_csf"], 3)
             if np.isfinite(feats["nuc_over_csf"])
             else float("nan"),
@@ -828,37 +968,41 @@ def analyze(study: Study, anchors: Anchors, config: Config | None = None) -> Res
             "nuc_ann_contrast": round(feats["nuc_ann_contrast"], 3)
             if np.isfinite(feats["nuc_ann_contrast"])
             else float("nan"),
-            "pfirrmann_suggestion": grade if grade else None,
-            "pfirrmann_confidence": conf,
-            "pfirrmann_parts": parts,
+            "nuc_snr": round(feats["nuc_snr"], 2) if np.isfinite(feats["nuc_snr"]) else float("nan"),
+            "pfirrmann_suggestion": grade,
+            "pfirrmann_confidence": pf["confidence"],
+            "pfirrmann_parts": pf["parts"],
+            "disc_narrowing_suggestion": narrow,
             "suggestion_only": True,
         }
         res.rows.append(summary)
-        if grade >= 4:
+        if grade is not None and grade >= 4:
             res.flags.append(
                 {
                     "kind": "pfirrmann_suggestion",
                     "level": lab,
                     "grade": grade,
-                    "confidence": conf,
-                    "note": "uncalibrated suggestion; a reader must confirm",
+                    "confidence": pf["confidence"],
+                    "note": "model suggestion (SPIDER-trained); a reader must confirm",
                 }
             )
-        if np.isfinite(feats["height_ratio"]) and feats["height_ratio"] < 0.6:
+        if narrow == 1:
             res.flags.append(
                 {
                     "kind": "low_disc_height",
                     "level": lab,
-                    "height_ratio": round(feats["height_ratio"], 3),
-                    "confidence": 0.5,
+                    "dhi": round(feats["dhi"], 3),
+                    "confidence": round(
+                        0.5 * (1.0 if geometry == "traced" else cfg.disc_anchor_geometry_factor), 2
+                    ),
                 }
             )
 
     # Figure: disc crops on the reference slice of the primary slice of the study
     if primary_k:
         mid_off = float(np.median(list(centre_offset.values())))
-        k0 = min(traces_by_k, key=lambda k: abs(float(ref.ipp[k] @ ref.normal) - mid_off))
-        fig_traces = {lab: tr for lab, tr in traces_by_k[k0].items() if tr.ok.any()}
+        k0 = min(figure_traces, key=lambda k: abs(float(ref.ipp[k] @ ref.normal) - mid_off))
+        fig_traces = {lab: tr for lab, tr in figure_traces[k0].items() if tr.ok.any()}
         fig = _strip_figure(stacks, fig_traces, cfg)
         if fig is not None:
             res.figures["disc_strip"] = fig

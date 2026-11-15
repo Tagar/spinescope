@@ -57,7 +57,7 @@ def test_level_finding_has_schema_shape_and_image_evidence() -> None:
         f["confidence"] == "medium"
     )  # 0.75 from the analysis -> high; the uncalibrated suggestion is capped at medium
     assert f["evidence"] == [{"image": "discs_disc_strip.png", "series": "sag_t2", "slices": []}]
-    assert "uncalibrated" in f["notes"]
+    assert "model suggestion" in f["notes"]
     assert "_skipped" not in out
 
 

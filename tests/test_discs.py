@@ -8,6 +8,7 @@ from _studies import keep_contrasts, phantom_study, stacks_flipped
 from spinescope.analysis import base, discs
 from spinescope.analysis.base import Result, available, run_all
 from spinescope.anatomy import Anchors
+from spinescope.config import DEFAULT
 from spinescope.study import Study
 from spinescope.testing.phantom import PhantomSpec, SpinePhantom
 
@@ -43,15 +44,18 @@ def test_degenerated_disc_has_the_lowest_nucleus_ratio(phantom, phantom_study):
     assert summ["L4-L5"]["nuc_over_csf"] < 0.5 * summ["L1-L2"]["nuc_over_csf"]
 
 
-def test_pfirrmann_suggestion_is_labelled_and_highest_at_degenerated_disc(phantom, phantom_study):
+def test_pfirrmann_suggestion_is_labelled_and_higher_at_degenerated_disc(phantom, phantom_study):
+    # The model is fitted on SPIDER (real T2 grades). The cartoon phantom has a homogeneous dark nucleus, which the
+    # homogeneity feature reads as less degenerate, so only the brightness ordering is asserted here.
     res = discs.analyze(phantom_study, Anchors.from_truth(phantom.truth))
     summ = _summary(res)
     grades = {d: s["pfirrmann_suggestion"] for d, s in summ.items() if s["pfirrmann_suggestion"] is not None}
-    assert grades["L4-L5"] == max(grades.values()) and grades["L4-L5"] >= 4
+    assert grades["L4-L5"] >= grades["L1-L2"]
+    assert all(1 <= g <= 5 for g in grades.values())
     for s in summ.values():
         assert s["suggestion_only"] is True
-        assert 0.0 <= s["pfirrmann_confidence"] <= 0.75
-    assert any(f["kind"] == "pfirrmann_suggestion" and f["level"] == "L4-L5" for f in res.flags)
+        assert 0.0 <= s["pfirrmann_confidence"] <= 1.0
+    assert summ["L4-L5"]["geometry"] in ("traced", "anchor")
 
 
 def test_no_hiz_candidates_on_the_phantom(phantom, phantom_study):
@@ -164,3 +168,74 @@ def test_run_is_deterministic(phantom, phantom_study):
     a = discs.analyze(phantom_study, anchors).rows
     b = discs.analyze(phantom_study, anchors).rows
     assert json.dumps(base._jsonable(a), sort_keys=True) == json.dumps(base._jsonable(b), sort_keys=True)
+
+
+def test_pfirrmann_grade_rises_as_nucleus_darkens_and_homogenises():
+    cfg = DEFAULT
+    bright = {"nuc_over_csf": 1.0, "nuc_cv": 0.12, "nuc_ann_contrast": 0.6}
+    dark = {"nuc_over_csf": 0.15, "nuc_cv": 0.45, "nuc_ann_contrast": 0.05}
+    gb = discs._pfirrmann(bright, 1.0, 3, cfg)["grade"]
+    gd = discs._pfirrmann(dark, 1.0, 3, cfg)["grade"]
+    assert 1 <= gb <= 5 and 1 <= gd <= 5
+    assert gd > gb
+
+
+def test_pfirrmann_not_assessed_without_nucleus_csf_ratio():
+    out = discs._pfirrmann({"nuc_cv": 0.2}, 1.0, 2, DEFAULT)
+    assert out["grade"] is None and out["confidence"] == 0.0 and "not_assessed" in out["parts"]
+
+
+def test_pfirrmann_confidence_falls_with_quality():
+    feats = {"nuc_over_csf": 0.5, "nuc_cv": 0.25, "nuc_ann_contrast": 0.3, "nuc_snr": 40.0}
+    full = discs._pfirrmann(feats, 1.0, 3, DEFAULT)["confidence"]
+    anchored = discs._pfirrmann(feats, 0.0, 3, DEFAULT)["confidence"]
+    low_snr = discs._pfirrmann({**feats, "nuc_snr": 2.0}, 1.0, 3, DEFAULT)["confidence"]
+    single = discs._pfirrmann(feats, 1.0, 1, DEFAULT)["confidence"]
+    assert 0.0 < anchored < full <= 1.0
+    assert low_snr < full and single < full
+
+
+def test_narrowing_rule_uses_the_training_threshold():
+    t = DEFAULT.disc_narrowing_dhi_threshold
+    assert discs._narrowing(t - 0.05, DEFAULT) == 1
+    assert discs._narrowing(t + 0.05, DEFAULT) == 0
+    assert discs._narrowing(float("nan"), DEFAULT) is None
+
+
+def test_stack_noise_recovers_sigma_of_a_seeded_noise_volume():
+    from spinescope.geometry import Stack
+
+    rng = np.random.default_rng(0)
+    sigma = 3.0
+    vol = rng.normal(100.0, sigma, size=(4, 64, 64)).astype(np.float32)
+    st = Stack(
+        key="noise",
+        vol=vol,
+        ipp=np.zeros((4, 3)),
+        row_dir=np.array([0.0, 1.0, 0.0]),
+        col_dir=np.array([0.0, 0.0, 1.0]),
+        row_mm=1.0,
+        col_mm=1.0,
+    )
+    assert abs(discs._stack_noise(st) - sigma) / sigma < 0.05
+
+
+def test_anchor_trace_places_endplates_at_the_anchored_height(phantom, phantom_study):
+    from spinescope.analysis.base import sagittal_stacks
+
+    ref = sagittal_stacks(phantom_study)["t2"]
+    disc = Anchors.from_truth(phantom.truth).discs["L3-L4"]
+    tr = discs.trace_disc(ref, int(ref.nearest_slice(disc.center)[0]), "L3-L4", disc)
+    anch = discs._anchor_trace(tr, 8.0)
+    ok = anch.cols
+    assert np.allclose(anch.top[ok], 4.0) and np.allclose(anch.bot[ok], -4.0)
+    assert anch.valid_fraction() == 1.0
+
+
+def test_t1_only_pfirrmann_not_assessed_but_narrowing_has_no_signal_grade(phantom):
+    t1 = phantom_study(phantom, contrasts=("t1",), px=0.8, rows=288)
+    res = discs.analyze(t1, Anchors.from_truth(phantom.truth))
+    summ = _summary(res)
+    assert summ and all(s["pfirrmann_suggestion"] is None for s in summ.values())
+    assert all(s["pfirrmann_confidence"] == 0.0 for s in summ.values())
+    assert any("Pfirrmann grade needs sagittal T2" in w for w in res.warnings)
