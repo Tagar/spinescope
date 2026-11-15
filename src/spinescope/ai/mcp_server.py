@@ -33,6 +33,7 @@ from numpy.typing import NDArray
 from PIL import Image as PILImage
 
 from ..anatomy.anchors import Anchors
+from ..anatomy.correspondence import level_map, level_slices
 from ..anatomy.pipeline import label_spine
 from ..anatomy.summary import labelling_summary, summary_lines
 from ..anatomy.verify import AnswerError, apply_answer, build_packet
@@ -265,6 +266,21 @@ class SpineTools:
         doc["labelling"] = labelling_summary(anchors, self._cfg)
         doc["summary"] = "\n".join(summary_lines(anchors, self._cfg))
         return doc
+
+    def level_slices(self, study_id: str, level: str) -> dict[str, Any]:
+        """Which slices show one labelled level, in every stack of the study. ``level`` is a disc (``L4-L5``) or a
+        vertebra (``L4``). For a disc: the axial slab angled to it, the sagittal and axial slices that show it, the
+        canal, left/right foramen and facet points with the parasagittal slices that cover them, and quality flags
+        (slice_far, tilt_mismatch, slab_tilt_mismatch, no_sagittal, geometry_default...). ``lines`` is a plain-text
+        summary. Computed from the stacks' geometry, so the answer is only as good as the labels."""
+        study = self._study(study_id)
+        anchors = self._anchors_for(study_id)
+        lm = level_map(study, anchors)
+        try:
+            return level_slices(lm, level)
+        except KeyError:
+            names = ", ".join([*lm.discs, *lm.vertebrae]) or "none"
+            raise ToolError(f"unknown level {level!r}; the labelled levels are: {names}") from None
 
     # ---------------------------------------------------------- rendering
     def render_slice(
@@ -580,6 +596,7 @@ _TOOL_NAMES = (
     "open_study",
     "list_series",
     "get_anchors",
+    "level_slices",
     "verify_labels",
     "apply_label_verification",
     "render_slice",

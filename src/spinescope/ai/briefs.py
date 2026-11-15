@@ -19,6 +19,7 @@ from typing import Any
 import numpy as np
 
 from ..anatomy.anchors import Anchors
+from ..anatomy.correspondence import LevelMap, level_map, slice_lines
 from ..anatomy.midline import pols_for, select_midline
 from ..anatomy.summary import (
     ABSTAIN_POLICY,
@@ -353,6 +354,43 @@ def _anchor_lines(anchors: Anchors | None) -> list[str]:
     return lines
 
 
+def _slice_map(study: Study, anchors: Anchors | None) -> LevelMap | None:
+    """The level map for the brief (anchors as they are: no geometry is measured here). None when it cannot be built."""
+    if anchors is None or not anchors.discs:
+        return None
+    try:
+        return level_map(study, anchors, measure_geometry=False)
+    except Exception as exc:  # the slice table is an aid: a failure must not stop the brief
+        log.warning("level slice table not built: %s", exc)
+        return None
+
+
+def _level_slice_lines(study: Study, anchors: Anchors | None, lab: str, position: int | None) -> list[str]:
+    """Slice table lines for one level. ``position`` replaces the name while the naming is unconfirmed."""
+    lm = _slice_map(study, anchors)
+    if lm is None or lab not in lm.discs:
+        return []
+    lines = slice_lines(lm, lab)
+    if position is not None:
+        lines[0] = lines[0].replace(lab, f"position {position}", 1)
+    return lines
+
+
+def _slice_block(study: Study, anchors: Anchors | None) -> list[str]:
+    """Per-level slice table (section 3): which slice of every stack shows each disc, its slab and its foramina."""
+    if anchors is None or not anchors.discs:
+        return []
+    unconfirmed = status_of(anchors) == "unconfirmed"
+    out = [
+        "  Slices per level (computed from each stack's geometry; out_of_plane_mm is target minus slice plane,"
+        " positive toward higher slice indices):"
+    ]
+    for pos, lab in enumerate(anchors.disc_labels(), start=1):
+        for line in _level_slice_lines(study, anchors, lab, pos if unconfirmed else None):
+            out.append(f"    {line}")
+    return out
+
+
 def _series_lines(study: Study) -> list[str]:
     rows = series_table(study)
     if not rows:
@@ -400,6 +438,7 @@ def _brief_text(
         "",
         "3. Levels and anchors",
         *_anchor_lines(anchors),
+        *_slice_block(study, anchors),
         "",
         "4. Tools and images",
         *[f"  {line}" for line in _TOOL_LINES],
@@ -440,6 +479,11 @@ def _level_task(study: Study, anchors: Anchors, lab: str, facts: dict[str, Any])
         "recesses, and the axial slabs that cover this disc. Fill only this level. Do not read the other "
         "levels except to check the endplates that bound this disc."
     )
+    slice_text = _level_slice_lines(study, anchors, lab, None)
+    if slice_text:
+        scope += "\nSlices for this level (from the level map):\n" + "\n".join(
+            f"  {line}" for line in slice_text
+        )
     return _task(
         study,
         anchors,
