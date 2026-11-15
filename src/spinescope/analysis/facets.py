@@ -26,8 +26,9 @@ Method, per disc level and side (no fixed slice numbers, no per-study constants)
 6. Confidence. 0.8 for a window-contained fat-suppressed call; the parasagittal fallback is capped at
    ``facets_sagittal_max_confidence``.
 
-Not measured in this version: joint-space narrowing, osteophytes, the Weishaupt grade, periarticular oedema and facet
-orientation (see the doc). Output rows carry ``scope = "joint"`` with one row per level and side.
+Output rows carry ``scope = "joint"`` (fluid, one row per level and side) and ``scope = "joint_geometry"`` (dx21:
+image-based joint line, facet angle and morphology proxies, see :func:`joint_geometry_rows`). The Weishaupt grade is
+never assigned here (``grade_status = "not assessed"``); periarticular oedema is not measured.
 """
 
 from __future__ import annotations
@@ -272,10 +273,9 @@ def measure_joint(stack: Stack, plane: str, site: JointSite, cfg: Config = DEFAU
 
 
 def tropism_flag(left_deg: float, right_deg: float, threshold_deg: float | None = None) -> dict[str, Any]:
-    """Left-right facet angle asymmetry (tropism) against a threshold. Pure helper: no angles are measured here.
+    """Left-right facet angle asymmetry (tropism) against one threshold (pure helper; see :func:`tropism_flags`).
 
-    Noren et al. (1991) and later work (Kalichman) treat a difference above about 7 degrees as tropism; the default
-    threshold is ``Config.facets_tropism_deg``.
+    The default threshold is ``Config.facets_tropism_deg`` (7 degrees, a commonly quoted value; see the config comment).
     """
     thr = DEFAULT.facets_tropism_deg if threshold_deg is None else threshold_deg
     diff = abs(float(left_deg) - float(right_deg))
@@ -469,6 +469,11 @@ def analyze(study: Study, anchors: Anchors, config: Config | None = None) -> Res
                 call = "present" if present else "absent"
                 shown = f"fluid {width:.1f} mm, {call}"
             panels.setdefault(label, {})[side] = (m, f"{contrast or plane}: {shown}")
+    try:  # dx21: image-based joint line, facet angle and morphology proxies (unvalidated; capped, see the doc)
+        res.rows.extend(joint_geometry_rows(study, lm, anchors, cfg))
+    except Exception as exc:  # the geometry rows never break the fluid path
+        log.warning("facets: joint geometry failed: %s", exc)
+        res.warnings.append(f"joint geometry failed: {type(exc).__name__}: {exc}")
     for label, per in panels.items():
         fig = _figure(label, per, cfg)
         if fig is not None:
@@ -527,3 +532,261 @@ def _figure_for(level: str) -> str:
 _FIG: Callable[[str], str | None] = _figure_for
 register_field(FieldRule("facet_L", "effusion", "facets", _effusion_extract("L"), figure=_FIG))
 register_field(FieldRule("facet_R", "effusion", "facets", _effusion_extract("R"), figure=_FIG))
+
+
+# ----------------------------------------------------------------------------- joint localisation, angle, morphology (dx21)
+@dataclass(frozen=True)
+class JointLocalisation:
+    """Joint line found in the image. Centre and direction are in the plane: (u, v) mm offsets from the ROI origin.
+
+    ``direction`` is the unit major axis of the joint-line component; ``length_mm`` its maximal caliper and
+    ``width_mm`` its minimal caliper (the joint-line thickness, a proxy for joint space, not a measured joint space).
+    """
+
+    ok: bool
+    centre_uv: tuple[float, float] | None
+    direction: tuple[float, float] | None
+    length_mm: float | None
+    width_mm: float | None
+    peak: float
+    pixels: int
+    reason: str
+
+
+def dark_ridge_score(img: NDArray[np.float64], px: float, sigma_mm: float) -> NDArray[np.float64]:
+    """Dark-ridge (dark cortical line) score per pixel, scale-normalised and relative to the image intensity range.
+
+    Hessian of the Gaussian-smoothed image: a dark line has a large positive second derivative across it (``l1``)
+    and a small one along it. Score = max(l1, 0) - 2 max(l2, 0), so blobs (both eigenvalues large) score low.
+    """
+    fin = np.isfinite(img)
+    if not fin.any():
+        return np.zeros(img.shape, dtype=np.float64)
+    f = np.where(fin, img, float(np.nanmedian(img)))
+    rng = float(np.nanpercentile(img, 99.5) - np.nanpercentile(img, 0.5))
+    if rng <= 0:
+        return np.zeros(img.shape, dtype=np.float64)
+    s = max(sigma_mm / px, 0.5)
+    hrr = ndi.gaussian_filter(f, s, order=(2, 0))  # d2/dv2 (rows)
+    hcc = ndi.gaussian_filter(f, s, order=(0, 2))  # d2/du2 (cols)
+    hrc = ndi.gaussian_filter(f, s, order=(1, 1))
+    tr = 0.5 * (hrr + hcc)
+    root = np.sqrt((0.5 * (hrr - hcc)) ** 2 + hrc**2)
+    l1 = tr + root
+    l2 = tr - root
+    score = (np.clip(l1, 0.0, None) - 2.0 * np.clip(l2, 0.0, None)) * (s * s) / rng
+    score[~fin] = 0.0
+    return np.asarray(score, dtype=np.float64)
+
+
+def _fail(reason: str) -> JointLocalisation:
+    return JointLocalisation(False, None, None, None, None, 0.0, 0, reason)
+
+
+def localise_joint(roi: NDArray[np.float64], px: float, cfg: Config = DEFAULT) -> JointLocalisation:
+    """Joint line near the centre of ``roi`` (the geometric site) from the image alone.
+
+    Peak of the dark-ridge score within ``facets_loc_search_mm`` of the centre; the joint line is the connected set of
+    ridge pixels above ``facets_loc_component_frac`` of the peak, within ``facets_loc_max_radius_mm`` of the centre.
+    Its centroid is the joint centre and its principal axis the joint direction. No mask or label is used.
+    """
+    nt, ns = roi.shape
+    if not np.isfinite(roi).any():
+        return _fail("no image data in the window")
+    score = dark_ridge_score(roi, px, cfg.facets_loc_sigma_mm)
+    tt = (np.arange(nt) - (nt - 1) / 2) * px
+    ss = (np.arange(ns) - (ns - 1) / 2) * px
+    ggs, ggt = np.meshgrid(ss, tt)
+    radius = np.hypot(ggs, ggt)
+    # the peak must lie in the joint-line disc too (else its label is 0 and the component is background)
+    search = (radius <= cfg.facets_loc_search_mm) & (radius <= cfg.facets_loc_max_radius_mm)
+    s_in = np.where(search, score, -np.inf)
+    idx = np.unravel_index(int(np.argmax(s_in)), s_in.shape)
+    peak = float(score[idx])
+    if not np.isfinite(peak) or peak <= 0:
+        return _fail("no dark ridge within the search radius")
+    # limited to a radius of the site (not of the peak: on a long line the peak can sit at the edge of the search)
+    lab, _ = ndi.label(
+        (score >= cfg.facets_loc_component_frac * peak) & (radius <= cfg.facets_loc_max_radius_mm)
+    )
+    if lab[idx] == 0:  # cannot happen: the peak is above the threshold inside the disc
+        return _fail("peak outside the joint-line component")
+    comp = lab == lab[idx]
+    n = int(comp.sum())
+    if n < cfg.facets_loc_min_pixels:
+        return _fail(f"joint-line component too small ({n} px)")
+    rr, cc = np.nonzero(comp)
+    pts = np.stack([ss[cc], tt[rr]], axis=1)  # (u, v) mm
+    centre = pts.mean(axis=0)
+    if n > 2:
+        w, vecs = np.linalg.eigh(np.cov((pts - centre).T))
+        major = vecs[:, int(np.argmax(w))]
+    else:
+        major = np.array([1.0, 0.0])
+    cmax, cmin = _calipers(pts)
+    return JointLocalisation(
+        ok=True,
+        centre_uv=(float(centre[0]), float(centre[1])),
+        direction=(float(major[0]), float(major[1])),
+        length_mm=cmax + px,
+        width_mm=cmin + px,
+        peak=peak,
+        pixels=n,
+        reason="ok",
+    )
+
+
+def joint_angle_deg(direction: tuple[float, float]) -> float:
+    """Facet joint angle (deg, 0 to 90) in the axial plane: acute angle between the joint line and the mid-sagittal
+    (AP) direction. Karacan et al. (2004) convention: the angle between a midsagittal reference line and the facet line
+    on an axial image. Smaller means more sagittal, larger means more coronal. NaN for a zero vector.
+    """
+    du, dv = float(direction[0]), float(direction[1])
+    n = float(np.hypot(du, dv))
+    if n == 0:
+        return float("nan")
+    return float(np.degrees(np.arccos(min(1.0, abs(dv) / n))))
+
+
+def tropism_flags(left_deg: float, right_deg: float) -> dict[str, Any]:
+    """Left-right facet angle difference with both reported thresholds (7 and 10 degrees; see config comments).
+
+    Neither threshold is validated here: both flags are descriptive, and the difference is always reported.
+    """
+    diff = abs(float(left_deg) - float(right_deg))
+    return {
+        "difference_deg": round(diff, 2),
+        "tropism_7deg": bool(diff > DEFAULT.facets_tropism_deg),
+        "tropism_10deg": bool(diff > DEFAULT.facets_tropism_strict_deg),
+        "threshold_deg": DEFAULT.facets_tropism_deg,
+        "threshold_strict_deg": DEFAULT.facets_tropism_strict_deg,
+    }
+
+
+def roi_grid_mm(
+    origin: NDArray[np.float64],
+    u: NDArray[np.float64],
+    v: NDArray[np.float64],
+    shape: tuple[int, int],
+    px: float,
+) -> NDArray[np.float64]:
+    """LPS points (nt, ns, 3) of an in-plane grid centred on ``origin`` (same convention as :func:`measure_joint`)."""
+    nt, ns = shape
+    tt = (np.arange(nt) - (nt - 1) / 2) * px
+    ss = (np.arange(ns) - (ns - 1) / 2) * px
+    return (
+        np.asarray(origin, dtype=np.float64)[None, None, :]
+        + ss[None, :, None] * np.asarray(u, dtype=np.float64)[None, None, :]
+        + tt[:, None, None] * np.asarray(v, dtype=np.float64)[None, None, :]
+    )
+
+
+def sample_label_plane(
+    st: Stack,
+    k: int,
+    label2d: NDArray[Any],
+    origin: NDArray[np.float64],
+    u: NDArray[np.float64],
+    v: NDArray[np.float64],
+    shape: tuple[int, int],
+    px: float,
+) -> NDArray[np.int64]:
+    """Nearest-pixel label of a 2-D label map on slice ``k`` sampled on the in-plane grid of :func:`roi_grid_mm`.
+
+    ``label2d`` must share the slice's pixel grid (true for the Sudirman label maps). Outside the grid: -1.
+    """
+    pts = roi_grid_mm(origin, u, v, shape, px)
+    o = st.pix_to_lps(float(k), 0.0, 0.0)
+    d = pts - o[None, None, :]
+    c = np.rint(d @ np.asarray(st.row_dir, dtype=np.float64) / st.col_mm).astype(np.int64)
+    r = np.rint(d @ np.asarray(st.col_dir, dtype=np.float64) / st.row_mm).astype(np.int64)
+    rows, cols = label2d.shape
+    inside = (r >= 0) & (r < rows) & (c >= 0) & (c < cols)
+    out = np.full(shape, -1, dtype=np.int64)
+    out[inside] = label2d[r[inside], c[inside]].astype(np.int64)
+    return out
+
+
+def geometry_at(
+    st: Stack, site: JointSite, cfg: Config = DEFAULT, slice_k: int | None = None
+) -> dict[str, Any] | None:
+    """Image-based joint localisation, facet angle and morphology proxies for one site on one axial stack.
+
+    The site is projected onto the slice nearest to it; the ROI is sampled in that slice's plane. Returns None for a
+    non-axial stack (joint lines and angles are defined on axial images only). ``slice_k`` evaluates on that slice
+    instead of the nearest one (validation: the annotated slice).
+    """
+    if st.plane != "ax":
+        return None
+    k, dist = st.nearest_slice(site.xyz)
+    if slice_k is not None:
+        k = int(slice_k)
+        dist = abs(
+            float((site.xyz - st.pix_to_lps(float(k), 0.0, 0.0)) @ np.asarray(st.normal, dtype=np.float64))
+        )
+    n = np.asarray(st.normal, dtype=np.float64)
+    o_k = st.pix_to_lps(float(k), 0.0, 0.0)
+    origin = site.xyz - float((site.xyz - o_k) @ n) * n
+    px = cfg.facets_px_mm
+    roi = _patch(st, origin, _X, _Y, cfg.facets_roi_half_mm, px)
+    loc = localise_joint(roi, px, cfg)
+    row: dict[str, Any] = {
+        "scope": "joint_geometry",
+        "level": site.level,
+        "side": site.side,
+        "stack": st.key,
+        "slice": int(k),
+        "out_of_plane_mm": round(float(dist), 2),
+        "contrast": _contrast_of(st)[0],
+        "loc_ok": loc.ok,
+        "loc_reason": loc.reason,
+        "loc_peak": round(loc.peak, 3),
+        "loc_pixels": loc.pixels,
+        "origin_xyz": [round(float(x), 2) for x in origin],
+        "joint_uv_mm": None,
+        "joint_angle_deg": None,
+        "joint_line_length_mm": None,
+        "joint_line_width_mm": None,
+        "weishaupt_grade": None,
+        "grade_status": "not assessed",
+        # experimental: unvalidated until the dx21 gates pass (docs/analysis/facets.md section 6.3); capped
+        "experimental": True,
+        "confidence": round(cfg.facets_morph_max_confidence, 3) if loc.ok else 0.0,
+    }
+    if loc.ok and loc.centre_uv is not None and loc.direction is not None:
+        row["joint_uv_mm"] = [round(loc.centre_uv[0], 2), round(loc.centre_uv[1], 2)]
+        row["joint_angle_deg"] = round(joint_angle_deg(loc.direction), 2)
+        row["joint_line_length_mm"] = round(float(loc.length_mm or 0.0), 2)
+        row["joint_line_width_mm"] = round(float(loc.width_mm or 0.0), 2)
+    row["grade_reason"] = (
+        "Weishaupt grade needs osteophyte, hypertrophy and erosion criteria that are not measured here; "
+        "the joint-line measures are unvalidated proxies"
+    )
+    return row
+
+
+def joint_geometry_rows(
+    study: Study, lm: LevelMap, anchors: Anchors, cfg: Config = DEFAULT
+) -> list[dict[str, Any]]:
+    """Geometry rows (see :func:`geometry_at`) for every joint with an axial stack that covers it."""
+    sites = joint_sites(lm, anchors, cfg)
+    rows: list[dict[str, Any]] = []
+    for label in anchors.disc_labels():
+        for side in SIDES:
+            if label not in sites or side not in sites[label]:
+                continue
+            site = sites[label][side]
+            found = choose_stack(study, site.xyz, _refs(site, cfg))
+            axial = [
+                st
+                for st in study.stacks.values()
+                if st.plane == "ax" and _covers(st, site.xyz) and not st.meta.get("role", {}).get("localizer")
+            ]
+            if not axial:
+                continue
+            st = min(axial, key=lambda s: (_contrast_of(s)[0] != "t2", s.key))
+            geo = geometry_at(st, site, cfg)
+            if geo is not None:
+                geo["fluid_stack_key"] = found[0].key if found is not None else None
+                rows.append(geo)
+    return rows
