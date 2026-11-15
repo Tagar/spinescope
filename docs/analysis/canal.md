@@ -41,8 +41,9 @@ Per level, for every labelled disc (the disc level) and every labelled vertebral
 Figures: `canal_axial.png` (one crop per measured disc, sac outline in red, area, obliquity and the ratio when there is
 a reference), `canal_profile.png` (sagittal AP by level, with the 10 and 13 mm lines).
 
-Findings wiring: `central_canal.stenosis` (value none/mild/moderate/severe; figure `profile`) and
-`central_canal.area_mm2` (figure `axial`) are registered with `register_field`. Neither is written without an image.
+Findings wiring: `central_canal.stenosis` (value none/mild/moderate/severe; figure `profile`, series = the labelled
+sagittal stack) is registered with `register_field`. It is not written without an image. `central_canal.area_mm2` is
+**not** registered: the area is unvalidated (section 4), so it stays in the rows and the CSV only.
 
 ## 2. Literature thresholds (in `spinescope/config.py`)
 
@@ -86,3 +87,71 @@ Reference negative: only negated (normal-type) labels at that level. Conflicting
 prediction: observed area < 100 mm^2 (relative or absolute criterion). Secondary: AP < 13 mm. Metrics: sensitivity,
 specificity, PPV, NPV, prevalence, with 95% CI by patient bootstrap. These labels are free text, not a reading of the
 images, so the numbers say how the measure agrees with the report, not with truth.
+
+## 4. Validation results
+
+Run: `SPINESCOPE_THREADS=2 .venv/bin/python tools/validate_canal.py --out <dir> --workers 2` (anchors cached per case).
+Numbers are the same as in the first run, which used 4 workers: the pipeline is deterministic. Intervals are 95%
+patient-bootstrap percentiles (1000 resamples, seed 0).
+
+**V1, sagittal AP, SPIDER validation split (no pass gate).** 39 cases (the overview file lists 87 rows, one per
+sequence), 511 levels, 389 compared (122 not compared: 24 without a labeller AP, the rest without a mask AP in the band or both).
+
+| measure | value (95% CI) |
+|---|---|
+| MAE | 2.10 mm (1.70 to 2.52) |
+| bias (labeller minus mask) | +1.64 mm (1.18 to 2.12) |
+| Bland-Altman 95% limits | -3.91 to +7.19 mm |
+| Pearson r | 0.56 |
+| class agreement, < 10 / 10-13 / >= 13 mm | accuracy 0.63, kappa 0.41 |
+
+The labeller's sagittal canal is about 1.6 mm wider than the mask's AP at the same level, even after the 0.5 mm
+calibration bias from training. Use the AP as a relative measure within a study until this is recalibrated on training.
+
+**V2, axial dural sac area, Sudirman T1 (gate pre-registered in section 3).** 515 patients, 1545 annotated levels.
+
+| step | count |
+|---|---|
+| pipeline's chosen slab and slice = the annotated T1 slice | 1251 (81 %) |
+| slab or slice differs from the annotation | 239 |
+| no slab chosen | 55 |
+| area measured (after the plausibility gate) | 21 |
+| measured and on the annotated slice (compared) | 14 |
+
+On the 14 compared levels: MAE 75.1 mm^2 (34.5 to 118.9), bias +62.5 mm^2 (19.9 to 112.4), Pearson r -0.26.
+Median relative error 0.38. **Gate failed**: n = 14 (needs 100), MAE 75 (needs at most 15), bias +62 (needs at most
+10), r -0.26 (needs at least 0.8). `canal_axial_validated` stays False, so every axial-derived confidence is capped at
+0.4. Most T1 sacs are not measured at all: Otsu in the window joins the sac to the dark vertebral body and
+posterior tissue, the area is then above the 300 mm^2 gate, and the level is reported as not measured. The 14
+compared levels are the ones that passed that gate, so they are a biased (optimistic) subset. Reading: **the
+classical axial sac is not usable on T1 in this version.** T2 and STIR slabs (the analysis default) have no axial
+reference in the public data, so their accuracy is unknown; their values are shown with the same cap.
+
+**V3, weak labels from the Sudirman notes (primary: observed area < 100 mm^2).** 16 levels carry a canal-stenosis
+label at L3-L4, L4-L5 or L5-S1 (12 more are foraminal and excluded). All 16 are positive, none is negative. None of
+them has a measured area, so **V3 is not evaluable**: no sensitivity, specificity or interval is reported. The
+notes almost never state a normal canal at the annotated levels, so specificity cannot be estimated from them even
+with more measurements.
+
+## 5. Protocol amendments (disclosed)
+
+1. **Slab contrast (V2).** The first V2 run used the analysis default (T2 slabs first). The reference is T1, so the
+   slice match was 1 of 1545 and no agreement number was computed. The analysis was then restricted to T1 for the
+   validation (`canal_axial_contrasts = ("t1",)`). This was a correction to the comparison, made before any agreement
+   statistic on T1 was produced; the pre-registered gate is unchanged.
+2. **Bookkeeping (V2, V3).** The slab match was recorded only for measured levels, so unmeasured levels were counted
+   as mismatches. The chosen slab is now recorded for every level. V3 had also required a slab match, which the
+   pre-registration does not ask for; it now uses every measured level. Neither change alters any measured value.
+3. **Sagittal AP (V1)** uses the labeller's mask-based AP on the sagittal slice nearest the canal centreline, the same
+   definition the labeller uses on the SPIDER mask. The reference resamples the mask to the labeller's 1.0 mm grid.
+
+## 6. Harness, findings and limitations
+
+- No predictor is registered in `tools/eval_analysis.py`: no SPIDER truth field describes canal stenosis.
+- Findings: `central_canal.stenosis` (profile figure, series = the labelled sagittal stack). Area is not a findings
+  field until it validates.
+- Limitations: the sagittal AP has a +1.6 mm bias against the mask; the axial area fails on T1 and is unvalidated on
+  T2; the grade mapping is a convention; the reference area (upper quartile of the study's disc levels) is a proxy,
+  and in a study where most levels are stenotic it is not a non-stenotic value; there is no CSF-signal fallback for
+  the AP; Schizas and Lee grades are not implemented; facet and foraminal measures are not in this module, and the
+  ligamentum flavum belongs to dx09.

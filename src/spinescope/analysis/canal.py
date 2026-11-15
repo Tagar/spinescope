@@ -40,7 +40,7 @@ from scipy import ndimage
 from skimage.filters import threshold_otsu
 
 from ..anatomy.anchors import Anchors, split_disc
-from ..anatomy.correspondence import LevelMap, level_map
+from ..anatomy.correspondence import CorrespondenceConfig, LevelMap, level_map
 from ..config import DEFAULT, Config
 from ..geometry import Stack
 from ..study import Study
@@ -335,6 +335,7 @@ def analyze(study: Study, anchors: Anchors, config: Config | None = None) -> Res
             "csa_absolute_mm2": cfg.canal_csa_absolute_mm2,
             "csa_relative_mm2": cfg.canal_csa_relative_mm2,
             "ap_absolute_mm": cfg.canal_ap_absolute_mm,
+            "axial_contrasts": list(cfg.canal_axial_contrasts),
             "ap_relative_mm": cfg.canal_ap_relative_mm,
         },
         "reference": f"quantile {cfg.canal_reference_quantile} of disc areas",
@@ -353,7 +354,12 @@ def analyze(study: Study, anchors: Anchors, config: Config | None = None) -> Res
     lm: LevelMap | None = None
     if anchors.discs and any(s.plane == "ax" for s in study.stacks.values()):
         try:
-            lm = level_map(study, anchors, measure_geometry=False)
+            lm = level_map(
+                study,
+                anchors,
+                CorrespondenceConfig(slab_contrasts=cfg.canal_axial_contrasts),
+                measure_geometry=False,
+            )
         except Exception as exc:  # the axial part is optional; the sagittal AP still stands
             log.warning("canal: level correspondence failed: %s", exc)
             res.warnings.append(f"level correspondence failed: {type(exc).__name__}: {exc}")
@@ -381,10 +387,12 @@ def analyze(study: Study, anchors: Anchors, config: Config | None = None) -> Res
         ax = axial.get(lab) if is_disc else None
         if is_disc:
             seen_disc.add(lab)
-            row["disc_height_mm"] = (
-                round(float(anchors.discs[lab].height_mm), 2)
-                if lab in anchors.discs and anchors.discs[lab].height_mm
-                else None
+            disc_h = anchors.discs[lab].height_mm if lab in anchors.discs else None
+            row["disc_height_mm"] = round(float(disc_h), 2) if disc_h else None
+            chosen = lm.discs.get(lab) if lm is not None else None
+            row["axial_slab_chosen"] = chosen.slab if chosen is not None else None
+            row["axial_slice_chosen"] = (
+                chosen.stacks[chosen.slab].slice if chosen is not None and chosen.slab else None
             )
             row["axial_slab"] = ax.slab if ax else None
             row["axial_slice"] = ax.slice_index if ax else None
@@ -452,6 +460,8 @@ def analyze(study: Study, anchors: Anchors, config: Config | None = None) -> Res
     if any(r.get("ap_mm") is not None for r in out_rows):
         res.figures["profile"] = _profile_figure(out_rows, cfg)
     res.meta["reference_area_mm2"] = None if ref is None else round(ref, 1)
+    # Report evidence cites the series the labels came from (the sagittal stack); the profile is drawn from it.
+    res.meta["series_key"] = str(anchors.source_stack or "")
     return res
 
 
@@ -507,7 +517,7 @@ def _profile_figure(rows: list[dict[str, Any]], cfg: Config) -> NDArray[np.uint8
     """Sagittal AP by level (levels superior to inferior) with the absolute and relative thresholds."""
     pts = [r for r in rows if r.get("ap_mm") is not None]
     pts.sort(key=lambda r: -float(r["z_mm"]))
-    W, H, pad_l, pad_b = 60 + 46 * max(len(pts), 1), 260, 46, 36
+    W, H, pad_l, pad_b = 110 + 46 * max(len(pts), 1), 260, 46, 36
     img = Image.new("RGB", (W, H), (255, 255, 255))
     d = ImageDraw.Draw(img)
     top, bottom = 14, H - pad_b
@@ -521,10 +531,10 @@ def _profile_figure(rows: list[dict[str, Any]], cfg: Config) -> NDArray[np.uint8
         (cfg.canal_ap_relative_mm, (230, 150, 30)),
     ):
         yy = y_of(thr)
-        d.line([(pad_l, yy), (W - 8, yy)], fill=colour, width=1)
-        d.text((W - 62, yy - 12), f"{thr:g} mm", fill=colour)
+        d.line([(pad_l, yy), (W - 60, yy)], fill=colour, width=1)
+        d.text((W - 58, yy - 12), f"{thr:g} mm", fill=colour)
     d.line([(pad_l, top), (pad_l, bottom)], fill=(0, 0, 0))
-    d.line([(pad_l, bottom), (W - 8, bottom)], fill=(0, 0, 0))
+    d.line([(pad_l, bottom), (W - 60, bottom)], fill=(0, 0, 0))
     for i, r in enumerate(pts):
         x = pad_l + 14 + i * 46
         y = y_of(float(r["ap_mm"]))
@@ -560,19 +570,6 @@ def _extract_stenosis(res: Result, level: str) -> Candidate | None:
     )
 
 
-def _extract_area(res: Result, level: str) -> Candidate | None:
-    r = _disc_row(res, level)
-    if r is None or r.get("csa_mm2") is None:
-        return None
-    conf = float(r["confidence"] or 0.0)
-    if r.get("csa_truncated"):
-        conf = min(conf, 0.4)
-    return Candidate(
-        value=float(r["csa_mm2"]),
-        confidence=conf,
-        notes="dural sac area on the axial slab, corrected for obliquity; " + str(r.get("note", "")),
-    )
-
-
+# Only the suggested grade goes into the report schema. The area is not written there while it is unvalidated (the
+# axial figure is for review); the per-level area is in the rows and the CSV.
 register_field(FieldRule("central_canal", "stenosis", "canal", _extract_stenosis, figure="profile"))
-register_field(FieldRule("central_canal", "area_mm2", "canal", _extract_area, figure="axial"))

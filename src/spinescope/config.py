@@ -564,6 +564,10 @@ class Config:
     # Axial area is reported as unvalidated (confidence capped) until the pre-registered validation passes
     # (docs/analysis/canal.md, section 4). Set to True only after that check, never on a single image.
     canal_axial_validated: bool = False
+    # Contrasts of the axial slabs the sac is read on, in order of preference (the first slab through a disc wins).
+    # T2, STIR and PD first: CSF is bright there. Validation (tools/validate_canal.py) restricts this to ("t1",),
+    # the annotated contrast of the Sudirman labels.
+    canal_axial_contrasts: tuple[str, ...] = ("t2", "stir", "pd", "t1")
     canal_axial_unvalidated_cap: float = 0.4
 
 
