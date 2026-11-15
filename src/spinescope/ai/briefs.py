@@ -36,6 +36,8 @@ from ..privacy import public_text
 from ..render.frame import direction_letter
 from ..report.instructions import reader_instructions
 from ..report.schema import ITEM_SECTIONS, global_group_names, level_group_names
+from ..report.synthesis import Synthesis
+from ..report.synthesis_render import brief_lines
 from ..study import Study
 
 log = logging.getLogger(__name__)
@@ -406,24 +408,39 @@ def brief(
     reader: str = "reader_a",
     scope: str | None = None,
     config: Config = DEFAULT,
+    synthesis: Synthesis | None = None,
 ) -> str:
     """The reading brief for an AI reader: study technicals, conventions, anchors, tools, calibration,
     the reader's scope (if given) and the findings-format instructions.
 
+    ``synthesis`` (from :func:`spinescope.report.synthesis.build_synthesis`) adds the automatic measurements of the
+    registered analyses, with their validation status and the not-assessed fields, as section 6.
+
     ``reader`` is the reader name the findings file must use. Raises ``ValueError`` for an invalid name.
     Plain text; safe to paste into a prompt.
     """
-    return _brief_text(study, anchors, reader, scope, geometry_facts(study, anchors, config))
+    return _brief_text(study, anchors, reader, scope, geometry_facts(study, anchors, config), synthesis)
 
 
 def _brief_text(
-    study: Study, anchors: Anchors | None, reader: str, scope: str | None, facts: dict[str, Any]
+    study: Study,
+    anchors: Anchors | None,
+    reader: str,
+    scope: str | None,
+    facts: dict[str, Any],
+    synthesis: Synthesis | None = None,
 ) -> str:
     if not READER_NAME_RE.match(reader):
         raise ValueError("reader name must be 1-64 characters from A-Z, a-z, 0-9, '_', '.', '-'")
     info = {k: v for k, v in study.info.items() if k in KEEP_TAGS}
     head = ", ".join(f"{k}={v}" for k, v in info.items()) or "no technical study attributes"
     naming = naming_policy(anchors)
+    # With a synthesis the measurements get section 6; the scope and the findings format move down by one.
+    n_scope, n_format = (7, 8) if synthesis is not None else (6, 7)
+    synth_block: list[str] = []
+    if synthesis is not None:
+        synth_block = ["", "6. Automatic measurements (synthesis; validation status per field)"]
+        synth_block += ["  " + line for line in brief_lines(synthesis)]
     parts = [
         "SPINE MRI READING BRIEF",
         "Research and education only. Describe what is visible; do not diagnose. Do not identify anyone.",
@@ -445,10 +462,11 @@ def _brief_text(
         *[f"  {line}" for line in _TOOL_LINES],
         "",
         "5. " + CALIBRATION_GUIDANCE.strip(),
+        *synth_block,
     ]
     if scope:
-        parts += ["", "6. Your scope", scope.strip()]
-    parts += ["", "7. Findings format", reader_instructions(reader).rstrip()]
+        parts += ["", f"{n_scope}. Your scope", scope.strip()]
+    parts += ["", f"{n_format}. Findings format", reader_instructions(reader).rstrip()]
     return "\n".join(parts) + "\n"
 
 

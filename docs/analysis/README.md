@@ -161,3 +161,11 @@ spinescope analyze <study> [--only discs,endplates] [--out DIR]    # JSON to std
 - Ground truth for SPIDER is a single radiologist grading per disc (no inter-reader data here).
 - Multiprocessing is used by `evaluate(workers>1)`; the worker processes import the built-in SPIDER loader, so
   custom loaders must be registered at import time of a module the workers can import.
+
+## Synthesis and validation status
+
+Every field that is registered (`register_field`) appears in the report synthesis (`docs/analysis/synthesis.md`), with
+its validation status. Register the status next to the field with `spinescope.report.validation.register_validation`;
+the `source` document must quote the metric (a test checks it). Unregistered fields are shown as not validated.
+Outputs: `spinescope analyze STUDY --out DIR --report`.
+

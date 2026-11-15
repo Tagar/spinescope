@@ -155,7 +155,15 @@ def _cmd_brief(args: argparse.Namespace) -> int:
     from .ai.briefs import brief
 
     study, anchors = _load(args.path, anchors=not args.no_anchors, anchors_file=args.anchors)
-    text = brief(study, anchors, reader=args.reader)
+    synthesis = None
+    if args.analyses:
+        from .analysis.base import run_all
+        from .report.synthesis import build_synthesis
+
+        if anchors is None:
+            raise ValueError("--analyses needs labelled anchors (drop --no-anchors)")
+        synthesis = build_synthesis(study, anchors, run_all(study, anchors))
+    text = brief(study, anchors, reader=args.reader, synthesis=synthesis)
     if args.out:
         with open(args.out, "w", encoding="utf-8") as f:
             f.write(text)
@@ -285,10 +293,14 @@ def _cmd_benchmark(argv: Sequence[str]) -> int:
 
 
 def _cmd_analyze(args: argparse.Namespace) -> int:
-    """Run the registered analyses on the labelled levels; JSON to stdout, figures and CSVs to --out."""
-    import os
+    """Run the registered analyses on the labelled levels; JSON to stdout, figures and CSVs to --out.
 
-    from .analysis.base import available, run
+    With ``--report`` (and ``--out``) also writes report.md, report.html and findings.json (the synthesis) there.
+    """
+    import os
+    from pathlib import Path
+
+    from .analysis.base import Result, available, run
     from .anatomy import label_spine
     from .study import load_study
 
@@ -296,21 +308,44 @@ def _cmd_analyze(args: argparse.Namespace) -> int:
     unknown = sorted(set(names) - set(available()))
     if unknown:
         raise ValueError(f"unknown analyses: {', '.join(unknown)}; available: {', '.join(available())}")
+    if args.report and not args.out:
+        raise ValueError("--report writes into the --out folder; give --out DIR")
     study = load_study(args.path)
     anchors = label_spine(study)
     out: dict[str, object] = {
         "numbering": anchors.numbering.get("status", ""),
         "levels": anchors.disc_labels(),
     }
-    results: dict[str, object] = {}
-    for name in names:
-        res = run(name, study, anchors)
+    from .report.synthesis import build_synthesis
+    from .report.synthesis_render import write_bundle
+
+    results: dict[str, Result] = {name: run(name, study, anchors) for name in names}
+    entries: dict[str, object] = {}
+    figure_names: dict[str, dict[str, str]] = {}  # analysis -> figure -> file name (no folder)
+    for name, res in results.items():
         entry = res.to_dict()
         if args.out:
             saved = res.save(args.out)
             entry["saved"] = [os.path.basename(p) for p in saved]  # names only: never the output folder
-        results[name] = entry
-    out["analyses"] = results
+            figure_names[name] = {fig: f"{name}_{fig}.png" for fig in res.figures}
+        entries[name] = entry
+    out["analyses"] = entries
+    syn = build_synthesis(study, anchors, results)
+    out["synthesis"] = syn.to_dict()
+    if args.report:
+        from .report.synthesis import findings_document
+
+        doc = findings_document(results, anchors, figure_names)
+        folder = Path(args.out)
+        paths = write_bundle(
+            syn,
+            doc,
+            folder,
+            figure_files={
+                f"{a}:{f}": folder / n for a, figs in figure_names.items() for f, n in figs.items()
+            },
+        )
+        out["report_files"] = [p.name for p in paths]  # names only
     json.dump(out, sys.stdout, indent=1, default=str)  # Result.to_dict() has already mapped NaN to null
     print()
     return 0
@@ -374,6 +409,11 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--reader", default="reader_a", help="reader name the findings file must use")
     s.add_argument("--no-anchors", action="store_true", help="skip automatic level labelling (faster)")
     s.add_argument(
+        "--analyses",
+        action="store_true",
+        help="also run the registered analyses and add their synthesis (validation status, not assessed) to the brief",
+    )
+    s.add_argument(
         "--anchors", help="use this anchors JSON (e.g. corrected by verify-labels) instead of labelling"
     )
     s.add_argument("--out", help="write the brief to this file instead of stdout")
@@ -424,6 +464,11 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("path", help="DICOM directory or volume file")
     s.add_argument("--only", help="comma-separated analysis names (default: all registered)")
     s.add_argument("--out", help="write each analysis' CSV, JSON and figure PNGs here")
+    s.add_argument(
+        "--report",
+        action="store_true",
+        help="with --out: also write report.md, report.html (self-contained) and findings.json (synthesis) there",
+    )
     s.set_defaults(func=_cmd_analyze)
 
     s = sub.add_parser("mcp", help="run the MCP server on stdio (for AI assistants)")

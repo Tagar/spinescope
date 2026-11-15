@@ -515,10 +515,25 @@ class SpineTools:
         path = build_viewer(study, outdir, anchors=self._anchors_for(study_id), config=self._cfg)
         return {"viewer": str(path)}
 
-    def brief(self, study_id: str, reader: str = "reader_a") -> str:
+    def brief(self, study_id: str, reader: str = "reader_a", analyses: bool = False) -> str:
         """Reading brief for an AI reader of this study: conventions, anchors, tools, calibration and the
-        findings format. reader is the name the findings file must use."""
-        return brief(self._study(study_id), self._anchors_for(study_id), reader=reader, config=self._cfg)
+        findings format. reader is the name the findings file must use. analyses=True also runs the registered
+        measurement analyses and adds their synthesis (validation status, not assessed fields) as section 6."""
+        synthesis = None
+        if analyses:
+            from ..analysis.base import run_all
+            from ..report.synthesis import build_synthesis
+
+            study = self._study(study_id)
+            anchors = self._anchors_for(study_id)
+            synthesis = build_synthesis(study, anchors, run_all(study, anchors, self._cfg), self._cfg)
+        return brief(
+            self._study(study_id),
+            self._anchors_for(study_id),
+            reader=reader,
+            config=self._cfg,
+            synthesis=synthesis,
+        )
 
     def tasks(self, study_id: str) -> list[dict[str, Any]]:
         """Independent reader scopes (per level, per structure, holistic, and the adversarial verifier) with
@@ -527,11 +542,17 @@ class SpineTools:
         return [t.to_dict() for t in tasks]
 
     def analyze(self, study_id: str, only: list[str] | None = None) -> dict[str, Any]:
-        """Run the registered measurement analyses (discs, endplates, ...) on the study's levels. ``only`` names a
-        subset (default: all). Returns per analysis: rows, flags (with confidence), warnings, figure names and the
-        numbering status. With the server's output folder set, figure PNGs and CSV/JSON files are saved there and
-        their paths returned. Measurements and suggestions only, never a diagnosis."""
-        from ..analysis.base import available, run
+        """Run the registered measurement analyses (discs, endplates, ...) on the study's levels and return the
+        synthesis as JSON: per level and side the findings (value, confidence, validation status, evidence figure
+        names, notes) and the fields not assessed with the reason; the study-level image quality, coverage and
+        not-assessed list; and the pain-evidence ordering. ``only`` names a subset (default: all). The per-analysis
+        rows, flags and warnings are under ``analyses``. With the server's output folder set, figure PNGs, CSV/JSON
+        files and report.md, report.html and findings.json are saved there and their paths returned. Measurements
+        and suggestions only, never a diagnosis."""
+        from ..analysis.base import Result, available, run
+        from ..anatomy.summary import status_of
+        from ..report.synthesis import build_synthesis, findings_document
+        from ..report.synthesis_render import write_bundle
 
         study = self._study(study_id)
         known = set(available())
@@ -540,24 +561,42 @@ class SpineTools:
         if unknown:
             raise ToolError(f"unknown analyses: {', '.join(unknown)}; available: {', '.join(sorted(known))}")
         anchors = self._anchors_for(study_id)
-        from ..anatomy.summary import status_of
 
         analyses: dict[str, Any] = {}
+        results: dict[str, Result] = {}
+        figure_names: dict[str, dict[str, str]] = {}
+        outdir = self._out / study_id / "analysis" if self._out is not None else None
         for name in names:
             res = run(name, study, anchors, self._cfg)
+            results[name] = res
             entry = res.to_dict()
             saved: list[str] = []
-            if self._out is not None:
-                outdir = self._out / study_id / "analysis"
+            if outdir is not None:
                 saved = [str(p) for p in res.save(outdir)]
+                figure_names[name] = {fig: f"{name}_{fig}.png" for fig in res.figures}
             entry["saved_to"] = saved
             analyses[name] = entry
-        return {
+        syn = build_synthesis(study, anchors, results, self._cfg)
+        out: dict[str, Any] = {
             "study_id": study_id,
             "numbering": status_of(anchors),
             "levels": anchors.disc_labels(),
+            "synthesis": syn.to_dict(),
             "analyses": analyses,
+            "report_files": [],
         }
+        if outdir is not None:
+            doc = findings_document(results, anchors, figure_names)
+            paths = write_bundle(
+                syn,
+                doc,
+                outdir,
+                figure_files={
+                    f"{a}:{f}": outdir / n for a, figs in figure_names.items() for f, n in figs.items()
+                },
+            )
+            out["report_files"] = [str(p) for p in paths]
+        return out
 
     def validate_findings(self, findings: str) -> dict[str, Any]:
         """Validate one findings document (JSON text) against the schema. Returns ok, errors and warnings."""
