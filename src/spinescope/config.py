@@ -109,6 +109,33 @@ class Config:
     midline_search_mm: float = 10.0  # slices within this distance of the canal-ridge peak set the midline
     axial_canal_window_mm: float = 24.0  # axial window around the canal for the CSF-blob midline check
     conus_min_contrast: float = 0.08  # cord-vs-CSF contrast (0..1) on the canal centreline
+    # ---- conus locator (anatomy/conus.py), on the learned canal segmentation, 1 mm grid.
+    # Cord core: samples within this half-width of the canal centreline (cord ~ 8 mm AP; core 4 mm wide).
+    conus_core_half_mm: float = 2.0  # judgement: inside any lumbar cord
+    # CSF flank: samples from this fraction of the canal half-width outwards (CSF rim, clear of the cord).
+    conus_flank_inner_frac: float = 0.6  # judgement
+    # Cord-likeness per row, window-relative: 1 - core/CSF (T2, STIR: CSF bright) or 1 - CSF/core (T1). Judgement:
+    # cord is about half as bright as CSF on T2 and brighter than CSF on T1; cauda equina is thin and fragmented.
+    conus_cord_contrast_min: float = 0.25
+    # CSF must be in the bright half of the intensity window on T2/STIR (dark half on T1): the sac is the
+    # brightest (T2) or darkest (T1) fluid. Plausibility gate against bone or body signal in the canal mask.
+    conus_csf_min_rel: float = 0.5
+    conus_smooth_mm: float = 3.0  # median filter along the canal (removes single-row flicker)
+    conus_min_run_mm: float = 6.0  # shortest cord-like run that counts as cord
+    conus_full_run_mm: float = 20.0  # run length that gives full length credit to the confidence
+    conus_slice_halfwidth_mm: float = (
+        4.0  # sagittal slices within this distance of the midline are analysed (~1 either side)
+    )
+    conus_agree_mm: float = (
+        6.0  # slices whose tip lies within this of the median tip agree (about half a body)
+    )
+    conus_single_slice_factor: float = 0.8  # confidence factor when only one slice gives a tip
+    # Confidence factor by numbering status (confirmed, probable, unconfirmed): a conus named on unconfirmed
+    # level names is less certain than the same tip on a confirmed numbering.
+    conus_status_factor: tuple[float, float, float] = (1.0, 0.9, 0.7)  # judgement
+    # Low-lying conus: tip below the L2-L3 disc (Wilson & Prince, AJNR 1989; L3 is indeterminate there).
+    conus_low_lying_disc: str = "L2-L3"
+    conus_low_lying_min_confidence: float = 0.6  # below this the flag is worded as unconfirmed
     disc_match_mm: float = 6.0  # tolerance when matching discs between two sagittal series
     # Mid-sagittal plane by mirror symmetry (spinescope.anatomy.midline_robust). Mirror pairs of sagittal
     # slices at x0 +- d are compared; the symmetry axis is the midline. Lengths in mm.
@@ -334,6 +361,10 @@ class Config:
     spinous_search_mm: float = 45.0
     spinous_smooth_mm: float = 1.0
     spinous_edge_per_mm: float = 0.03
+
+    # Conus locator is experimental (no ground truth; a 60-case AI visual audit could not verify most tips):
+    # cap its reported confidence until it is calibrated.
+    conus_max_confidence: float = 0.5
 
 
 DEFAULT = Config()
