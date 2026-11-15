@@ -9,6 +9,8 @@ Inputs for one study (all optional except the primary anchors):
   lowest disc: a named level is a direct statement by the technologist;
 * the classical labeller as an independent second opinion. It is a weak vote: its tilt cue, with a tempered
   likelihood (exponent ``classical_weight``), and only when its discs agree geometrically with the primary's;
+* the axial slabs (:mod:`axial`), when ``FusionConfig.use_axial`` is set: the lowest T1 slab's disc, if it shows
+  disc-like appearance, replaces the unchecked slab cue; disc-support flags and missed-disc candidates are warnings.
 * the second sagittal series of the same study (T1 against T2). Two sagittal series show the same anatomy, so
   they can only disagree about coverage or a missed disc. The check is therefore a consistency check, not an
   offset vote: it is recorded (neutral vote), feeds the calibrated confidence, and adds warnings.
@@ -31,12 +33,14 @@ from ..config import DEFAULT
 from ..geometry import Stack
 from ..study import Study
 from .anchors import Anchors
+from .axial import AxialReport
 from .numbering import VERTEBRA_NAMES, level_names_in, shift_vertebra_name
 from .numbering_checks import (
     DEFAULT_NUMBERING_CONFIG,
     OFFSETS,
     NumberingConfig,
     Vote,
+    axial_slab_vote,
     combine,
     numbering_evidence,
     relabel_discs,
@@ -66,6 +70,10 @@ class FusionConfig:
     #: slab is worth a likelihood ratio of about 19 and gives P(shift) about 0.6; two independent slabs that
     #: name the same level give about 0.9 (applied).
     name_p_other: float = 0.02
+    #: Use the axial T1 slabs (:mod:`axial`, additive, default OFF). Off keeps the numbers and the calibrated
+    #: confidence exactly as shipped: the calibration was fitted without this vote. Turning it on changes the
+    #: volume features, so it needs a new calibration fit before it is shipped (see docs/labeling/lab20_axial.md).
+    use_axial: bool = False
 
 
 DEFAULT_FUSION = FusionConfig()
@@ -89,6 +97,7 @@ class FusionResult:
     t1t2_by_label: dict[str, bool]  # per primary disc (pre-shift label): same label in the second series
     warnings: list[str] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
+    axial: dict[str, Any] | None = None  # axial report summary (None when the axial cue was not used)
 
     @property
     def t1t2_fraction(self) -> float:
@@ -233,10 +242,13 @@ def fuse_numbering(
     cfg: FusionConfig = DEFAULT_FUSION,
     ncfg: NumberingConfig = DEFAULT_NUMBERING_CONFIG,
     slabs: list[Stack] | None = None,
+    axial: AxialReport | None = None,
 ) -> FusionResult:
     """Combine every numbering cue for ``primary`` into one offset decision (see the module docstring).
 
     ``slabs`` overrides the study's oblique axial slabs (used by the tests; default: ``study.slabs('ax')``).
+
+    ``axial`` is the :func:`axial.assess_axial` report of ``primary``; used only when ``cfg.use_axial``.
 
     ``coverage_z`` is the (low, high) LPS z of the primary's sagittal stack: a disc of the second series below
     the primary's lowest disc is a "possible missed disc" only when it lies inside that coverage.
@@ -266,9 +278,24 @@ def fuse_numbering(
 
     use_slabs = list(slabs) if slabs is not None else (study.slabs("ax") if study is not None else [])
     ev = numbering_evidence(study, primary, ncfg, slabs=use_slabs)
+    axial_on = bool(cfg.use_axial and axial is not None and axial.available)
+    axial_vote = axial_slab_vote(axial, primary, ncfg) if axial_on else None
+    axial_rec: dict[str, Any] | None = None
+    if axial_on and axial is not None:
+        axial_rec = axial.to_dict()
+        warnings.extend(axial.warnings)
+        if axial_vote is None:
+            # The lowest slab is not disc-like or covers no disc: the unchecked slab cue is not used either.
+            notes.append("axial lowest slab gives no disc-like support: slab cue not used")
+        notes.append(f"axial cue: {len(axial.covered)} predicted disc(s) covered by a T1 slab")
     for v in ev.votes:
+        if axial_on and v.cue == "slab":
+            continue  # replaced by the disc-gated axial vote (or dropped when that abstains)
         votes_raw.append(v)
         records.append(_vote_record(v))
+    if axial_vote is not None:
+        votes_raw.append(axial_vote)
+        records.append(_vote_record(axial_vote))
     warnings.extend(w for w in ev.warnings if "uncertain" in w)
     for dv in description_votes(use_slabs, primary, cfg):
         votes_raw.append(dv)
@@ -378,6 +405,7 @@ def fuse_numbering(
         t1t2_by_label=t1t2,
         warnings=warnings,
         notes=notes,
+        axial=axial_rec,
     )
 
 
@@ -414,6 +442,7 @@ def fusion_record(res: FusionResult) -> dict[str, Any]:
         "second_series": res.second,
         "classical": res.classical,
         "relabelled": res.applied,
+        **({"axial": res.axial} if res.axial is not None else {}),
     }
 
 

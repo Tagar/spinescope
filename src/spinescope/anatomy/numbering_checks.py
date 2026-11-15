@@ -33,7 +33,7 @@ import logging
 import math
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
@@ -41,6 +41,9 @@ from ..geometry import Stack
 from ..study import Study
 from .anchors import Anchors
 from .numbering import VERTEBRA_NAMES
+
+if TYPE_CHECKING:  # the axial module imports nothing from here at module level; avoid an import cycle
+    from .axial import AxialReport
 
 log = logging.getLogger(__name__)
 
@@ -263,6 +266,48 @@ def slab_vote(
     return Vote(cue="slab", likelihood=like, evidence=ev)
 
 
+#: Cue name of the gated axial slab vote (stable: fusion records and calibration refer to it).
+AXIAL_SLAB_CUE = "axial_slab"
+
+
+def axial_slab_vote(
+    report: AxialReport | None, anchors: Anchors, cfg: NumberingConfig = DEFAULT_NUMBERING_CONFIG
+) -> Vote | None:
+    """Slab vote from the lowest axial T1 slab, using only a disc that shows disc-like appearance there.
+
+    Same likelihood model as :func:`slab_vote`, with two differences: the slab must be a T1 slab (the calibrated
+    sequence) and the disc it is angled to must pass the axial disc-likeness check (``SlabMatch.supported``). A
+    slab whose disc is not disc-like, or one that covers no predicted disc, gives no vote (None). The lowest slab
+    only: higher slabs carry a different protocol target. See :mod:`axial`.
+    """
+    if report is None or not report.available or not report.slabs:
+        return None
+    low = report.slabs[0]  # rank 0: the most inferior T1 slab
+    if low.disc is None or not low.supported or low.disc not in anchors.discs:
+        return None
+    ordered = list(reversed(anchors.disc_labels()))  # bottom-up: index 0 = lowest provisional disc
+    k = ordered.index(low.disc)
+    if k >= 2:
+        return Vote(
+            cue=AXIAL_SLAB_CUE,
+            likelihood={o: 1.0 for o in OFFSETS},
+            evidence=[
+                f"lowest axial slab ({low.slab}) is angled to disc {low.disc}, {k} levels above the lowest: "
+                "not used"
+            ],
+        )
+    like = {o: 0.0 for o in OFFSETS}
+    for t, p in ((0, cfg.slab_target_p_l5s1), (1, cfg.slab_target_p_l4l5)):
+        o = t - k
+        if o in like:
+            like[o] += p
+    ev = [
+        f"lowest axial T1 slab ({low.slab}) is angled to disc {low.disc} with disc-like appearance "
+        f"(LLR {low.llr:.2f}; provisional lowest-disc index {k})"
+    ]
+    return Vote(cue=AXIAL_SLAB_CUE, likelihood=like, evidence=ev)
+
+
 def tilt_vote(anchors: Anchors, cfg: NumberingConfig = DEFAULT_NUMBERING_CONFIG) -> Vote | None:
     """Vote from the sacral slope: is the lowest disc the most tilted of the chain.
 
@@ -406,11 +451,13 @@ def _result(
 
 
 __all__ = [
+    "AXIAL_SLAB_CUE",
     "DEFAULT_NUMBERING_CONFIG",
     "OFFSETS",
     "NumberingConfig",
     "NumberingEvidence",
     "Vote",
+    "axial_slab_vote",
     "combine",
     "conus_vote",
     "numbering_evidence",
