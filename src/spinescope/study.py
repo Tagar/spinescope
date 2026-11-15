@@ -2,13 +2,24 @@
 
 from __future__ import annotations
 
+import logging
 import os
-from collections.abc import Iterator
+from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field
 from typing import Any
 
 from .geometry import Stack
+from .io.dicom import (
+    StudyInfo,
+    dicom_scan_summary,
+    load_stack_pixels,
+    read_dicom,
+    slice_geometry,
+)
+from .io.dicom import list_studies as _list_studies
 from .series import assign_keys, to_display_orientation
+
+log = logging.getLogger(__name__)
 
 #: Study-level attributes safe to report (technical, not identifying).
 STUDY_INFO_TAGS = (
@@ -23,8 +34,15 @@ STUDY_INFO_TAGS = (
 
 @dataclass(eq=False)
 class Study:
+    """Stacks keyed by role, plus technical info and a PHI-free report of what loading found.
+
+    ``report`` holds counts of ignored files, the studies found in the folder, decoder problems and
+    warnings (never paths or identifiers).
+    """
+
     stacks: dict[str, Stack]
     info: dict[str, Any] = field(default_factory=dict)
+    report: dict[str, Any] = field(default_factory=dict)
 
     def __getitem__(self, key: str) -> Stack:
         return self.stacks[key]
@@ -106,6 +124,40 @@ def _study_info(stacks: list[Stack]) -> dict[str, Any]:
     return info
 
 
+def _finish(
+    stacks: list[Stack],
+    *,
+    reorient: bool,
+    keys: Iterable[str] | None,
+    load_pixels: bool,
+    report: dict[str, Any],
+) -> Study:
+    """Display-orient, key, check geometry, optionally load only ``keys``, and wrap into a Study."""
+    if reorient:
+        stacks = [to_display_orientation(s) for s in stacks]
+    keyed = assign_keys(stacks)
+    if keys is not None:
+        wanted = list(keys)
+        unknown = [k for k in wanted if k not in keyed]
+        if unknown:
+            raise KeyError(f"unknown stack key(s) {unknown}; available: {sorted(keyed)}")
+        keyed = {k: keyed[k] for k in wanted}
+    for key, st in keyed.items():
+        st.meta.setdefault("geometry", slice_geometry(st.positions))
+        geo = st.meta["geometry"]
+        if not geo.get("uniform", True):
+            msg = f"stack {key}: slice spacing is not uniform"
+            log.warning(msg)
+            report.setdefault("warnings", []).append(msg)
+        if geo.get("gap_count"):
+            msg = f"stack {key}: {geo['gap_count']} gap(s) in slice positions (~{geo['estimated_missing_slices']} missing)"
+            log.warning(msg)
+            report.setdefault("warnings", []).append(msg)
+        if load_pixels:
+            load_stack_pixels(st)
+    return Study(stacks=keyed, info=_study_info(list(keyed.values())), report=report)
+
+
 def from_stacks(stacks: list[Stack], *, reorient: bool = True) -> Study:
     """Classify, key and (optionally) display-orient raw stacks into a :class:`Study`."""
     if reorient:
@@ -114,14 +166,44 @@ def from_stacks(stacks: list[Stack], *, reorient: bool = True) -> Study:
     return Study(stacks=keyed, info=_study_info(stacks))
 
 
-def load_study(path: str | os.PathLike[str], *, reorient: bool = True, load_pixels: bool = True) -> Study:
-    """Load a study from a DICOM directory (any layout) or a NIfTI/MetaImage volume file."""
+def list_studies(path: str | os.PathLike[str]) -> list[StudyInfo]:
+    """Studies in a DICOM folder (by StudyInstanceUID), largest first; header-only and PHI-free.
+
+    Returns :class:`spinescope.io.dicom.StudyInfo` items; pass ``info.index`` or ``info.study_id``
+    as ``study=`` to :func:`load_study`.
+    """
+    return _list_studies(path)
+
+
+def load_study(
+    path: str | os.PathLike[str],
+    *,
+    study: int | str | None = None,
+    keys: Iterable[str] | None = None,
+    reorient: bool = True,
+    load_pixels: bool = True,
+) -> Study:
+    """Load a study from a DICOM directory (any layout) or a NIfTI/MetaImage/NRRD volume file.
+
+    ``study`` picks one study when a folder holds several (index or ``study_id`` from
+    :func:`list_studies`); the default is the study with the most images, with a warning.
+    ``keys`` loads only the named stacks (pixels are read only for those); the other series are
+    still classified from headers but dropped. ``load_pixels=False`` returns header-only stacks with
+    zero placeholder voxels.
+    """
     p = os.fspath(path)
     lower = p.lower()
     if os.path.isfile(p) and lower.endswith((".nii", ".nii.gz", ".mha", ".mhd", ".nrrd")):
         from .io.volumes import read_volume
 
-        return from_stacks([read_volume(p)], reorient=reorient)
-    from .io.dicom import read_stacks
+        stack = read_volume(p)
+        return _finish([stack], reorient=reorient, keys=keys, load_pixels=load_pixels, report={})
 
-    return from_stacks(read_stacks(p, load_pixels=load_pixels), reorient=reorient)
+    read = read_dicom(p, study=study)
+    report: dict[str, Any] = {
+        "scan": dicom_scan_summary(read.scan),
+        "studies": [s.as_dict() for s in read.studies],
+        "selected_study": read.selected.as_dict(),
+        "warnings": list(read.warnings),
+    }
+    return _finish(read.stacks, reorient=reorient, keys=keys, load_pixels=load_pixels, report=report)

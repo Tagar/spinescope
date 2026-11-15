@@ -416,12 +416,34 @@ def write_dicom_series(
     image_type: tuple[str, ...] = ("ORIGINAL", "PRIMARY", "OTHER"),
     series_uid: str | None = None,
     start_instance: int = 1,
+    transfer_syntax: str = "explicit",
+    rescale: tuple[float, float] | None = None,
+    signed: bool = False,
+    monochrome1: bool = False,
+    temporal_index: int | None = None,
 ) -> list[str]:
-    """Write ``stack`` as an MR Image Storage series (one file per slice, fake PHI included)."""
+    """Write ``stack`` as an MR Image Storage series (one file per slice, fake PHI included).
+
+    Options (all default to a plain 12-bit unsigned MONOCHROME2 file):
+
+    * ``transfer_syntax``: ``"explicit"``, ``"rle"`` (RLE Lossless) or ``"j2k"`` (JPEG 2000 Lossless).
+    * ``rescale=(slope, intercept)``: store integers and write RescaleSlope/RescaleIntercept.
+    * ``signed``: PixelRepresentation=1 (int16 pixels, centred on zero).
+    * ``monochrome1``: store inverted values with PhotometricInterpretation=MONOCHROME1.
+    * ``temporal_index``: write TemporalPositionIdentifier (for 4-D series, one call per time point).
+    """
     import pydicom
     from pydicom.dataset import FileDataset, FileMetaDataset
-    from pydicom.uid import ExplicitVRLittleEndian, MRImageStorage, generate_uid
+    from pydicom.uid import (
+        ExplicitVRLittleEndian,
+        JPEG2000Lossless,
+        MRImageStorage,
+        RLELossless,
+        generate_uid,
+    )
 
+    if transfer_syntax not in ("explicit", "rle", "j2k"):
+        raise ValueError(f"unsupported transfer_syntax {transfer_syntax!r}")
     os.makedirs(outdir, exist_ok=True)
     series_uid = series_uid or generate_uid()
     acq = ACQ[contrast]
@@ -464,14 +486,166 @@ def write_dicom_series(
         ds.SliceLocation = float(stack.positions[k])
         ds.Rows, ds.Columns = stack.vol.shape[1:]
         ds.SamplesPerPixel = 1
-        ds.PhotometricInterpretation = "MONOCHROME2"
+        ds.PhotometricInterpretation = "MONOCHROME1" if monochrome1 else "MONOCHROME2"
         ds.BitsAllocated, ds.BitsStored, ds.HighBit, ds.PixelRepresentation = 16, 12, 11, 0
-        arr = np.clip(stack.vol[k] * scale, 0, 4095).astype(np.uint16)
-        ds.PixelData = arr.tobytes()
+        if temporal_index is not None:
+            ds.TemporalPositionIdentifier = temporal_index + 1
+        stored = np.clip(stack.vol[k] * scale, 0, 4095)
+        if rescale is not None:
+            slope, intercept = rescale
+            ds.RescaleSlope, ds.RescaleIntercept = slope, intercept
+            stored = np.round((stored - intercept) / slope)
+        stored_i = np.asarray(stored, dtype=np.int64)
+        if signed:
+            ds.PixelRepresentation = 1
+            ds.PixelData = (stored_i - 2048).astype("<i2").tobytes()
+        else:
+            if monochrome1:
+                stored_i = 4095 - stored_i
+            ds.PixelData = stored_i.astype("<u2").tobytes()
+        if transfer_syntax == "rle":
+            ds.compress(RLELossless, encoding_plugin="pydicom")
+        elif transfer_syntax == "j2k":
+            ds.compress(JPEG2000Lossless, encoding_plugin="pylibjpeg")
         p = os.path.join(os.fspath(outdir), f"IM{series_number:03d}_{start_instance + k:04d}.dcm")
         pydicom.dcmwrite(p, ds, enforce_file_format=True)
         paths.append(p)
     return paths
+
+
+def write_enhanced_mr(
+    stacks: list[Stack],
+    path: str | os.PathLike[str],
+    *,
+    study_uid: str,
+    contrast: str = "t2",
+    series_number: int = 1,
+    description: str = "ENHANCED MR",
+) -> str:
+    """Write several stacks (any orientations, same matrix) into ONE Enhanced MR Image Storage object.
+
+    Every frame has its own functional groups (plane position/orientation, pixel measures, echo,
+    repetition time). Timing, echo and the scanning sequence are shared-group attributes, and
+    ScanningSequence is not repeated at top level, so readers must look inside functional groups.
+    """
+    import pydicom
+    from pydicom.dataset import Dataset, FileDataset, FileMetaDataset
+    from pydicom.sequence import Sequence
+    from pydicom.uid import EnhancedMRImageStorage, ExplicitVRLittleEndian, generate_uid
+
+    if not stacks:
+        raise ValueError("need at least one stack")
+    rows, cols = stacks[0].vol.shape[1:]
+    if any(st.vol.shape[1:] != (rows, cols) for st in stacks):
+        raise ValueError("all frames of an enhanced object must share one matrix size")
+    acq = ACQ[contrast]
+    frames = [(st, k) for st in stacks for k in range(st.n)]
+    vmax = max(float(np.percentile(st.vol, 99.9)) for st in stacks) or 1.0
+    scale = 4000.0 / vmax
+    pixels = np.stack([np.clip(st.vol[k] * scale, 0, 4095).astype("<u2") for st, k in frames])
+
+    meta = FileMetaDataset()
+    meta.MediaStorageSOPClassUID = EnhancedMRImageStorage
+    meta.MediaStorageSOPInstanceUID = generate_uid()
+    meta.TransferSyntaxUID = ExplicitVRLittleEndian
+    ds = FileDataset(os.fspath(path), {}, file_meta=meta, preamble=b"\0" * 128)
+    for tag, val in FAKE_PHI.items():
+        setattr(ds, tag, val)
+    ds.SOPClassUID = EnhancedMRImageStorage
+    ds.SOPInstanceUID = meta.MediaStorageSOPInstanceUID
+    ds.StudyInstanceUID, ds.SeriesInstanceUID = study_uid, generate_uid()
+    ds.FrameOfReferenceUID = generate_uid()
+    ds.Modality = "MR"
+    ds.Manufacturer = "SPINESCOPE"
+    ds.ManufacturerModelName = "PHANTOM"
+    ds.MagneticFieldStrength = 3.0
+    ds.SeriesNumber = series_number
+    ds.SeriesDescription = description
+    ds.ImageType = ["ORIGINAL", "PRIMARY", "M", "NORM"]
+    ds.NumberOfFrames = len(frames)
+    ds.Rows, ds.Columns = rows, cols
+    ds.SamplesPerPixel = 1
+    ds.PhotometricInterpretation = "MONOCHROME2"
+    ds.BitsAllocated, ds.BitsStored, ds.HighBit, ds.PixelRepresentation = 16, 12, 11, 0
+
+    shared = Dataset()
+    timing = Dataset()
+    timing.RepetitionTime = acq["TR"]
+    echo = Dataset()
+    echo.EffectiveEchoTime = acq["TE"]
+    modifier = Dataset()
+    modifier.ScanningSequence = acq["seq"]
+    modifier.SequenceVariant = "SK"
+    shared.MRTimingAndRelatedParametersSequence = Sequence([timing])
+    shared.MREchoSequence = Sequence([echo])
+    shared.MRImagingModifierSequence = Sequence([modifier])
+    ds.SharedFunctionalGroupsSequence = Sequence([shared])
+
+    per_frame = []
+    for st, k in frames:
+        g = Dataset()
+        pos = Dataset()
+        pos.ImagePositionPatient = [f"{x:.4f}" for x in st.ipp[k]]
+        g.PlanePositionSequence = Sequence([pos])
+        ori = Dataset()
+        ori.ImageOrientationPatient = [f"{x:.6f}" for x in (*st.row_dir, *st.col_dir)]
+        g.PlaneOrientationSequence = Sequence([ori])
+        pm = Dataset()
+        pm.PixelSpacing = [f"{st.row_mm:.4f}", f"{st.col_mm:.4f}"]
+        pm.SliceThickness = st.thickness
+        g.PixelMeasuresSequence = Sequence([pm])
+        ft = Dataset()
+        ft.FrameType = ["ORIGINAL", "PRIMARY", "M", "NORM"]
+        g.MRImageFrameTypeSequence = Sequence([ft])
+        per_frame.append(g)
+    ds.PerFrameFunctionalGroupsSequence = Sequence(per_frame)
+    ds.PixelData = pixels.tobytes()
+    out = os.fspath(path)
+    pydicom.dcmwrite(out, ds, enforce_file_format=True)
+    return out
+
+
+def write_non_image_object(path: str | os.PathLike[str], kind: str, *, study_uid: str) -> str:
+    """Write a minimal non-image object: ``SR``, ``KO``, ``PR``, ``SC`` (screenshot with burned-in text), or
+    ``DICOMDIR``. Used to test that junk is ignored (never treated as anatomy)."""
+    import pydicom
+    from pydicom.dataset import FileDataset, FileMetaDataset
+    from pydicom.uid import UID, ExplicitVRLittleEndian, generate_uid
+
+    sop = {
+        "SR": "1.2.840.10008.5.1.4.1.1.88.11",
+        "KO": "1.2.840.10008.5.1.4.1.1.88.59",
+        "PR": "1.2.840.10008.5.1.4.1.1.11.1",
+        "SC": "1.2.840.10008.5.1.4.1.1.7",
+        "DICOMDIR": "1.2.840.10008.1.3.10",
+    }[kind]
+    meta = FileMetaDataset()
+    meta.MediaStorageSOPClassUID = UID(sop)
+    meta.MediaStorageSOPInstanceUID = generate_uid()
+    meta.TransferSyntaxUID = ExplicitVRLittleEndian
+    ds = FileDataset(os.fspath(path), {}, file_meta=meta, preamble=b"\0" * 128)
+    for tag, val in FAKE_PHI.items():
+        setattr(ds, tag, val)
+    ds.SOPClassUID = UID(sop)
+    ds.SOPInstanceUID = meta.MediaStorageSOPInstanceUID
+    ds.StudyInstanceUID = study_uid
+    ds.SeriesInstanceUID = generate_uid()
+    ds.Modality = {"SC": "OT", "DICOMDIR": "DICOMDIR"}.get(kind, kind)
+    ds.SeriesNumber = 99
+    if kind == "SC":  # RGB screenshot: a grey background with a text-like block burned in
+        ds.Rows, ds.Columns = 64, 96
+        ds.SamplesPerPixel = 3
+        ds.PhotometricInterpretation = "RGB"
+        ds.PlanarConfiguration = 0
+        ds.BitsAllocated, ds.BitsStored, ds.HighBit, ds.PixelRepresentation = 8, 8, 7, 0
+        ds.ImageType = ["DERIVED", "SECONDARY", "SCREEN SAVE"]
+        img = np.full((64, 96, 3), 40, dtype=np.uint8)
+        img[20:30, 10:86, :] = 230  # burned-in text line
+        ds.PixelData = img.tobytes()
+    if kind == "DICOMDIR":
+        ds.DirectoryRecordSequence = []
+    pydicom.dcmwrite(os.fspath(path), ds, enforce_file_format=True)
+    return os.fspath(path)
 
 
 def write_standard_study(

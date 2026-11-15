@@ -26,6 +26,12 @@ class Config:
     findings_numeric_rel_tol: float = 0.2
     # Item kinds from different readers are grouped when their normalised slugs have a difflib ratio >= this.
     findings_kind_min_similarity: float = 0.85
+    # Slice geometry (io). Spacing is judged against the median slice spacing: deviations above the
+    # relative tolerance make a series non-uniform, and a spacing of >= gap_factor x median is a gap
+    # (missing slice). Judgement defaults: well above DICOM position rounding (1e-3 mm), well below a
+    # missing slice (2 x spacing).
+    slice_spacing_rel_tol: float = 0.1
+    slice_gap_factor: float = 1.5
     # Rendering
     max_png_side_px: int = 2000
 
