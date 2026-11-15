@@ -24,6 +24,7 @@ class Config:
     canal_flank_offset_mm: float = 5.0  # flank windows sit this far beyond the core edge (outside the sac)
     canal_max_slope: float = 1.5  # max |dA/dS| of the canal centreline (mm/mm, ~56 deg from vertical)
     canal_min_contrast: float = 0.05  # ridge contrast (0..1 units) below which tissue is not CSF-like
+    canal_ap_fraction: tuple[float, float] = (0.45, 0.9)  # canal search band as a fraction of the AP field
     canal_min_length_mm: float = 25.0  # shortest canal track accepted as the spinal canal
     body_axis_offset_mm: tuple[float, float] = (18.0, 34.0)  # canal centre -> body centre, searched
     endplate_sigma_mm: float = 1.0  # smoothing of the dark endplate lines along the spine axis

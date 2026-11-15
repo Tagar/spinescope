@@ -172,6 +172,11 @@ def track_canal(sag: SagImage, polarity: int, cfg: Config = DEFAULT) -> CanalTra
     """
     r = ridge_response(sag, polarity, cfg)
     ns, na = r.shape
+    # Prior: a spine-centred field puts the thecal sac in the central AP part of the image (keeps
+    # anterior fat and bowel edges, which can be as ridge-like as the sac, out of the search).
+    frac_lo, frac_hi = cfg.canal_ap_fraction
+    keep = (np.arange(na) >= frac_lo * na) & (np.arange(na) <= frac_hi * na)
+    r = np.where(keep[None, :], r, -1.0)
     m = max(1, int(np.ceil(cfg.canal_max_slope)))
     d_acc = np.empty_like(r)
     back = np.full(r.shape, -1, dtype=np.int64)
