@@ -50,7 +50,6 @@ from .lumbosacral import (
     load_model as load_lumbosacral_model,
 )
 from .midline import MidlineChoice, pols_for, refine_midline_axial, select_midline
-from .ml.labeller import METHOD as METHOD_ML
 from .ml.labeller import SegmentedStack
 from .numbering import (
     DEFAULT_STATUS_THRESHOLDS,
