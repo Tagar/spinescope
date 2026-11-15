@@ -72,6 +72,9 @@
     },
     "applicability": {
       "$ref": "#/$defs/Applicability"
+    },
+    "quality": {
+      "$ref": "#/$defs/Quality"
     }
   },
   "$defs": {
@@ -707,6 +710,21 @@
           "items": {
             "$ref": "#/$defs/Correction"
           }
+        },
+        "quality_cap": {
+          "type": "object",
+          "properties": {
+            "from": {
+              "type": "string"
+            },
+            "to": {
+              "type": "string"
+            },
+            "reason": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": true
         }
       }
     },
@@ -828,6 +846,70 @@
         },
         "cues": {
           "type": "object"
+        }
+      }
+    },
+    "Quality": {
+      "type": "object",
+      "description": "Image quality and hardware flags (spinescope.anatomy.artifacts). Advisory detail; flags at or above the configured minimum cap the level and the numbering status. Empty when not assessed.",
+      "additionalProperties": true,
+      "properties": {
+        "method": {
+          "type": "string"
+        },
+        "study": {
+          "type": "object",
+          "properties": {
+            "score": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "flags": {
+              "type": "object"
+            }
+          },
+          "additionalProperties": true
+        },
+        "levels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "flags": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                }
+              },
+              "flagged": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "confidence": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              }
+            },
+            "additionalProperties": true
+          }
+        },
+        "caps": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
       }
     }

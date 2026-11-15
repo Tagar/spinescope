@@ -413,5 +413,39 @@ class Config:
     # blinded reference; no calibration possible). The cap holds its reported confidence until it is calibrated.
     conus_max_confidence: float = 0.5
 
+    # ---- image quality and hardware (anatomy/artifacts.py, lab31). Judgement defaults, relative to the
+    # study's own tissue intensity (never absolute signal units). Validated on the phantom suites and reviewed
+    # hits on SPIDER (docs/labeling/lab31_artifacts.md); not calibrated.
+    # A dark compact region (metal or blooming) is a void below this fraction of the tissue reference.
+    quality_void_fraction: float = 0.2
+    # Void size bounds, mm^2 in the sagittal plane (smaller: noise; larger: canal or whole-body dropout).
+    quality_void_area_mm2: tuple[float, float] = (4.0, 400.0)
+    # Rim contrast (dark bloom or bright pile-up) away from the reference, as a fraction of it.
+    quality_rim_deviation: float = 0.3
+    # Slices a void must appear in to count as hardware (a screw spans several sagittal slices).
+    quality_void_min_slices: int = 3
+    # A void must be at least this thick (mm, the largest inscribed disc): cortex and endplate lines are thinner.
+    quality_void_min_thickness_mm: float = 2.5
+    # Ghosting: prominence of the lag-autocorrelation peak of the residual along the phase axis (rows). Anatomy
+    # alone peaks at ~0.09 (its own vertebral period) on the phantom; a ghost gives ~0.24. Midpoint, judgement default.
+    quality_ghost_prominence: float = 0.15
+    # Wrap: an edge band (fraction of the rows) whose mean brightness is this many times the middle of the image.
+    quality_wrap_band_fraction: float = 0.08
+    quality_wrap_edge_ratio: float = 1.5
+    # Low SNR: tissue reference over background noise (robust sigma).
+    quality_min_snr: float = 8.0
+    # Bias field: 90th over 10th percentile of the tissue intensity along the anterior-posterior profile.
+    quality_bias_ratio: float = 2.0
+    # STIR fat suppression: subcutaneous rim over muscle; a rim at or above this ratio means fat is not suppressed.
+    quality_stir_fat_ratio: float = 0.6
+    # Flags at or above this confidence cap the affected levels (disc confidence) and the numbering status.
+    quality_flag_min_confidence: float = 0.5
+    # Only these flag kinds may cap. Motion ghosting: validated on the phantom, zero hits on SPIDER. Hardware (metal,
+    # fusion/cage), wrap and low SNR failed real-data review (docs/labeling/lab31_artifacts.md) and stay advisory:
+    # reported with their evidence and ``would_flag``, never capping and never in the score.
+    quality_capping_kinds: tuple[str, ...] = ("motion_ghost",)
+    # Cap on a flagged level's disc confidence (the raw calibrated value is kept in the evidence).
+    quality_disc_cap: float = 0.5
+
 
 DEFAULT = Config()

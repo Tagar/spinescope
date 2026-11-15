@@ -815,7 +815,24 @@ def label_spine_details(
             refresh_conus(det.anchors, cfg)  # level, low-lying flag and status factor in the final names
         else:
             _conus_after_labels(study, det.anchors, cfg)
+        _quality_stage(study, det.anchors, cfg)
     return det
+
+
+def _quality_stage(study: Study, anchors: Anchors, cfg: Config) -> None:
+    """Hardware and image-artefact flags (:mod:`.artifacts`), last: they cap what the labels cover, never the labels.
+
+    A failing detector adds a warning and leaves the labels and the status unchanged.
+    """
+    from .artifacts import apply_quality, assess_quality
+
+    try:
+        record = assess_quality(study, anchors, cfg)
+    except Exception as exc:  # the quality check is additional: it must never sink the labels
+        log.warning("image quality check failed: %s", exc)
+        anchors.warnings.append(f"image quality not assessed ({type(exc).__name__})")
+        return
+    apply_quality(anchors, record, cfg)
 
 
 def _conus_after_labels(study: Study, anchors: Anchors, cfg: Config) -> None:
