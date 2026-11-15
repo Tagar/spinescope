@@ -270,13 +270,52 @@ disc caps the status at `probable`. Without the packaged model the check reports
   were the remaining errors on SPIDER validation (not sacral) and on Sudirman and qx5rt.
 - The main residual failure is a missed sacral disc: the CNN scores it P(L5-S1) = 1.00 (5 of 120 Sudirman patients, 0 of
   87 SPIDER validation). The CNN has no reliable notion of "this is a sacral disc" beyond the training negatives.
-- Reliability target not met: wrong numbering stays `probable` on the external sets (12 of 13 Sudirman, 8 of 8 qx5rt).
-  The `unsure` branch rarely fires because the CNN is confident on most inputs.
+- Reliability: on the external sets wrong numbering stayed `probable` under calibration v1 (12 of 13 Sudirman, 8 of 8
+  qx5rt). Calibration v2 (lab18, section below) fixes most of this; the `unsure` branch still rarely fires because the
+  CNN is confident on most inputs.
 - Out of distribution (the phantom, and the qx5rt Philips sessions with P near 0 everywhere) the check abstains. That is
   the intended direction, not a validation result.
-- Not refitted: the volume calibration (`calibration_v1.json`) predates this check and the lab09 post-processing. The
-  check only caps the status; it does not change the calibrated confidence.
+- The volume calibration was refitted in lab18 (`calibration_v2.json`), and its features include this check's P(L5-S1)
+  margin (`lumbo_margin`). The check itself is unchanged.
 - No axial cues (iliac crest, transverse processes, sacral ala) are used.
+
+## Numbering calibration (lab18): `calibration_v2.json` (shipped, default)
+
+Confidence that the level names of a study are all right, and the status (`confirmed` / `probable` / `unconfirmed`)
+that a brief shows. Entry point: `spinescope.anatomy.calibration` (`load_calibration()` loads v2; `version=1` loads
+`calibration_v1.json`). Pipeline: `pipeline._finalise`. Report and protocol: `docs/labeling/lab18_reliability.md`.
+
+### Intended use and data
+
+- Same research-only scope as the labeller. The numbering status is the safety signal; the number is secondary.
+- Volume model fitted on SPIDER training (180 of 360, evenly spaced) plus Sudirman half A (120 of 240 patients). Held out:
+  SPIDER validation (87), Sudirman half B (120), qx5rt (55 sessions, CC BY-NC, research use). The disc model is the v1 disc
+  model, unchanged.
+- Inputs (all from the labeller's own outputs): the six v1 volume features (fused offset posterior, sacrum check, second
+  series, T1/T2 share, classical agreement, weakest disc) and two numbering signals: the lumbosacral CNN margin
+  (P(L5-S1) of the lowest candidate minus the best of the discs above it) and the spacing deviation of the lowest two
+  discs from the study median. Thresholds: out-of-fold predictions on the fit set; probable precision target 0.97.
+
+### Results (announced = confirmed or probable; wrong = numbering with a wrong level name)
+
+| held-out set | v1 announced precision (coverage) | v2 announced precision (coverage) | wrong announced, v1 -> v2 |
+|---|---|---|---|
+| SPIDER validation (87, 2 wrong) | 1.000 (0.98) | 1.000 (0.86) | 0 -> 0 |
+| Sudirman half B (120, 11 wrong) | 0.908 (1.00) | 0.986 (0.59) | 11 -> 1 |
+| qx5rt (55, 8 wrong) | 0.852 (0.98) | 0.972 (0.66) | 8 -> 1 |
+
+Confidence ECE / AUROC (numbering, volume level): Sudirman half B 0.087 / 0.83 (v1) -> 0.062 / 0.92 (v2); qx5rt
+0.160 / 0.60 -> 0.047 / 0.91; SPIDER validation 0.041 / 1.00 -> 0.064 / 1.00.
+
+### Limitations
+
+- `confirmed` is not reached: the labeller reports no S1 body at numbering time, and the confirmation cap needs bone below
+  the lowest disc. Every announced study is `probable`.
+- Coverage: on the external sets 34 to 41 % of studies move to `unconfirmed`, most of them correct. The probable target is
+  a policy choice; the selective curves in the lab18 report show the alternatives.
+- The top-chain errors (an extra or missed disc at the top of the chain) are not caught by any cue.
+- About 40 wrong numberings in total underlie the fit and evaluation sets; the numbers are indicative, not precise.
+- Feature choice was informed by looking at the external wrong cases (disclosed in the lab18 report, section 4.3).
 
 ## Attribution
 

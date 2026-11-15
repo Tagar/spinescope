@@ -46,11 +46,14 @@ from spinescope.anatomy._validate import (
 )
 from spinescope.anatomy.calibration import (
     DISC_FEATURES,
+    SIGNAL_FEATURES,
     VOLUME_FEATURES,
+    VOLUME_FEATURES_V2,
     Calibration,
     Logistic,
     calibration_path,
     choose_thresholds,
+    load_calibration,
 )
 from spinescope.anatomy.fusion import fusion_record
 from spinescope.anatomy.numbering import STATUS_CONFIRMED, STATUS_PROBABLE, numbering_status
@@ -162,6 +165,10 @@ def _record_common(det: Any, score: VolumeScore) -> dict[str, Any]:
         "transitional_candidate": bool(a.numbering.get("transitional_candidate", False)),
         "p_applied": float(fus.p_applied) if fus is not None else None,
         "fusion": fusion_record(fus) if fus is not None else None,
+        # version 2 (lab18): numbering signals and every named volume feature, plus the lumbosacral record
+        "signals": {k: float(v) for k, v in det.signals.items()},
+        "volume_feature_dict": {k: float(v) for k, v in det.volume_feature_dict.items()},
+        "lumbosacral": det.anchors.numbering.get("lumbosacral"),
     }
     return out
 
@@ -211,6 +218,41 @@ def _sudirman_record(job: tuple[str, str | None]) -> dict[str, Any]:
     return rec
 
 
+def _qx5rt_record(session: Any) -> dict[str, Any]:
+    """Worker: one qx5rt session (OSF multi-scanner set, never used for fitting), scored level-wise like Sudirman."""
+    from spinescope.anatomy._validate_qx5rt import score_levels, truth_discs, truth_levels
+    from spinescope.io.volumes import read_volume
+    from spinescope.study import from_stacks
+
+    rec: dict[str, Any] = {"id": session.key, "vendor": session.vendor, "error": None}
+    t0 = time.perf_counter()
+    try:
+        stack = read_volume(str(session.t1))
+        truths = truth_levels(session, stack)
+        det = label_spine_details(from_stacks([stack]), backend="ml", calibrate=False)
+        rows = score_levels(det.anchors, truths, session)
+        score = score_anchors(det.anchors, truth_discs(truths), None)
+        rec.update(_record_common(det, score))
+        rec["levels"] = [
+            {
+                "level": r.level,
+                "predicted": r.predicted,
+                "matched": r.matched,
+                "name_ok": r.name_ok,
+                "dist_mm": _finite(r.dist_mm),
+            }
+            for r in rows
+        ]
+    except Exception as exc:
+        rec["error"] = f"{type(exc).__name__}: {str(exc)[:200]}"
+    rec["elapsed_s"] = round(time.perf_counter() - t0, 2)
+    return rec
+
+
+def _safe_name(key: str) -> str:
+    return "".join(ch if ch.isalnum() or ch in "-_" else "_" for ch in key)
+
+
 def _run_jobs(fn: Any, jobs: list[Any], workers: int) -> Iterator[dict[str, Any]]:
     """Yield the records in job order as they complete (so an interrupted run keeps what it finished)."""
     if workers <= 1:
@@ -223,6 +265,17 @@ def _run_jobs(fn: Any, jobs: list[Any], workers: int) -> Iterator[dict[str, Any]
 
 def cmd_collect(args: argparse.Namespace) -> int:
     out = Path(args.out)
+    if args.qx5rt:
+        from spinescope.anatomy._validate_qx5rt import discover
+
+        cache = out / "qx5rt"
+        cache.mkdir(parents=True, exist_ok=True)
+        sessions = discover(None)
+        todo = [s for s in sessions if not (cache / f"{_safe_name(s.key)}.json").is_file()]
+        log.info("qx5rt: %d sessions, %d to run", len(sessions), len(todo))
+        for rec in _run_jobs(_qx5rt_record, todo, args.jobs):
+            (cache / f"{_safe_name(rec['id'])}.json").write_text(json.dumps(rec), encoding="utf-8")
+        return 0
     if args.sudirman:
         cache = out / "sudirman"
         from spinescope.datasets.sudirman import labelled_patients
@@ -512,6 +565,232 @@ def cmd_fit(args: argparse.Namespace) -> int:
     return 0
 
 
+# ---------------------------------------------------------------- version 2 protocol (lab18)
+
+#: Candidate volume feature sets for the version 2 model. Chosen by out-of-fold log-loss on the fit set only.
+V2_CANDIDATES: dict[str, tuple[str, ...]] = {
+    "v1_six": VOLUME_FEATURES,
+    "v1+lumbo_margin": (*VOLUME_FEATURES, "lumbo_margin"),
+    "v1+gap_dev": (*VOLUME_FEATURES, "gap_bottom_dev"),
+    "v1+margin+gap": VOLUME_FEATURES_V2,
+    "all_signals": (*VOLUME_FEATURES, *SIGNAL_FEATURES),
+}
+V2_L2_GRID: tuple[float, ...] = (0.1, 1.0, 3.0)
+V2_FOLDS = 5
+
+
+def _patient_key(rec: dict[str, Any]) -> tuple[int, str]:
+    head = str(rec["id"]).split("_")[0]
+    return (int(head) if head.isdigit() else 10**9, str(rec["id"]))
+
+
+def _v2_sets() -> tuple[list[dict[str, Any]], dict[str, list[dict[str, Any]]]]:
+    """(fit set, evaluation sets). Fit: SPIDER training subset + Sudirman half A (sorted by id, even index).
+
+    Evaluation: SPIDER validation, Sudirman half B and qx5rt. Nothing is selected on the evaluation sets.
+    """
+    out = Path(_V2_OUT[0])
+    train = _load(out / "training")
+    subset_file = out / "training_subset.json"
+    if subset_file.is_file():
+        keep = set(json.loads(subset_file.read_text(encoding="utf-8")))
+        train = [r for r in train if r["id"] in keep]
+    sud = sorted(_sudirman_as_matches(_load(out / "sudirman")), key=_patient_key)
+    half_a = [r for i, r in enumerate(sud) if i % 2 == 0]
+    half_b = [r for i, r in enumerate(sud) if i % 2 == 1]
+    fit = sorted(train, key=_patient_key) + half_a
+    evals = {
+        "spider_validation": _load(out / "validation"),
+        "sudirman_half_b": half_b,
+        "qx5rt": _sudirman_as_matches(_load(out / "qx5rt")),
+    }
+    return fit, evals
+
+
+_V2_OUT: list[str] = [""]
+
+
+def _v2_x(recs: list[dict[str, Any]], names: tuple[str, ...]) -> np.ndarray:
+    return np.asarray([[float(r["volume_feature_dict"][k]) for k in names] for r in recs], dtype=np.float64)
+
+
+def _v2_y(recs: list[dict[str, Any]]) -> np.ndarray:
+    return np.asarray([1.0 if r["numbering_correct"] else 0.0 for r in recs], dtype=np.float64)
+
+
+def _v2_oof(recs: list[dict[str, Any]], names: tuple[str, ...], l2: float) -> np.ndarray:
+    """Out-of-fold P(numbering correct) on the fit set (fold = position mod V2_FOLDS in the sorted fit set)."""
+    out = np.zeros(len(recs))
+    for f in range(V2_FOLDS):
+        te = [i for i in range(len(recs)) if i % V2_FOLDS == f]
+        tr = [i for i in range(len(recs)) if i % V2_FOLDS != f]
+        model = Logistic.fit(_v2_x([recs[i] for i in tr], names), _v2_y([recs[i] for i in tr]), names, l2=l2)
+        out[te] = model.predict(_v2_x([recs[i] for i in te], names))
+    return out
+
+
+def _logloss(p: np.ndarray, y: np.ndarray) -> float:
+    q = np.clip(p, 1e-6, 1 - 1e-6)
+    return float(-np.mean(y * np.log(q) + (1 - y) * np.log(1 - q)))
+
+
+def _v2_curve(recs: list[dict[str, Any]], conf: np.ndarray, grid: tuple[float, ...]) -> list[dict[str, Any]]:
+    """Selective prediction: announced (confidence >= t) studies, their coverage and fraction fully correct."""
+    ok = _v2_y(recs).astype(bool)
+    rows = []
+    for t in grid:
+        sel = conf >= t
+        n = int(sel.sum())
+        rows.append(
+            {
+                "threshold": t,
+                "announced": n,
+                "coverage": round(n / len(recs), 3) if recs else None,
+                "precision": round(float(ok[sel].mean()), 3) if n else None,
+                "wrong_announced": int((~ok[sel]).sum()) if n else 0,
+            }
+        )
+    return rows
+
+
+def _v2_status_block(recs: list[dict[str, Any]], conf: np.ndarray, thr: dict[str, float]) -> dict[str, Any]:
+    st = [_capped_status(r, float(c), thr) for r, c in zip(recs, conf, strict=True)]
+    ok = _v2_y(recs).astype(bool)
+    arr = np.asarray(st)
+    announced = np.isin(arr, [STATUS_CONFIRMED, STATUS_PROBABLE])
+    block = _volume_block(recs, [float(c) for c in conf])
+    block.update(
+        {
+            "announced": int(announced.sum()),
+            "announced_coverage": round(float(announced.mean()), 3) if recs else None,
+            "announced_precision": round(float(ok[announced].mean()), 3) if announced.any() else None,
+            "wrong_labelled_probable": int(((arr == STATUS_PROBABLE) & ~ok).sum()),
+            "wrong_labelled_confirmed": int(((arr == STATUS_CONFIRMED) & ~ok).sum()),
+            "wrong_unconfirmed": int(((arr == "unconfirmed") & ~ok).sum()),
+            "n_wrong": int((~ok).sum()),
+        }
+    )
+    return block
+
+
+def _disc_block(recs: list[dict[str, Any]], disc: Logistic | None) -> dict[str, Any]:
+    scores = []
+    for r in recs:
+        matches = []
+        for m in r["matches"]:
+            feats = r["disc_features"].get(m["pred"])
+            if feats is None:
+                continue
+            p = (
+                float(disc.predict(np.asarray(feats))[0])
+                if disc is not None
+                else float(r["raw_disc_confidence"][m["pred"]])
+            )
+            matches.append(DiscMatch(**{**m, "pred_confidence": p}))
+        scores.append(
+            VolumeScore(n_truth=1, n_pred=1, matched=len(matches), label_correct=0, matches=matches)
+        )
+    rel = reliability(scores, n_bins=10)
+    return {
+        "n": int(rel["n"]),
+        "ece": round(float(rel["ece"]), 4),
+        "auroc": None if rel["auroc"] is None else round(float(rel["auroc"]), 4),
+    }
+
+
+def cmd_fit_v2(args: argparse.Namespace) -> int:
+    """Version 2 protocol: fit on SPIDER training + Sudirman half A, select on that set only, then report.
+
+    1. candidates (volume feature sets x L2 grid) by 5-fold out-of-fold log-loss inside the fit set;
+    2. thresholds for confirmed/probable from the out-of-fold predictions of the chosen candidate;
+    3. disc calibrator: the v1 disc model is shipped unchanged. A refit on the fit set (same features, L2 = 1) is
+       reported for the record only: it lowered SPIDER validation disc AUROC (see docs/labeling/lab18_reliability.md);
+    4. one evaluation of every set: SPIDER validation, Sudirman half B, qx5rt (before = v1 calibration).
+    """
+    _V2_OUT[0] = args.out
+    out = Path(args.out)
+    fit, evals = _v2_sets()
+    if not fit:
+        log.error("no fit records under %s", out)
+        return 2
+    y_fit = _v2_y(fit)
+    cands: dict[str, Any] = {}
+    best: tuple[float, str, float] | None = None
+    for cname, names in V2_CANDIDATES.items():
+        for l2 in V2_L2_GRID:
+            p = _v2_oof(fit, names, l2)
+            ll = _logloss(p, y_fit)
+            cands[f"{cname}|l2={l2:g}"] = {"oof_logloss": round(ll, 4), "oof_auroc": _auc(p, y_fit)}
+            if best is None or ll < best[0]:
+                best = (ll, cname, l2)
+    assert best is not None
+    _, chosen, l2 = best
+    names = V2_CANDIDATES[chosen]
+    p_oof = _v2_oof(fit, names, l2)
+    thr = choose_thresholds(p_oof, y_fit)
+    volume = Logistic.fit(_v2_x(fit, names), y_fit, names, l2=l2)
+    Xd, yd = _disc_xy(fit)
+    disc = Logistic.fit(Xd, yd, DISC_FEATURES)
+    v1 = load_calibration(version=1)
+    assert v1 is not None, "calibration_v1.json is needed as the 'before' reference"
+    cal = Calibration(
+        disc=v1.disc,
+        volume=volume,
+        thresholds=thr,
+        source=f"volume: SPIDER training + Sudirman half A ({len(fit)} studies, lab18 protocol); disc: v1 (unchanged)",
+        version=2,
+    )
+    report: dict[str, Any] = {
+        "fit": {"studies": len(fit), "wrong": int((y_fit == 0).sum()), "candidates": cands},
+        "selected": {"set": chosen, "names": list(names), "l2": l2},
+        "thresholds_oof": thr,
+        "volume_weights": dict(zip(names, [round(w, 4) for w in volume.weights], strict=True)),
+        "volume_bias": round(volume.bias, 4),
+        "disc_refit_not_shipped_weights": dict(
+            zip(DISC_FEATURES, [round(w, 4) for w in disc.weights], strict=True)
+        ),
+        "scored_by": "spinescope.anatomy._validate.reliability (ECE, AUROC); fixed thresholds from the fit set",
+        "sets": {},
+    }
+    grid = tuple(round(x, 2) for x in np.arange(0.5, 1.0001, 0.05))
+    for name, recs in evals.items():
+        if not recs:
+            continue
+        conf_v1 = np.asarray([float(v1.volume.predict(np.asarray(r["volume_features"]))[0]) for r in recs])
+        st_v1 = [_capped_status(r, float(c), v1.thresholds) for r, c in zip(recs, conf_v1, strict=True)]
+        conf_v2 = cal.volume.predict(_v2_x(recs, names))
+        before = _v2_status_block(recs, conf_v1, v1.thresholds)
+        after = _v2_status_block(recs, conf_v2, thr)
+        report["sets"][name] = {
+            "studies": len(recs),
+            "numbering_correct_rate": round(float(_v2_y(recs).mean()), 4),
+            "before_v1": before,
+            "after_v2": after,
+            "disc_shipped_v1": _disc_block(recs, v1.disc),
+            "disc_refit_not_shipped": _disc_block(recs, disc),
+            "curve_v1": _v2_curve(recs, conf_v1, grid),
+            "curve_v2": _v2_curve(recs, conf_v2, grid),
+            "status_v1": {s: st_v1.count(s) for s in sorted(set(st_v1))},
+        }
+    (out / "calibration_report_v2.json").write_text(json.dumps(report, indent=1), encoding="utf-8")
+    print(json.dumps(report, indent=1))
+    if args.write:
+        cal.save(calibration_path(2))
+        log.info("wrote %s", calibration_path(2))
+    return 0
+
+
+def _auc(p: np.ndarray, y: np.ndarray) -> float | None:
+    from scipy.stats import rankdata
+
+    ok = y.astype(bool)
+    if ok.all() or (~ok).all():
+        return None
+    r = rankdata(p)
+    npos, nneg = int(ok.sum()), int((~ok).sum())
+    return round(float((r[ok].sum() - npos * (npos + 1) / 2) / (npos * nneg)), 4)
+
+
 def _round(v: Any) -> Any:
     if isinstance(v, float):
         return round(v, 4)
@@ -524,6 +803,7 @@ def build_parser() -> argparse.ArgumentParser:
     c = sub.add_parser("collect", help="run the pipeline and cache per-patient records")
     c.add_argument("--split", default="training", choices=("training", "validation"))
     c.add_argument("--sudirman", action="store_true")
+    c.add_argument("--qx5rt", action="store_true", help="OSF qx5rt multi-scanner set (research use only)")
     c.add_argument("--limit", type=int, default=0)
     c.add_argument("--out", required=True)
     c.add_argument("--jobs", type=int, default=3)
@@ -532,6 +812,12 @@ def build_parser() -> argparse.ArgumentParser:
     f.add_argument("--out", required=True)
     f.add_argument("--write", action="store_true", help="write the packaged calibration_v1.json")
     f.set_defaults(func=cmd_fit)
+    v = sub.add_parser(
+        "fit-v2", help="version 2 protocol: fit on SPIDER training + Sudirman half A, report the rest"
+    )
+    v.add_argument("--out", required=True)
+    v.add_argument("--write", action="store_true", help="write calibration_v2.json")
+    v.set_defaults(func=cmd_fit_v2)
     return p
 
 
