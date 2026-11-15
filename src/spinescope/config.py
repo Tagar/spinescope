@@ -28,6 +28,13 @@ class Config:
     findings_kind_min_similarity: float = 0.85
     # Rendering
     max_png_side_px: int = 2000
+    # Viewer reformats (planes computed in the browser from the best volume when a plane is missing).
+    # Largest matrix side of a reformat; keeps browser resampling interactive (typical sources: 128-256).
+    viewer_mpr_max_dim: int = 320
+    # Fraction of the study's body box a source must cover to be used for a reformat (measured on the data).
+    viewer_mpr_min_coverage: float = 0.05
+    # Sources within this coverage of the best are tie-broken by contrast preference, then resolution.
+    viewer_mpr_coverage_tie: float = 0.05
 
 
 DEFAULT = Config()
