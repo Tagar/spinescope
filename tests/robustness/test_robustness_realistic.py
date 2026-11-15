@@ -134,76 +134,9 @@ REALISTIC_XFAIL_LABELLED: dict[str, str] = {
     ),
 }
 
-REALISTIC_XFAIL_SILENT: dict[str, str] = {
-    "baseline": (
-        "learned labeller on the realistic phantom: silent_error: recall 1.00, precision 0.75, "
-        "label accuracy 0.67, centre p90 1.8 mm, numbering confidence 0.93 "
-    ),
-    "t2_only": (
-        "learned labeller on the realistic phantom: silent_error: recall 1.00, precision 0.75, "
-        "label accuracy 0.67, centre p90 1.8 mm, numbering confidence 0.95 "
-    ),
-    "t1_only": (
-        "learned labeller on the realistic phantom: silent_error: recall 1.00, precision 0.75, "
-        "label accuracy 0.67, centre p90 1.5 mm, numbering confidence 0.95 "
-    ),
-    "iso_1mm_3d": (
-        "learned labeller on the realistic phantom: silent_error: recall 1.00, precision 0.71, "
-        "label accuracy 0.60, centre p90 6.0 mm, numbering confidence 0.52 "
-    ),
-    "thick_6mm": (
-        "learned labeller on the realistic phantom: silent_error: recall 1.00, precision 0.60, "
-        "label accuracy 0.50, centre p90 3.0 mm, numbering confidence 0.50 "
-    ),
-    "few_slices_7": (
-        "learned labeller on the realistic phantom: silent_error: recall 1.00, precision 0.75, "
-        "label accuracy 0.67, centre p90 2.0 mm, numbering confidence 0.96 "
-    ),
-    "field_3T": (
-        "learned labeller on the realistic phantom: silent_error: recall 1.00, precision 0.75, "
-        "label accuracy 0.67, centre p90 1.4 mm, numbering confidence 0.97 "
-    ),
-    "fov_T10_sacrum": (
-        "learned labeller on the realistic phantom: silent_error: recall 1.00, precision 0.64, "
-        "label accuracy 0.44, centre p90 1.4 mm, numbering confidence 0.91 "
-    ),
-    "fov_L2_S1": (
-        "learned labeller on the realistic phantom: silent_error: recall 1.00, precision 0.80, "
-        "label accuracy 0.75, centre p90 1.7 mm, numbering confidence 0.94 "
-    ),
-    "fov_L1_coccyx": (
-        "learned labeller on the realistic phantom: silent_error: recall 1.00, precision 0.62, "
-        "label accuracy 0.60, centre p90 1.4 mm, numbering confidence 0.54 "
-    ),
-    "sacralised_L5": (
-        "learned labeller on the realistic phantom: silent_error: recall 1.00, precision 0.75, "
-        "label accuracy 0.67, centre p90 1.9 mm, numbering confidence 0.95 "
-    ),
-    "dark_discs": (
-        "learned labeller on the realistic phantom: silent_error: recall 1.00, precision 0.75, "
-        "label accuracy 0.67, centre p90 2.1 mm, numbering confidence 0.97 "
-    ),
-    "collapsed_discs": (
-        "learned labeller on the realistic phantom: silent_error: recall 1.00, precision 0.75, "
-        "label accuracy 0.67, centre p90 2.5 mm, numbering confidence 0.92 "
-    ),
-    "compression_fracture_L2": (
-        "learned labeller on the realistic phantom: silent_error: recall 1.00, precision 0.75, "
-        "label accuracy 0.67, centre p90 1.9 mm, numbering confidence 0.95 "
-    ),
-    "schmorl_nodes": (
-        "learned labeller on the realistic phantom: silent_error: recall 1.00, precision 0.75, "
-        "label accuracy 0.67, centre p90 1.8 mm, numbering confidence 0.93 "
-    ),
-    "scoliosis": (
-        "learned labeller on the realistic phantom: silent_error: recall 1.00, precision 0.86, "
-        "label accuracy 0.83, centre p90 2.5 mm, numbering confidence 0.97 "
-    ),
-    "bias_field": (
-        "learned labeller on the realistic phantom: silent_error: recall 1.00, precision 0.75, "
-        "label accuracy 0.67, centre p90 1.8 mm, numbering confidence 0.97 "
-    ),
-}
+# Since numbering calibration v2 (lab18) every wrong result on the realistic phantom comes out "unconfirmed",
+# so no scenario has a silent error any more; keep the table for future regressions.
+REALISTIC_XFAIL_SILENT: dict[str, str] = {}
 
 
 @functools.cache
