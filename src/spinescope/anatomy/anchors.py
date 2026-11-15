@@ -124,6 +124,8 @@ class Anchors:
     method: str = ""
     source_stack: str = ""
     warnings: list[str] = field(default_factory=list)
+    # Applicability record (spinescope.anatomy.ood): verdict, region, labelled, factor, coverage, cues. Additive.
+    applicability: dict[str, Any] = field(default_factory=dict)
     schema_version: str = SCHEMA_VERSION
 
     # ---------------------------------------------------------------- queries

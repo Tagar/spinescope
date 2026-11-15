@@ -38,6 +38,7 @@ from .calibration import disc_feature_rows, load_calibration, volume_feature_vec
 from .column import DiscFit, Segment, chain_lines, conus_tip, endplate_profile, find_lines, fit_disc
 from .fusion import FusionResult, fuse_numbering, fusion_record, relabel_anchors, stack_z_range
 from .midline import MidlineChoice, pols_for, refine_midline_axial, select_midline
+from .ml.labeller import SegmentedStack
 from .numbering import (
     DEFAULT_STATUS_THRESHOLDS,
     STATUS_CONFIRMED,
@@ -48,6 +49,7 @@ from .numbering import (
     sacrum_check,
     vertebra_name,
 )
+from .ood import apply_applicability, assess_applicability
 from .sagittal import BodyAxis, CanalTrack, SagImage, build_body_axis, sagittal_image, straighten, track_canal
 
 log = logging.getLogger(__name__)
@@ -333,6 +335,7 @@ class LabelDetails:
     fusion: FusionResult | None = None
     calibrated: bool = False
     unfused: Anchors | None = None  # the primary's anchors before the numbering was fused (for evaluation)
+    status_thresholds: dict[str, float] | None = None  # thresholds the numbering status was computed with
 
 
 def _label_classical(study: Study, cfg: Config) -> Anchors:
@@ -489,6 +492,7 @@ def _finalise(study: Study, primary: Anchors, kind: str, cfg: Config, calibrate:
         thresholds = DEFAULT_STATUS_THRESHOLDS
         warn.append("numbering confidence is uncalibrated (no calibration for this backend)")
     status = numbering_status(conf_num, thresholds)
+    det.status_thresholds = thresholds
     status = _apply_status_caps(
         status,
         sacrum_below=sacrum_below,
@@ -534,13 +538,19 @@ def label_spine_details(
         if backend == "classical":
             log.warning("learned labeller unavailable (pip install onnxruntime); using the classical backend")
     cfg = config or DEFAULT
+    seg: SegmentedStack | None = None
     if backend == "ml":
-        from .ml import label_spine_ml
+        from .ml import label_spine_ml_segmented
 
-        primary = label_spine_ml(study, cfg)
-        return _finalise(study, primary, "ml", cfg, calibrate)
-    primary = _label_classical(study, cfg)
-    return _finalise(study, primary, "classical", cfg, calibrate)
+        primary, seg = label_spine_ml_segmented(study, cfg)
+        det = _finalise(study, primary, "ml", cfg, calibrate)
+    else:
+        primary = _label_classical(study, cfg)
+        det = _finalise(study, primary, "classical", cfg, calibrate)
+    # Applicability: when not to label (wrong region, unusable field of view, unseen input). Additive; see ood.py.
+    app = assess_applicability(study, det.anchors, seg=seg, cfg=cfg)
+    apply_applicability(det.anchors, app, thresholds=det.status_thresholds)
+    return det
 
 
 def label_spine(study: Study, config: Config | None = None, *, backend: str = "auto") -> Anchors:
