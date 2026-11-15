@@ -136,6 +136,20 @@ class Config:
     # Low-lying conus: tip below the L2-L3 disc (Wilson & Prince, AJNR 1989; L3 is indeterminate there).
     conus_low_lying_disc: str = "L2-L3"
     conus_low_lying_min_confidence: float = 0.6  # below this the flag is worded as unconfirmed
+    # ---- conus v2 (lab26): sac slices, tracking from the top, second-contrast check. Judgement unless noted.
+    conus_sac_area_frac: float = 0.6  # sagittal slices whose canal area is at least this share of the largest
+    conus_max_slices: int = 5  # sac slices analysed, nearest the mid-sagittal plane first
+    conus_min_agree_share: float = (
+        0.5  # at most this share of sac-slice tips agreeing with the interpolated tip: not located
+    )
+    conus_bridge_mm: float = 3.0  # non-cord gaps shorter than this are bridged while tracking the cord down
+    conus_stop_mm: float = 8.0  # a non-cord span this long ends the cord (width collapsed to roots and filum)
+    conus_cross_contrast: bool = (
+        True  # also locate the conus on a second sagittal contrast (T1 with T2) if present
+    )
+    conus_xc_agree_factor: float = 1.0  # confidence factor: second contrast agrees within conus_agree_mm
+    conus_xc_disagree_factor: float = 0.5  # second contrast disagrees
+    conus_xc_absent_factor: float = 0.9  # no second contrast in the study
     disc_match_mm: float = 6.0  # tolerance when matching discs between two sagittal series
     # Mid-sagittal plane by mirror symmetry (spinescope.anatomy.midline_robust). Mirror pairs of sagittal
     # slices at x0 +- d are compared; the symmetry axis is the midline. Lengths in mm.
@@ -383,8 +397,8 @@ class Config:
     spinous_smooth_mm: float = 1.0
     spinous_edge_per_mm: float = 0.03
 
-    # Conus locator is experimental (no ground truth; a 60-case AI visual audit could not verify most tips):
-    # cap its reported confidence until it is calibrated.
+    # Conus locator stays experimental (lab26_conus_v2: 0 of 15 located tips within half a vertebra on the
+    # blinded reference; no calibration possible). The cap holds its reported confidence until it is calibrated.
     conus_max_confidence: float = 0.5
 
 

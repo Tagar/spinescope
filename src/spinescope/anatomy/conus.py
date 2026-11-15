@@ -3,26 +3,30 @@
 Inputs: the sagittal study (T2 preferred, then STIR, then T1), the learned canal segmentation
 (:mod:`spinescope.anatomy.ml`, public ``segment_stack``) and the disc / vertebra anchors for the level name.
 
-Method (all geometry in LPS mm, samples on the network's 1 mm plane grid):
+Method v2 (lab26, see docs/labeling/lab26_conus_v2.md). All geometry in LPS mm on the 1 mm plane grid:
 
-1. Midline slice from the canal area (``mid_sagittal``). Sagittal slices within
-   ``Config.conus_slice_halfwidth_mm`` of it are analysed separately.
-2. Canal centreline per slice: the middle of the canal mask in each row (largest component),
-   median-smoothed along the canal. Half-width of the canal per row from the same mask.
-3. Profiles across the canal: a "core" (samples within ``conus_core_half_mm`` of the centreline, where
-   the cord is) and a "CSF flank" (samples from ``conus_flank_inner_frac`` of the half-width outwards).
-   Cord-likeness per row: ``1 - core/CSF`` on T2/STIR (CSF bright, cord darker); ``1 - CSF/core`` on T1
-   (CSF dark, cord brighter).
-4. Cord-like rows are median-filtered along z; the longest run of at least ``conus_min_run_mm`` gives the
-   cord, and its inferior end is the conus tip. A run that reaches the lowest canal row in the field of
-   view means the tip lies at or below the field of view.
-5. Slices agreeing with the median tip (within ``conus_agree_mm``) give the position; confidence is the
-   per-slice contrast and run length, times the agreeing share of slices, times the numbering-status factor.
-6. Level: the disc whose margin contains the tip, else the vertebra between two discs (position: upper,
-   middle or lower third of its body). Low-lying flag: tip below the L2-L3 disc (Wilson & Prince, AJNR 1989).
+1. Sac slices: every sagittal slice of the segmented stack is scored by its canal area. The sac's mid-portion
+   lies on the slices whose canal area is at least ``conus_sac_area_frac`` of the largest (the mid-sagittal
+   plane is the canal-area median, :func:`spinescope.anatomy.ml.postprocess.mid_sagittal`).
+2. Interpolation: the cord evidence of the two sac slices that bracket the mid-sagittal plane is blended by
+   their distance to that plane, so the tracking runs on one profile at the plane itself. Each sac slice is also
+   tracked on its own, for the consistency vote.
+3. Cord evidence per row: the canal centreline and half-width; core (cord, within ``conus_core_half_mm``) against
+   CSF flank (from ``conus_flank_inner_frac`` of the half-width outwards), window-relative. Cord-like rows need
+   the CSF bright on T2/STIR (dark on T1) and a contrast above ``conus_cord_contrast_min``.
+4. Tracking from the top: the first cord run (at least ``conus_min_run_mm``) is followed caudally. Gaps up to
+   ``conus_bridge_mm`` are bridged; the cord ends where a non-cord span reaches ``conus_stop_mm`` (cord width
+   collapses to roots and filum). Reaching the lowest canal row means the tip is a lower bound (``fov_end``).
+5. Consistency: the tip of the interpolated profile must agree (within ``conus_agree_mm``) with the sac slices'
+   own tips; with a second sagittal contrast in the study (T1 next to T2), its tip must agree too.
+6. Level: the disc whose margin contains the tip, else the vertebra between two discs (position: upper, middle or
+   lower third of its body). Low-lying flag: tip below the L2-L3 disc (Wilson & Prince, AJNR 1989).
+7. Confidence: cord contrast and run length, times the agreeing share of sac slices, times the cross-contrast and
+   numbering-status factors. Not calibrated: on the lab26 reference no tip was within half a vertebra
+   (docs/labeling/lab26_conus_v2.md), so the conus stays experimental.
 
-The result is judgement-based (no conus ground truth exists in the datasets used here); thresholds live
-in :class:`spinescope.config.Config` with their sources. See docs/labeling/lab16_conus.md.
+Thresholds live in :class:`spinescope.config.Config` with their sources. The v1 slice-by-slice method is
+documented in docs/labeling/lab16_conus.md.
 """
 
 from __future__ import annotations
@@ -47,7 +51,7 @@ from .numbering import VERTEBRA_NAMES
 log = logging.getLogger(__name__)
 
 FloatArray = NDArray[np.float64]
-METHOD = "conus/1 cord-in-thecal-sac profiles on the learned canal mask; level from disc anchors"
+METHOD = "conus/2 cord tracked caudally in the thecal sac over bracketing sac slices; T1/T2 consistency; level from disc anchors"
 #: Sequence preference for the conus: CSF bright on T2 and STIR, dark on T1.
 CONUS_CONTRAST_ORDER = ("t2", "stir", "t1")
 #: Low-lying threshold reference (Wilson & Prince 1989, AJNR 10(2):259): tip at or below L3 is abnormal-to-indeterminate.
@@ -56,14 +60,15 @@ LOW_LYING_REFERENCE = "Wilson & Prince, AJNR 1989; Saifuddin et al., Spine 1998 
 
 @dataclass
 class SliceTip:
-    """Cord tip on one sagittal slice."""
+    """Cord tip on one sagittal slice (or on the interpolated profile at the mid-sagittal plane)."""
 
-    k: int
+    k: int  # -1 for the interpolated profile
     z: float
     xyz: FloatArray
     confidence: float
     run_mm: float
     reached_fov_end: bool
+    score: float = 0.0  # mean cord contrast along the run (0..1 window-relative scale)
 
 
 @dataclass
@@ -85,6 +90,8 @@ class ConusResult:
     contrast: str = ""
     evidence: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
+    cross_z: float | None = None  # tip on a second sagittal contrast, when the study has one
+    cross_contrast: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         """Plain dict for ``Anchors.conus`` (JSON-safe; no file paths, no patient data)."""
@@ -103,8 +110,24 @@ class ConusResult:
             "slices": self.n_slices,
             "agreeing_slices": self.n_agree,
             "contrast": self.contrast,
+            "cross_contrast": self.cross_contrast or None,
+            "cross_z": None if self.cross_z is None else round(float(self.cross_z), 2),
             "evidence": list(self.evidence),
         }
+
+
+@dataclass
+class _Evidence:
+    """Cord evidence of one sagittal slice, on the rows of its canal (superior first, z descending)."""
+
+    k: int
+    x: float  # LPS x of the slice plane
+    z: FloatArray  # mm, descending
+    y: FloatArray  # LPS y of the canal centreline per row
+    lps: FloatArray  # (N, 3) LPS of the canal centreline per row (for the tip position)
+    score: FloatArray  # cord-likeness per row (NaN where the canal is absent)
+    csf_ok: NDArray[np.bool_]  # CSF in the expected half of the window
+    half_mm: FloatArray  # canal half-width per row
 
 
 # ------------------------------------------------------------------------------ slice analysis
@@ -133,15 +156,16 @@ def _longest_run(flags: NDArray[np.bool_], min_len: int) -> tuple[int, int] | No
     return best
 
 
-def _slice_tip(
+def _slice_evidence(
     grid_probs: NDArray[np.float32],
     grid: PlaneGrid,
     img: NDArray[np.float32],
+    x_plane: float,
     polarity: int,
     window: tuple[float, float],
     cfg: Config,
-) -> SliceTip | None:
-    """Cord tip on one slice from its canal probabilities (``grid_probs``) and resampled image."""
+) -> _Evidence | None:
+    """Cord-likeness per canal row on one slice; None when the canal is too short to analyse."""
     res = cfg.ml_resolution_mm
     mask = _largest_component(grid_probs >= cfg.ml_prob_threshold)
     rows = np.flatnonzero(mask.any(axis=1))
@@ -154,7 +178,7 @@ def _slice_tip(
     h_r = np.interp(r_idx, rows, (0.5 * (last - first + 1) * res)[rows])
     m = max(1, round(cfg.conus_smooth_mm / res))
     c_r = ndimage.median_filter(c_r, size=m, mode="nearest")
-    # Profiles: offsets across the canal in mm, sampled bilinearly on the slice image.
+    # Profiles across the canal, in mm, bilinear on the slice image.
     half_max = float(np.max(h_r))
     offs = np.arange(-half_max, half_max + 0.5 * res, res)
     cols = c_r[:, None] + offs[None, :] / res
@@ -170,7 +194,7 @@ def _slice_tip(
     has_flank = flank_m.any(axis=1)
     flank[has_flank] = np.nanmedian(np.where(flank_m, vals, np.nan)[has_flank], axis=1)
     # Window-relative levels (0 = window floor, 1 = window top): the volumes carry offsets, so ratios of raw
-    # values are meaningless. The floor is the background; cord and CSF are measured above it.
+    # values are meaningless.
     lo, hi = window
     span = max(float(hi) - float(lo), 1e-6)
     core_rel = (core - lo) / span
@@ -182,31 +206,246 @@ def _slice_tip(
     else:  # T1: CSF dark, cord brighter than CSF
         score = 1.0 - np.maximum(flank_rel, eps) / np.maximum(core_rel, eps)
         csf_ok = flank_rel <= cfg.conus_csf_min_rel
-    cord = (np.nan_to_num(score, nan=-1.0) >= cfg.conus_cord_contrast_min) & np.nan_to_num(csf_ok, nan=False)
-    cord = ndimage.median_filter(cord.astype(np.uint8), size=m, mode="nearest").astype(bool)
-    run = _longest_run(cord, round(cfg.conus_min_run_mm / res))
-    if run is None:
+    xyz = np.asarray(grid.lps_of_index(r_idx.astype(np.float64), c_r), dtype=np.float64)
+    if not np.all(np.isfinite(xyz)):
         return None
-    i0, i1 = run
-    run_mm = (i1 - i0 + 1) * res
-    mean_score = float(np.nanmean(score[i0 : i1 + 1]))
-    contrast_term = float(np.clip(mean_score / (2.0 * cfg.conus_cord_contrast_min), 0.0, 1.0))
-    length_term = float(np.clip(run_mm / cfg.conus_full_run_mm, 0.0, 1.0))
-    conf = contrast_term * (0.5 + 0.5 * length_term)
-    row_end = int(r_idx[i1])
-    col_end = float(c_r[i1])
-    xyz = np.asarray(grid.lps_of_index(float(row_end), col_end), dtype=np.float64)
-    if not np.all(np.isfinite(xyz)):  # a tip outside the grid: no position, so it cannot vote on the conus
-        return None
-    reached = i1 >= len(r_idx) - 1 - round(2.0 / res)
-    return SliceTip(
+    return _Evidence(
         k=int(grid.k),
-        z=float(xyz[2]),
-        xyz=xyz,
-        confidence=conf,
-        run_mm=run_mm,
-        reached_fov_end=bool(reached),
+        x=float(x_plane),
+        z=xyz[:, 2].copy(),
+        y=xyz[:, 1].copy(),
+        lps=xyz.copy(),
+        score=np.where(np.isfinite(score), score, np.nan),
+        csf_ok=np.nan_to_num(csf_ok, nan=0.0).astype(bool),
+        half_mm=h_r,
     )
+
+
+# ------------------------------------------------------------------------------ profiles and tracking
+def _common_grid(evs: list[_Evidence], res: float) -> FloatArray:
+    """Descending z grid (1 mm) spanning every slice's canal rows."""
+    zmax = max(float(np.max(e.z)) for e in evs)
+    zmin = min(float(np.min(e.z)) for e in evs)
+    n = int(np.floor((zmax - zmin) / res)) + 1
+    return np.asarray(zmax - res * np.arange(n), dtype=np.float64)
+
+
+def _on_grid(
+    e: _Evidence, zg: FloatArray, res: float
+) -> tuple[FloatArray, FloatArray, FloatArray, FloatArray]:
+    """(present, score, csf_ok, y) of one slice interpolated onto the descending grid ``zg``.
+
+    Present is 1 inside the slice's canal rows and 0 outside; the other arrays are NaN outside.
+    """
+    zr = e.z[::-1]
+    lo, hi = float(zr[0]), float(zr[-1])
+    inside = (zg >= lo - 0.5 * res) & (zg <= hi + 0.5 * res)
+    present = inside.astype(np.float64)
+    score = np.full(zg.shape, np.nan)
+    csf = np.full(zg.shape, np.nan)
+    y = np.full(zg.shape, np.nan)
+    if not np.any(inside):
+        return present, score, csf, y
+    zq = zg[inside]
+    score[inside] = np.interp(zq, zr, np.nan_to_num(e.score[::-1], nan=-1.0))
+    csf[inside] = np.interp(zq, zr, e.csf_ok[::-1].astype(np.float64))
+    y[inside] = np.interp(zq, zr, e.y[::-1])
+    return present, score, csf, y
+
+
+def _cord_flags(present: FloatArray, score: FloatArray, csf: FloatArray, cfg: Config) -> NDArray[np.bool_]:
+    ok_score = np.nan_to_num(score, nan=-1.0) >= cfg.conus_cord_contrast_min
+    return (present >= 0.5) & ok_score & (np.nan_to_num(csf, nan=0.0) >= 0.5)
+
+
+@dataclass
+class _Track:
+    """Cord run followed caudally from the top of the canal (indices on the descending grid)."""
+
+    start: int
+    tip: int
+    reached_end: bool
+
+
+def _track(flags: NDArray[np.bool_], cfg: Config, res: float) -> _Track | None:
+    """Follow the first cord run from the top: bridge short gaps; stop where a non-cord span reaches stop length."""
+    m = max(1, round(cfg.conus_smooth_mm / res))
+    f = ndimage.median_filter(flags.astype(np.uint8), size=m, mode="nearest").astype(bool)
+    min_n = max(1, round(cfg.conus_min_run_mm / res))
+    stop_n = max(1, round(cfg.conus_stop_mm / res))
+    n = len(f)
+    i = 0
+    while i < n:
+        if not f[i]:
+            i += 1
+            continue
+        last, gap, k = i, 0, i
+        stopped = False
+        while k < n:
+            if f[k]:
+                last, gap = k, 0
+            else:
+                gap += 1
+                if gap >= stop_n:
+                    stopped = True
+                    break
+            k += 1
+        if last - i + 1 >= min_n:
+            reached = not stopped and last >= n - 1 - round(2.0 / res)
+            return _Track(start=i, tip=last, reached_end=bool(reached))
+        i = last + 1
+    return None
+
+
+def _tip_from_track(
+    tr: _Track,
+    zg: FloatArray,
+    score: FloatArray,
+    y: FloatArray,
+    ev: _Evidence,
+    res: float,
+    k: int,
+) -> SliceTip:
+    """Tip from a track: z on the grid, LPS position from the slice's own canal centreline at that height."""
+    run_mm = (tr.tip - tr.start + 1) * res
+    seg = slice(tr.start, tr.tip + 1)
+    mean_score = float(np.nanmean(score[seg])) if np.any(np.isfinite(score[seg])) else 0.0
+    z = float(zg[tr.tip])
+    j = int(np.argmin(np.abs(ev.z - z)))
+    xyz = np.asarray(ev.lps[j], dtype=np.float64).copy()
+    xyz[2] = z
+    return SliceTip(
+        k=k,
+        z=z,
+        xyz=xyz,
+        confidence=0.0,
+        run_mm=run_mm,
+        reached_fov_end=tr.reached_end,
+        score=mean_score,
+    )
+
+
+def _slice_confidence(tip: SliceTip, cfg: Config) -> float:
+    """Per-slice confidence from the cord contrast and run length (before agreement and status)."""
+    contrast_term = float(np.clip(tip.score / (2.0 * cfg.conus_cord_contrast_min), 0.0, 1.0))
+    length_term = float(np.clip(tip.run_mm / cfg.conus_full_run_mm, 0.0, 1.0))
+    return contrast_term * (0.5 + 0.5 * length_term)
+
+
+def _bracket_weights(xs: list[float], x_mid: float) -> list[tuple[int, float]]:
+    """Index/weight pairs of the sac slices that bracket the plane ``x_mid`` (linear in x)."""
+    order = sorted(range(len(xs)), key=lambda i: xs[i])
+    below = [i for i in order if xs[i] <= x_mid]
+    above = [i for i in order if xs[i] > x_mid]
+    if below and above:
+        a, b = below[-1], above[0]
+        span = xs[b] - xs[a]
+        wa = 1.0 if span < 1e-6 else (xs[b] - x_mid) / span
+        wa = float(np.clip(wa, 0.0, 1.0))
+        return [(a, wa), (b, 1.0 - wa)]
+    if below:
+        return [(below[-1], 1.0)]
+    return [(above[0], 1.0)]
+
+
+@dataclass
+class _Located:
+    """Cord tip of one sagittal stack (interpolated at the mid-sagittal plane) with its slice tips."""
+
+    tip: SliceTip
+    slice_tips: list[SliceTip]
+    n_sac_slices: int
+    polarity: int
+
+
+def _locate_on_stack(
+    seg: SegmentedStack, cfg: Config, contrast: str, mid_x: float | None = None
+) -> tuple[_Located | None, str]:
+    """Cord tip for one segmented stack. Returns (result or None, reason when None)."""
+    from .ml.labeller import CANAL
+    from .ml.postprocess import canal_areas_mm2, mid_sagittal
+
+    stack = seg.stack
+    window = (float(seg.window[0]), float(seg.window[1]))
+    if seg.probs.shape[0] == 0:
+        return None, "no slices to analyse"
+    mid = mid_sagittal(seg, cfg)
+    if mid is None:
+        return None, "conus not located: no spinal canal in the sagittal segmentation"
+    # Plane coordinates: the sac slices and the mid-sagittal plane share the stack's ``positions`` axis.
+    x_mid = float(stack.positions[mid.k]) if mid_x is None else mid_x
+    area = canal_areas_mm2(seg, cfg)
+    peak = float(np.max(area))
+    sac = [k for k in range(stack.n) if area[k] >= cfg.conus_sac_area_frac * peak and area[k] > 0]
+    if mid.k not in sac:
+        sac.append(mid.k)
+    sac = sorted(set(sac), key=lambda k: abs(float(stack.positions[k]) - x_mid))[: cfg.conus_max_slices]
+    res = cfg.ml_resolution_mm
+    best: tuple[float, int, _Located] | None = None
+    for pol in _polarities(contrast):
+        evs: list[_Evidence] = []
+        for k in sac:
+            img = _resample(stack, seg.grids[k])
+            ev = _slice_evidence(
+                seg.probs[k, CANAL], seg.grids[k], img, float(stack.positions[k]), pol, window, cfg
+            )
+            if ev is not None:
+                evs.append(ev)
+        if not evs:
+            continue
+        zg = _common_grid(evs, res)
+        # Interpolated profile at the mid-sagittal plane (bracketing sac slices).
+        xs = [e.x for e in evs]
+        wts = _bracket_weights(xs, x_mid)
+        present = np.zeros(zg.shape)
+        score = np.zeros(zg.shape)
+        csf = np.zeros(zg.shape)
+        y = np.zeros(zg.shape)
+        wsum_s = np.zeros(zg.shape)
+        for idx, w in wts:
+            p_, s_, c_, y_ = _on_grid(evs[idx], zg, res)
+            present += w * p_
+            ok = np.isfinite(s_)
+            score[ok] += w * s_[ok]
+            wsum_s[ok] += w
+            csf += w * np.nan_to_num(c_, nan=0.0)
+            y += w * np.nan_to_num(y_, nan=0.0)
+        with np.errstate(invalid="ignore", divide="ignore"):
+            score = np.where(wsum_s > 0, score / np.where(wsum_s > 0, wsum_s, 1.0), np.nan)
+        flags = _cord_flags(present, score, csf, cfg)
+        tr = _track(flags, cfg, res)
+        if tr is None:
+            continue
+        nearest = min(evs, key=lambda e: abs(e.x - x_mid))
+        ip_tip = _tip_from_track(tr, zg, score, y, nearest, res, -1)
+        if ip_tip is None:
+            continue
+        # Per sac slice: its own profile, its own track.
+        slice_tips: list[SliceTip] = []
+        for ev in evs:
+            p_, s_, c_, y_ = _on_grid(ev, zg, res)
+            tr_k = _track(_cord_flags(p_, s_, c_, cfg), cfg, res)
+            if tr_k is None:
+                continue
+            tk = _tip_from_track(tr_k, zg, s_, y_, ev, res, ev.k)
+            if tk is not None:
+                tk.confidence = _slice_confidence(tk, cfg)
+                slice_tips.append(tk)
+        ip_tip.confidence = _slice_confidence(ip_tip, cfg)
+        ip_tip.reached_fov_end = tr.reached_end
+        total = ip_tip.confidence + sum(t.confidence for t in slice_tips)
+        cand = _Located(tip=ip_tip, slice_tips=slice_tips, n_sac_slices=len(evs), polarity=pol)
+        if best is None or total > best[0]:
+            best = (total, pol, cand)
+    if best is None:
+        return None, f"conus not located on {contrast or 'sagittal'}: no cord signal inside the thecal sac"
+    return best[2], ""
+
+
+def _resample(stack: Stack, grid: PlaneGrid) -> NDArray[np.float32]:
+    from .ml.grid import resample_slice
+
+    return resample_slice(stack, grid)
 
 
 # ------------------------------------------------------------------------------ levels
@@ -273,79 +512,50 @@ def conus_from_segmentation(
     cfg: Config = DEFAULT,
     *,
     contrast: str = "t2",
+    cross: _Located | None = None,
+    cross_contrast: str = "",
 ) -> ConusResult:
     """Locate the conus from a segmented sagittal stack (``SegmentedStack``) and disc anchors.
 
-    ``contrast`` gives the CSF polarity: T2/STIR (CSF bright) or T1 (CSF dark). Pure function of its inputs,
-    so tests can pass an oracle segmentation.
+    ``contrast`` gives the CSF polarity: T2/STIR (CSF bright) or T1 (CSF dark). ``cross`` is the tip found on a
+    second sagittal contrast of the same study (see :func:`locate_conus`); it is used only for the consistency
+    check and the confidence. Pure function of its inputs, so tests can pass an oracle segmentation.
     """
-    from .ml.grid import resample_slice
-    from .ml.labeller import CANAL
-    from .ml.postprocess import mid_sagittal
-
-    stack = seg.stack
-    window = (float(seg.window[0]), float(seg.window[1]))
-    if seg.probs.shape[0] == 0:
-        return ConusResult(found=False, contrast=contrast, warnings=["no slices to analyse"])
-    mid = mid_sagittal(seg, cfg)
-    if mid is None:
+    found, why = _locate_on_stack(seg, cfg, contrast)
+    if found is None:
+        return ConusResult(found=False, contrast=contrast, warnings=[why] if why else [])
+    tip = found.tip
+    slice_tips = found.slice_tips
+    n_sac = found.n_sac_slices
+    # Agreement: slice tips within conus_agree_mm of the interpolated tip.
+    agree = [t for t in slice_tips if abs(t.z - tip.z) <= cfg.conus_agree_mm]
+    share = len(agree) / len(slice_tips) if slice_tips else 0.0
+    if len(slice_tips) >= 2 and share <= cfg.conus_min_agree_share:
         return ConusResult(
             found=False,
             contrast=contrast,
-            warnings=["conus not located: no spinal canal in the sagittal segmentation"],
+            n_slices=len(slice_tips),
+            warnings=[
+                f"conus not located on {contrast or 'sagittal'}: cord tips on the sac slices disagree in z"
+            ],
         )
-    x_mid = float(stack.positions[mid.k])
-    ks = [
-        k
-        for k in range(stack.n)
-        if abs(float(stack.positions[k]) - x_mid) <= cfg.conus_slice_halfwidth_mm
-        and seg.probs[k, CANAL].max() > 0
-    ]
-    if mid.k not in ks:
-        ks.append(mid.k)
-    ks = sorted(set(ks), key=lambda k: abs(float(stack.positions[k]) - x_mid))[:5]
-    polarities = _polarities(contrast)
-    best: tuple[float, int, list[SliceTip]] | None = None
-    for pol in polarities:
-        tips: list[SliceTip] = []
-        for k in ks:
-            img = resample_slice(stack, seg.grids[k])
-            tip = _slice_tip(seg.probs[k, CANAL], seg.grids[k], img, pol, window, cfg)
-            if tip is not None:
-                tips.append(tip)
-        total = float(sum(t.confidence for t in tips))
-        if best is None or total > best[0]:
-            best = (total, pol, tips)
-    assert best is not None
-    _, pol, tips = best
-    if not tips:
-        return ConusResult(
-            found=False,
-            contrast=contrast,
-            n_slices=len(ks),
-            warnings=[f"conus not located on {contrast or 'sagittal'}: no cord signal inside the thecal sac"],
-        )
-    zs = np.array([t.z for t in tips])
-    z_med = float(np.median(zs))
-    agree = [t for t in tips if abs(t.z - z_med) <= cfg.conus_agree_mm]
-    if not agree:  # tips spread over more than conus_agree_mm around their median: no consensus tip
-        return ConusResult(
-            found=False,
-            contrast=contrast,
-            n_slices=len(ks),
-            warnings=[f"conus not located on {contrast or 'sagittal'}: cord tips disagree in z"],
-        )
-    z = float(np.mean([t.z for t in agree]))
-    xyz = np.mean([t.xyz for t in agree], axis=0)
-    xyz[2] = z
-    # Agreement among the slices that show a cord tip: slices that miss the cord (it is ~8 mm wide) are expected.
-    share = len(agree) / len(tips)
-    conf = float(np.mean([t.confidence for t in agree])) * share
-    if len(agree) < 2:
+    z = float(tip.z)
+    xyz = np.asarray(tip.xyz, dtype=np.float64)
+    if not slice_tips:
+        share = 1.0  # the interpolated profile alone: no slice-level vote
+    conf = _slice_confidence(tip, cfg) * (0.5 + 0.5 * share)
+    if len(slice_tips) < 2:
         conf *= cfg.conus_single_slice_factor
-    fov_end = bool(np.mean([t.reached_fov_end for t in agree]) >= 0.5)
-    if fov_end:
-        conf = min(conf, 0.5)
+    # Second contrast: agreement raises nothing, disagreement halves the confidence, absence is a small penalty.
+    cross_z = float(cross.tip.z) if cross is not None else None
+    if cross is not None and cross_z is not None:
+        conf *= (
+            cfg.conus_xc_agree_factor
+            if abs(cross_z - z) <= cfg.conus_agree_mm
+            else cfg.conus_xc_disagree_factor
+        )
+    else:
+        conf *= cfg.conus_xc_absent_factor
     level, position, lev_ev = level_at(z, anchors)
     status = str(anchors.numbering.get("status", "") or "")
     status_factor = {
@@ -355,14 +565,23 @@ def conus_from_segmentation(
     }.get(status, cfg.conus_status_factor[2])
     if status:
         conf *= status_factor
+    fov_end = bool(tip.reached_fov_end)
+    if fov_end:
+        conf = min(conf, 0.5)
     conf = float(np.clip(conf, 0.0, 1.0))
     low = low_lying(z, level, anchors, cfg)
     ev = [
-        f"cord-like signal inside the thecal sac ends at z={z:.1f} mm on {len(agree)}/{len(ks)} sagittal slice(s) "
-        f"({contrast or 'unknown contrast'}, CSF polarity {pol:+d})",
-        f"cord run {float(np.mean([t.run_mm for t in agree])):.0f} mm (mean over agreeing slices)",
+        f"cord-like signal inside the thecal sac ends at z={z:.1f} mm on the mid-sagittal profile "
+        f"({contrast or 'unknown contrast'}, CSF polarity {found.polarity:+d}; {n_sac} sac slice(s))",
+        f"cord run {tip.run_mm:.0f} mm; {len(agree)}/{len(slice_tips)} sac slice tips agree within "
+        f"{cfg.conus_agree_mm:.0f} mm",
         *lev_ev,
     ]
+    if cross is not None and cross_z is not None:
+        ev.append(
+            f"second contrast ({cross_contrast or 'other'}) tip at z={cross_z:.1f} mm "
+            f"({'agrees' if abs(cross_z - z) <= cfg.conus_agree_mm else 'disagrees'})"
+        )
     if status:
         ev.append(f"level names: numbering {status} (confidence factor {status_factor:.2f})")
     warns: list[str] = []
@@ -374,17 +593,19 @@ def conus_from_segmentation(
     result = ConusResult(
         found=True,
         z=z,
-        xyz=np.asarray(xyz, dtype=np.float64),
+        xyz=xyz,
         level=level,
         position=position,
         confidence=conf,
         low_lying=low,
         fov_end=fov_end,
-        n_slices=len(ks),
+        n_slices=len(slice_tips),
         n_agree=len(agree),
         contrast=contrast,
         evidence=ev,
         warnings=warns,
+        cross_z=cross_z,
+        cross_contrast=cross_contrast,
     )
     if low:
         if conf >= cfg.conus_low_lying_min_confidence:
@@ -420,12 +641,30 @@ def pick_conus_stack(study: Study) -> Stack | None:
     return study.best("sag")
 
 
+def _cross_stack(study: Study, primary: Stack) -> Stack | None:
+    """A second sagittal contrast for the consistency check: T1 when the primary is T2/STIR (and the reverse)."""
+    from ..render.window import contrast_of
+
+    want = "t1" if contrast_of(primary) in ("t2", "stir") else "t2"
+    for s in study.find("sag", want):
+        if s is primary or s.meta.get("role", {}).get("localizer"):
+            continue
+        return s
+    return None
+
+
 def locate_conus(
-    study: Study, anchors: Anchors, cfg: Config = DEFAULT, *, seg: SegmentedStack | None = None
+    study: Study,
+    anchors: Anchors,
+    cfg: Config = DEFAULT,
+    *,
+    seg: SegmentedStack | None = None,
 ) -> ConusResult:
     """Locate the conus on the study's sagittal series (see module doc). Missing inputs give warnings.
 
-    ``seg`` is reused when it is the network output of the picked stack; otherwise the network runs here.
+    ``seg`` is reused when it is the network output of the picked stack; otherwise the network runs here. When
+    the study has a second sagittal contrast (T1 next to T2, or T2 next to T1) and ``Config.conus_cross_contrast``
+    is on, its tip is located too and used for the consistency check.
     """
     from ..render.window import contrast_of
     from .ml.labeller import segment_stack
@@ -436,8 +675,17 @@ def locate_conus(
     contrast = contrast_of(stack)
     if seg is None or seg.stack is not stack:
         seg = segment_stack(stack, cfg)
-    res = conus_from_segmentation(seg, anchors, cfg, contrast=contrast)
-    return res
+    cross: _Located | None = None
+    cross_contrast = ""
+    if cfg.conus_cross_contrast:
+        other = _cross_stack(study, stack)
+        if other is not None:
+            cross_contrast = contrast_of(other)
+            cross_seg = segment_stack(other, cfg)
+            cross, _why = _locate_on_stack(cross_seg, cfg, cross_contrast)
+    return conus_from_segmentation(
+        seg, anchors, cfg, contrast=contrast, cross=cross, cross_contrast=cross_contrast
+    )
 
 
 def attach_conus(
