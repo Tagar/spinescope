@@ -202,6 +202,15 @@ class Config:
     ml_disc_slice_window: int = (
         1  # discs also searched this many slices either side of the midline (~3-4 mm each)
     )
+    # Packaged weights used by label_spine_ml. labeller_v1.onnx (4 classes) is the shipped model. A 5-class
+    # candidate with a sacrum channel (labeller_v2, lab07) was not shipped: it scored worse on SPIDER validation
+    # (docs/model_card.md). Without a sacrum channel, numbering confirmation is skipped.
+    ml_model: str = "labeller_v1.onnx"
+    # Sacrum class area below the lowest disc that confirms an S1 body there (about 15 x 10 mm of bone).
+    ml_sacrum_min_area_mm2: float = 150.0
+    # Field of view needed below the lowest disc to show an S1 body (the smallest pseudo-label box in
+    # tools/train_labeller.py is 8 mm; less than this and the sacrum is not in view).
+    ml_fov_below_disc_min_mm: float = 8.0
 
 
 DEFAULT = Config()

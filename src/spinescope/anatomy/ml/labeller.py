@@ -11,7 +11,8 @@ Pipeline (all geometry in LPS mm, from :mod:`.grid`):
 5. On that plane, disc instances are connected components of the disc class; each gives a centre, a
    normal (principal axis, superior), anterior/posterior margins at mid-height and a height.
 6. Numbering from the bottom: the lowest disc is L5-S1; vertebral bodies are named by the number of
-   discs below them. Confidence is lower when no body is visible below the lowest disc.
+   discs below them. Confidence is lower when no body (or sacrum) is visible below the lowest disc, and
+   the field of view is checked for coverage below the lowest disc.
 
 The network is optional: this module needs the ``ml`` extra (onnxruntime) and never imports torch.
 """
@@ -41,8 +42,10 @@ log = logging.getLogger(__name__)
 
 METHOD = "label_spine_ml/1 learned 2-D U-Net (SPIDER-trained, ONNX Runtime), mid-sagittal discs, sacrum-up numbering"
 MODEL_ASSET = "labeller_v1.onnx"
+# Classes of the shipped model. A 5-class candidate (sacrum channel, index SACRUM) is supported when its file is named via
+# Config.ml_model; see docs/model_card.md.
 CLASSES = ("background", "vertebral body", "disc", "spinal canal")
-BODY, DISC, CANAL = 1, 2, 3
+BODY, DISC, CANAL, SACRUM = 1, 2, 3, 4
 N_CLASSES = len(CLASSES)
 
 
@@ -57,9 +60,9 @@ class SegmentedStack:
     evidence: list[str] = field(default_factory=list)
 
 
-def model_path() -> Path:
-    """Path of the packaged ONNX weights."""
-    return Path(str(resources.files("spinescope.anatomy.ml") / "assets" / MODEL_ASSET))
+def model_path(name: str = MODEL_ASSET) -> Path:
+    """Path of a packaged ONNX weights file (default: the shipped labeller, ``labeller_v1.onnx``)."""
+    return Path(str(resources.files("spinescope.anatomy.ml") / "assets" / name))
 
 
 @lru_cache(maxsize=4)
@@ -83,7 +86,10 @@ def load_session(path: str | Path | None = None) -> ort.InferenceSession:
 def run_network(
     session: ort.InferenceSession, images: NDArray[np.float32], batch: int = 8
 ) -> NDArray[np.float32]:
-    """Softmax class probabilities for normalised slices ``(n, rows, cols)`` -> ``(n, classes, rows, cols)``."""
+    """Softmax class probabilities for normalised slices ``(n, rows, cols)`` -> ``(n, classes, rows, cols)``.
+
+    The class count is taken from the network output, so 4-class (v1) and 5-class (v2) weights both work.
+    """
     name = session.get_inputs()[0].name
     out: list[NDArray[np.float32]] = []
     for lo in range(0, images.shape[0], batch):
@@ -93,7 +99,8 @@ def run_network(
         e = np.exp(logits)
         out.append((e / e.sum(axis=1, keepdims=True)).astype(np.float32))
     if not out:
-        return np.zeros((0, N_CLASSES, *images.shape[1:]), dtype=np.float32)
+        n_out = int(session.get_outputs()[0].shape[1] or N_CLASSES)
+        return np.zeros((0, n_out, *images.shape[1:]), dtype=np.float32)
     return np.concatenate(out, axis=0)
 
 
@@ -111,14 +118,17 @@ def segment_stack(
 
 
 def label_spine_ml(study: Study, config: Config | None = None, *, session: Any = None) -> Anchors:
-    """Detect discs, vertebral bodies and the mid-sagittal plane with the learned labeller.
+    """Detect discs, vertebral bodies, sacrum and the mid-sagittal plane with the learned labeller.
 
     Returns :class:`Anchors` in LPS mm with confidence and evidence. Missing sequences give warnings.
-    ``session`` is an optional ONNX Runtime session (default: the packaged weights).
+    ``session`` is an optional ONNX Runtime session; by default the packaged weights named by
+    ``Config.ml_model`` (``labeller_v1.onnx``). A file must exist in ``ml/assets`` for any other name.
     """
     from .postprocess import anchors_from_segmentation
 
     cfg = config or DEFAULT
+    if session is None and cfg.ml_model != MODEL_ASSET:
+        session = load_session(model_path(cfg.ml_model))
     stack = study.best("sag")
     if stack is None:
         return Anchors(
@@ -133,6 +143,7 @@ def label_spine_ml(study: Study, config: Config | None = None, *, session: Any =
 __all__ = [
     "CLASSES",
     "METHOD",
+    "MODEL_ASSET",
     "SegmentedStack",
     "label_spine_ml",
     "load_session",

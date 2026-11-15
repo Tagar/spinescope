@@ -7,7 +7,7 @@ Every step works on the probability maps and the plane geometry only; thresholds
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field, replace
 
 import numpy as np
 from numpy.typing import NDArray
@@ -16,8 +16,8 @@ from scipy import ndimage
 from ...config import DEFAULT, Config
 from ..anchors import Anchors, Disc, Vertebra
 from ..numbering import disc_names, vertebra_name
-from .grid import PlaneGrid
-from .labeller import BODY, CANAL, DISC, METHOD, SegmentedStack
+from .grid import PlaneGrid, resample_slice
+from .labeller import BODY, CANAL, DISC, METHOD, SACRUM, SegmentedStack
 
 log = logging.getLogger(__name__)
 
@@ -164,6 +164,71 @@ def extract_bodies(
     return out
 
 
+@dataclass
+class SacrumEvidence:
+    """Sacrum class on the analysed slice, below the lowest disc of that slice."""
+
+    area_mm2: float
+    centre_lps: NDArray[np.float64] | None
+    fov_below_disc_mm: float | None  # field of view below the lowest disc (None when no disc on the slice)
+    evidence: list[str] = field(default_factory=list)
+
+
+def _lowest_disc_component(seg: SegmentedStack, k: int, cfg: Config) -> NDArray[np.intp] | None:
+    """Index array of the most inferior disc component on slice ``k`` (None when there is none)."""
+    grid = seg.grids[k]
+    comps = _components(seg.probs[k, DISC] > cfg.ml_prob_threshold, grid, cfg.ml_disc_min_area_mm2)
+    if not comps:
+        return None
+    return max(comps, key=lambda c: float(c[0].mean()))
+
+
+def fov_coverage_rows(seg: SegmentedStack, k: int) -> NDArray[np.bool_]:
+    """Boolean (rows, cols) mask of the grid of slice ``k`` that lies inside the acquired field of view."""
+    stack = seg.stack
+    grid0 = replace(seg.grids[k], k=0)
+    ones = np.ones((1, *stack.vol.shape[1:]), np.float32)
+    return np.asarray(resample_slice(stack, grid0, array=ones, order=1) > 0.5)
+
+
+def sacrum_below_lowest_disc(seg: SegmentedStack, k: int, cfg: Config = DEFAULT) -> SacrumEvidence | None:
+    """Sacrum class below the lowest disc of slice ``k``; None when the network has no sacrum channel.
+
+    The area counts sacrum pixels more inferior than the lowest disc component's inferior edge, in the
+    columns of that disc (the sacrum lies behind the lowest disc's inferior endplate, not beside it).
+    ``fov_below_disc_mm`` is how far the acquired field of view extends below that edge in the same columns,
+    so a value below ``ml_fov_below_disc_min_mm`` means the sacrum is not in view.
+    """
+    if seg.probs.shape[1] <= SACRUM:
+        return None
+    grid = seg.grids[k]
+    px = grid.res_mm**2
+    disc = _lowest_disc_component(seg, k, cfg)
+    if disc is None:
+        return SacrumEvidence(
+            0.0, None, None, ["no disc on this slice: sacrum below the lowest disc not assessed"]
+        )
+    d_bot = int(disc[0].max())
+    c0, c1 = int(disc[1].min()), int(disc[1].max())
+    rows = np.arange(grid.shape[0])
+    below = rows > d_bot
+    sac = seg.probs[k, SACRUM] > cfg.ml_prob_threshold
+    box = np.zeros(grid.shape, bool)
+    box[below, c0 : c1 + 1] = True
+    mask = sac & box
+    area = float(mask.sum()) * px
+    centre = None
+    if mask.any():
+        ii, jj = np.nonzero(mask)
+        down, post = grid.mm_of_index(ii.mean(), jj.mean())
+        centre = grid.to_lps(float(down), float(post))
+    cov = fov_coverage_rows(seg, k)[:, c0 : c1 + 1]
+    inside = np.nonzero(cov[below].mean(axis=1) > 0.5)[0] if below.any() else np.array([], dtype=np.intp)
+    fov_mm = float(np.max(inside) + 1) * grid.res_mm if inside.size else 0.0
+    ev = [f"sacrum class {area:.0f} mm2 below the lowest disc; field of view {fov_mm:.0f} mm below it"]
+    return SacrumEvidence(area, centre, fov_mm, ev)
+
+
 def discs_near_midline(seg: SegmentedStack, k: int, cfg: Config = DEFAULT) -> tuple[list[Disc], list[str]]:
     """Discs of the mid-sagittal slice ``k``, plus discs seen only on slices up to ``ml_disc_slice_window`` away.
 
@@ -232,22 +297,54 @@ def anchors_from_segmentation(seg: SegmentedStack, cfg: Config = DEFAULT) -> Anc
             evidence=[f"body with {n_below} disc(s) below it on the mid-sagittal slice"],
         )
     body_below = 0 in body_by_index
+    sac = sacrum_below_lowest_disc(seg, mid.k, cfg)
+    sacrum_seen = sac is not None and sac.area_mm2 >= cfg.ml_sacrum_min_area_mm2
+    fov_mm = sac.fov_below_disc_mm if sac is not None else None
+    # A field of view that ends just below the lowest disc cannot show an S1 body, whatever the network says there.
+    fov_short = fov_mm is not None and fov_mm < cfg.ml_fov_below_disc_min_mm
+    confirmed = (body_below or sacrum_seen) and not fov_short
+    if sacrum_seen and not body_below and not fov_short and sac is not None and sac.centre_lps is not None:
+        anchors.vertebrae[vertebra_name(0)] = Vertebra(
+            center=[float(v) for v in sac.centre_lps],
+            confidence=float(min(1.0, sac.area_mm2 / (4 * cfg.ml_sacrum_min_area_mm2))),
+            evidence=["sacrum class below the lowest disc (learned sacrum channel)"],
+        )
     mean_conf = float(np.mean([d.confidence for d in discs]))
-    numbering_conf = (0.9 if body_below else 0.4) * (0.5 + 0.5 * min(1.0, mean_conf))
-    notes = (
-        "vertebral body visible below the lowest disc: lowest disc taken as L5-S1"
-        if body_below
-        else "no vertebral body visible below the lowest disc: lowest disc named L5-S1 without confirmation"
-    )
+    numbering_conf = (0.9 if confirmed else 0.4) * (0.5 + 0.5 * min(1.0, mean_conf))
+    if fov_short:
+        notes = (
+            f"field of view ends {fov_mm:.0f} mm below the lowest disc, above the sacrum: "
+            "lowest disc named L5-S1 without confirmation"
+        )
+    elif body_below:
+        notes = "vertebral body visible below the lowest disc: lowest disc taken as L5-S1"
+    elif sacrum_seen:
+        notes = "sacrum visible below the lowest disc: lowest disc taken as L5-S1"
+    else:
+        notes = (
+            "no vertebral body or sacrum visible below the lowest disc: lowest disc named L5-S1 unconfirmed"
+        )
     anchors.numbering = {
         "method": "ml sacrum-up count",
         "confidence": float(numbering_conf),
         "notes": notes,
         "midline_confidence": mid.confidence,
         "midline_evidence": mid.evidence,
+        "sacrum_confirmed": bool(sacrum_seen and not fov_short),
+        "fov_below_lowest_disc_mm": fov_mm,
     }
-    if not body_below:
-        anchors.warnings.append("numbering unconfirmed: no vertebral body below the lowest disc")
+    if sac is not None:
+        anchors.numbering["sacrum_evidence"] = list(sac.evidence)
+    if not confirmed:
+        if fov_short:
+            anchors.warnings.append(
+                "numbering unconfirmed: field of view ends "
+                f"{fov_mm:.0f} mm below the lowest disc (sacrum not in view)"
+            )
+        else:
+            anchors.warnings.append(
+                "numbering unconfirmed: no vertebral body or sacrum below the lowest disc"
+            )
     return anchors
 
 
