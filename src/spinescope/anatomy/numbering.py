@@ -2,8 +2,9 @@
 
 Discs are counted from the lowest one found. The lowest disc is called L5-S1 when a vertebral body
 is visible below it (the sacrum or S1); its evidence is the visible length below the disc and whether
-the disc is the most tilted one (the lumbosacral disc carries the largest sacral slope). Independent
-checks: level names written in slab descriptions and agreement with an oblique slab's disc.
+the disc is the most tilted one (the lumbosacral disc carries the largest sacral slope). The
+fused numbering (:mod:`.fusion`) combines these with the other cues and sets the abstain status
+(:func:`numbering_status`).
 """
 
 from __future__ import annotations
@@ -159,3 +160,40 @@ def slab_crosscheck(
     if agree:
         ev.append(f"{agree} slab description(s) name the disc they pass through")
     return agree, disagree, ev
+
+
+# ------------------------------------------------------------------ abstain policy
+#: ``anchors.numbering['status']`` values. Downstream modules and briefs should treat anything other than
+#: ``confirmed`` as an unconfirmed level name (show the name with its status, never as settled).
+STATUS_CONFIRMED = "confirmed"
+STATUS_PROBABLE = "probable"
+STATUS_UNCONFIRMED = "unconfirmed"
+
+#: Minimum calibrated probability that the whole numbering of the study is right, per status. Used only when
+#: the packaged calibration is missing (uncalibrated fallback); the shipped values are fitted on SPIDER training
+#: cases (see ``spinescope.anatomy.calibration`` and docs/labeling/lab08_fusion.md) and override these.
+DEFAULT_STATUS_THRESHOLDS: dict[str, float] = {STATUS_CONFIRMED: 0.9, STATUS_PROBABLE: 0.6}
+
+
+def numbering_status(confidence: float, thresholds: dict[str, float] | None = None) -> str:
+    """``confirmed`` at or above the confirmed threshold, ``probable`` at or above the probable one, else
+    ``unconfirmed``. ``confidence`` is the (calibrated) probability that the numbering is right."""
+    th = thresholds or DEFAULT_STATUS_THRESHOLDS
+    if confidence >= th[STATUS_CONFIRMED]:
+        return STATUS_CONFIRMED
+    if confidence >= th[STATUS_PROBABLE]:
+        return STATUS_PROBABLE
+    return STATUS_UNCONFIRMED
+
+
+def shift_vertebra_name(name: str, offset: int) -> str:
+    """Name of a vertebral body after a lowest-disc offset (+1 sacralized: every body moves up one level;
+    -1 lumbarized: only the body below the lowest disc, S1, becomes L6). Other names are returned unchanged."""
+    if name not in VERTEBRA_NAMES:
+        return name
+    idx = VERTEBRA_NAMES.index(name)
+    if offset == 1:
+        return VERTEBRA_NAMES[idx + 1] if idx + 1 < len(VERTEBRA_NAMES) else name
+    if offset == -1:
+        return "L6" if name == "S1" else name
+    return name
