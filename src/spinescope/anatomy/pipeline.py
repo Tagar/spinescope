@@ -509,6 +509,16 @@ def _lstv_stage(anchors: Anchors) -> None:
     except Exception as exc:  # the check is additional: it must never sink the labels
         log.warning("transitional vertebra check failed: %s", exc)
         anchors.warnings.append(f"transitional vertebra check failed ({type(exc).__name__})")
+        return
+    # A suspected transitional vertebra makes the anatomical level names ambiguous even when the count is right:
+    # never present such a study as "confirmed".
+    lstv = anchors.lstv if isinstance(anchors.lstv, dict) else None
+    if lstv and lstv.get("status") == "suspected" and anchors.numbering.get("status") == STATUS_CONFIRMED:
+        anchors.numbering["status"] = STATUS_PROBABLE
+        anchors.warnings.append(
+            "numbering capped at probable: a transitional lumbosacral vertebra is suspected, so the anatomical "
+            "level names may differ from the count from the sacrum"
+        )
 
 
 def _conus_stage(study: Study, anchors: Anchors, cfg: Config, seg: SegmentedStack | None) -> None:

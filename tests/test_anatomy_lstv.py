@@ -430,3 +430,22 @@ def test_unconfirmed_numbering_withholds_the_verdict_but_keeps_cues() -> None:
     assert any("numbering unconfirmed" in w for w in res.warnings)
     assert any(c.name == "disc_height" and c.like is not None for c in res.cues)
     assert res.naming["suggested_names"] is None
+
+
+def test_suspected_lstv_caps_confirmed_numbering_at_probable():
+    from spinescope.anatomy.anchors import Anchors
+    from spinescope.anatomy.pipeline import _lstv_stage
+
+    a = Anchors()
+    a.numbering = {"status": "confirmed", "confidence": 0.99}
+
+    import spinescope.anatomy.lstv as lstv_mod
+
+    orig = lstv_mod.attach_lstv
+    try:
+        lstv_mod.attach_lstv = lambda anchors, **_k: setattr(anchors, "lstv", {"status": "suspected"})  # type: ignore[assignment]
+        _lstv_stage(a)
+    finally:
+        lstv_mod.attach_lstv = orig
+    assert a.numbering["status"] == "probable"
+    assert any("transitional lumbosacral vertebra is suspected" in w for w in a.warnings)
