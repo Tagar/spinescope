@@ -190,6 +190,18 @@ class Config:
     # Healthiest body: bodies with normal endplates on both sides form the study reference.
     # Side classification: a slice is "central" when within half a slice spacing of the midline.
     side_central_spacing_fraction: float = 0.5
+    # Learned labeller (spinescope.anatomy.ml). The network was trained on a 1 mm grid (tools/train_labeller.py).
+    ml_resolution_mm: float = 1.0  # training grid of the network input; mm per pixel
+    ml_intensity_pct: tuple[float, float] = (0.5, 99.5)  # per-volume window percentiles (foreground voxels)
+    ml_prob_threshold: float = 0.5  # class probability above which a pixel belongs to the class
+    ml_disc_min_area_mm2: float = 30.0  # smallest disc component: disc_height_mm[0] (4) x canal_ap_mm[0] (8)
+    ml_disc_min_aspect: float = (
+        1.2  # discs are wider (AP) than tall: AP length / height, from anatomy (~35 x 9 mm)
+    )
+    ml_body_min_area_mm2: float = 150.0  # smallest midline vertebral body: about a fifth of a 25 x 30 mm body
+    ml_disc_slice_window: int = (
+        1  # discs also searched this many slices either side of the midline (~3-4 mm each)
+    )
 
 
 DEFAULT = Config()

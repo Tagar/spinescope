@@ -10,3 +10,12 @@ Test and example data, where used, come from public datasets under their own lic
 SPIDER (van der Graaf et al., Scientific Data 2024, doi:10.1038/s41597-024-03090-w;
 dataset doi:10.5281/zenodo.10159290), licensed CC BY 4.0. No such data is redistributed in
 this repository unless stated next to it.
+
+Learned spine labeller (optional, `spinescope[ml]`)
+
+The packaged weights `src/spinescope/anatomy/ml/assets/labeller_v1.onnx` were trained on the SPIDER
+lumbar spine MRI dataset: van der Graaf JW, et al. "Lumbar spine segmentation in MR images: a dataset
+and a public benchmark." Scientific Data (2024), doi:10.1038/s41597-024-03090-w; dataset
+doi:10.5281/zenodo.10159290. SPIDER is licensed CC BY 4.0. The weights are derived from it and are
+distributed with that attribution; no SPIDER images or masks are included in this repository. The
+training recipe, data split and held-out results are in docs/model_card.md. Research use only.

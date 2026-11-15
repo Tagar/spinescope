@@ -33,6 +33,8 @@ dependencies = [
   "pydicom>=2.4",
   "pillow>=10.1",
   "scikit-image>=0.21",
+  # Runs the packaged learned labeller (default backend for automatic level labelling).
+  "onnxruntime>=1.17",
 ]
 
 [project.optional-dependencies]
@@ -44,7 +46,11 @@ volumes = ["nibabel>=5.0", "SimpleITK>=2.3"]
 plots = ["matplotlib>=3.7"]
 # Model Context Protocol server so AI assistants can drive the toolkit.
 mcp = ["mcp>=1.2,<2"]  # the server is written against the 1.x FastMCP API
-all = ["spinescope[jpeg,volumes,plots,mcp]"]
+# Learned spine labeller runtime (ONNX Runtime, CPU). Also a core dependency; kept as an extra for clarity.
+ml = ["onnxruntime>=1.17"]
+# Dev-time only: train the labeller with tools/train_labeller.py (PyTorch + ONNX export).
+train = ["torch>=2.2", "onnx>=1.15"]
+all = ["spinescope[jpeg,volumes,plots,mcp,ml]"]
 dev = [
   "spinescope[all]",
   "pytest>=8",
