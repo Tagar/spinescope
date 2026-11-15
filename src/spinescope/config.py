@@ -328,6 +328,16 @@ class Config:
     # every level, so the fraction of levels with canal must reach ood_canal_fraction_min.
     ood_canal_tol_mm: float = 10.0
     ood_canal_fraction_min: float = 0.5
+    # Volume files (MetaImage/NIfTI/NRRD) carry no DICOM orientation tags. The through-plane axis is the thick
+    # index axis; when two or more index axes are within volume_isotropic_ratio of the thickest (near-isotropic
+    # voxels) spacing does not decide, and the most canonically aligned one is taken. Judgement default.
+    volume_isotropic_ratio: float = 1.15
+    # An index axis within this angle of a canonical axis (L, P, S) counts as aligned; an oblique through-plane
+    # axis beyond it is recorded in the volume meta. Judgement default (SPIDER: all 447 volumes are aligned).
+    volume_axis_align_deg: float = 20.0
+    # A stack whose normal is within this many degrees of being equidistant from its two nearest canonical axes
+    # (e.g. 45 deg between sagittal and coronal) gets plane_ambiguous=True in its series role. Judgement default.
+    plane_ambiguity_deg: float = 15.0
 
     # ---- vertebral geometry (anatomy/vertebrae.py, anatomy/canal_ml.py; lab15) ----
     # Endplate lines are fitted on the central part of each body: this fraction of its AP depth is cut at each end,

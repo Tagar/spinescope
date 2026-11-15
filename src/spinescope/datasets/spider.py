@@ -16,7 +16,8 @@ from __future__ import annotations
 import csv
 import logging
 import re
-from dataclasses import dataclass, field
+from collections.abc import Sequence
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any
 
@@ -24,6 +25,8 @@ import numpy as np
 
 from ..geometry import Stack
 from ..io.volumes import read_label_volume, read_volume
+from ..series import apply_display_ops, to_display_orientation
+from ..study import Study, from_stacks
 from .registry import SPIDER, data_dir
 
 log = logging.getLogger(__name__)
@@ -66,19 +69,39 @@ class SpiderStudy:
         return sorted(self.image_paths)
 
     def volume(self, sequence: str) -> Stack:
-        """The image volume of ``sequence`` as a sagittal :class:`Stack` (loaded once, then cached)."""
+        """The image volume of ``sequence`` as a :class:`Stack` in display orientation (loaded once, cached).
+
+        Same orientation as :func:`spinescope.load_study` gives for the file, so masks and studies built
+        from it line up with the single-file path.
+        """
         if sequence not in self.volumes:
-            self.volumes[sequence] = read_volume(str(self._path(self.image_paths, sequence)))
+            raw = read_volume(str(self._path(self.image_paths, sequence)))
+            self.volumes[sequence] = to_display_orientation(raw)
         return self.volumes[sequence]
 
     def mask(self, sequence: str) -> np.ndarray:
         """Label map of ``sequence`` as ``[slice, row, col]``, on the same grid as :meth:`volume`."""
         if sequence not in self.masks:
+            vol = self.volume(sequence)
             arr = read_label_volume(str(self._path(self.mask_paths, sequence)))
-            if arr.shape != self.volume(sequence).shape:
+            arr = apply_display_ops(arr, list(vol.meta.get("display_transform", [])))
+            if arr.shape != vol.shape:
                 raise ValueError(f"mask and image grids differ for case {self.case_id} {sequence}")
-            self.masks[sequence] = arr
+            self.masks[sequence] = np.ascontiguousarray(arr)
         return self.masks[sequence]
+
+    def to_study(self, sequences: Sequence[str] | None = None) -> Study:
+        """Study of the given sequences (default: all), built the way :func:`spinescope.load_study` builds one.
+
+        Stacks are classified and keyed (``sag_t2``, ``sag_t1``, ...) from their geometry and file-name
+        contrast hint. The stacks are copies, so keys written here never leak into the cached volumes.
+        """
+        seqs = list(sequences) if sequences is not None else self.sequences
+        stacks = []
+        for s in seqs:
+            v = self.volume(s)
+            stacks.append(replace(v, key="", meta=dict(v.meta)))
+        return from_stacks(stacks, reorient=False)
 
     def _path(self, table: dict[str, Path], sequence: str) -> Path:
         if sequence not in table:

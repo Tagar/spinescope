@@ -10,7 +10,6 @@ canal is label 100. Gradings ``IVD label`` i corresponds to disc label 200+i. No
 
 from __future__ import annotations
 
-import contextlib
 import csv
 import os
 from dataclasses import dataclass
@@ -20,6 +19,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 from spinescope.anatomy.anchors import Anchors, Disc, Vertebra
+from spinescope.datasets.spider import SpiderStudy
 from spinescope.geometry import Stack
 from spinescope.study import Study
 
@@ -41,57 +41,13 @@ def disc_name(i: int) -> str:
     return f"{upper}-{lower}"
 
 
-def _sitk():  # SimpleITK is part of the 'volumes' extra
-    import SimpleITK as sitk
-
-    return sitk
-
-
-def _stack_from_sitk(path: Path, key: str, contrast: str) -> Stack:
-    """Stack in physical (LPS) space: slices along the first image axis, rows along z, columns along y.
-
-    Raises ValueError when the slice axis is not aligned with the in-plane cross product (the stack
-    would be reordered and the mask would no longer line up).
-    """
-    sitk = _sitk()
-    img = sitk.ReadImage(str(path))
-    arr = sitk.GetArrayFromImage(img)  # (z, y, x)
-    sx, sy, sz = img.GetSpacing()
-    origin = np.array(img.GetOrigin(), dtype=np.float64)
-    d = np.array(img.GetDirection(), dtype=np.float64).reshape(3, 3)  # columns = index axes x, y, z
-    d0, d1, d2 = d[:, 0], d[:, 1], d[:, 2]
-    if float(np.dot(np.cross(d1, d2), d0)) <= 0:
-        raise ValueError(f"{path.name}: slice axis not aligned with the in-plane normal")
-    v = np.transpose(arr, (2, 0, 1)).astype(np.float32)  # (slice = x, row = z, col = y)
-    n = v.shape[0]
-    ipp = np.array([origin + k * sx * d0 for k in range(n)], dtype=np.float64)
-    return Stack(
-        key=key,
-        vol=v,
-        ipp=ipp,
-        row_dir=d1 / np.linalg.norm(d1),  # increasing column (y) direction
-        col_dir=d2 / np.linalg.norm(d2),  # increasing row (z) direction
-        row_mm=float(sz),
-        col_mm=float(sy),
-        thickness=float(sx),
-        description=path.stem,
-        meta={
-            "role": {
-                "plane": "sag",
-                "contrast": contrast,
-                "localizer": False,
-                "slab_index": None,
-                "fat_suppressed": False,
-                "post_contrast": False,
-                "dixon": None,
-                "evidence": [],
-            }
-        },
-    )
-
-
 def load_t2_t1(study_id: str, root: Path | None = None) -> tuple[Study, Stack, NDArray[np.int16]] | None:
-    """Study with sagittal T2 (and T1 when present), plus the T2 mask array aligned to the T2 stack."""
+    """Study with the sagittal T2 and T1 volumes of one case, plus the T2 mask aligned to the T2 stack.
+
+    Built by :meth:`spinescope.datasets.SpiderStudy.to_study`, i.e. the same reader, display orientation and
+    classification as :func:`spinescope.load_study` on each file, so the paired and single-file paths agree.
+    Returns None when the T2 image or mask is missing, or when the mask grid differs from the image.
+    """
     root = root or spider_root()
     if root is None:
         return None
@@ -99,20 +55,18 @@ def load_t2_t1(study_id: str, root: Path | None = None) -> tuple[Study, Stack, N
     t2m = root / "masks" / f"{study_id}_t2.mha"
     if not (t2p.exists() and t2m.exists()):
         return None
-    try:
-        t2 = _stack_from_sitk(t2p, "sag_t2", "t2")
-    except ValueError:
-        return None
-    mask_img = _sitk().ReadImage(str(t2m))
-    mask = np.transpose(_sitk().GetArrayFromImage(mask_img), (2, 0, 1)).astype(np.int16)
-    if mask.shape != t2.vol.shape:
-        return None
-    stacks = {"sag_t2": t2}
+    images = {"t2": t2p}
     t1p = root / "images" / f"{study_id}_t1.mha"
     if t1p.exists():
-        with contextlib.suppress(ValueError):
-            stacks["sag_t1"] = _stack_from_sitk(t1p, "sag_t1", "t1")
-    return Study(stacks=stacks, info={"Modality": "MR", "source": "SPIDER"}), t2, mask
+        images["t1"] = t1p
+    case = SpiderStudy(case_id=study_id, image_paths=images, mask_paths={"t2": t2m})
+    try:
+        mask = case.mask("t2").astype(np.int16)
+    except ValueError:
+        return None
+    study = case.to_study()
+    study.info.update({"Modality": "MR", "source": "SPIDER"})
+    return study, study["sag_t2"], mask
 
 
 def _lps_of(st: Stack, k: NDArray[np.intp], r: NDArray[np.intp], c: NDArray[np.intp]) -> NDArray[np.float64]:

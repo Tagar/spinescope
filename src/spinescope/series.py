@@ -18,7 +18,8 @@ from typing import Any
 
 import numpy as np
 
-from .geometry import Stack, unit
+from .config import DEFAULT
+from .geometry import Stack, plane_margin_deg, unit
 
 # POSDISP (Siemens "position display"): 1-3 image copies of a planned slice, not an acquisition. They carry
 # the acquisition's TR/TE and a plane of their own, so they are treated as non-diagnostic localizers.
@@ -75,6 +76,10 @@ class Role:
     dixon: str | None = None  # w | f | ip | op
     slab_index: int | None = None
     slab_count: int = 1
+    # Geometry of the plane label: angle of the slice normal to the nearest canonical axis, and whether the
+    # normal is too close to two canonical axes (sag/cor at ~45 deg) for the label to be trusted.
+    obliquity_deg: float = 0.0
+    plane_ambiguous: bool = False
     evidence: list[str] = field(default_factory=list)
 
     def base_key(self) -> str:
@@ -125,7 +130,16 @@ def classify(stack: Stack, *, n_orientations_in_series: int = 1) -> Role:
     tr, te, ti = _num(d, "RepetitionTime"), _num(d, "EchoTime"), _num(d, "InversionTime")
     flip = _num(d, "FlipAngle")
     ev: list[str] = []
-    role = Role(plane=stack.plane, contrast="unknown")
+    role = Role(plane=stack.plane, contrast="unknown", obliquity_deg=round(stack.obliquity, 2))
+    # The plane is the nearest canonical one: a normal dominated by L (in-plane S-I and A-P) is sagittal, by P
+    # coronal, by S axial. Near 45 deg between two of them the label is a coin toss, so flag it.
+    margin = plane_margin_deg(stack.normal)
+    if margin < DEFAULT.plane_ambiguity_deg:
+        role.plane_ambiguous = True
+        ev.append(
+            f"plane: normal {stack.obliquity:.0f} deg from the nearest axis, {margin:.0f} deg from the next "
+            f"(between two canonical planes); labelled {stack.plane}"
+        )
 
     # Localizer
     if "LOCALIZER" in itype or _LOCALIZER_RE.search(text):
