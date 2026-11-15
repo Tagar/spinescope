@@ -9,9 +9,13 @@ Steps (each is a documented module function; the numbers come from :class:`spine
 3. Dark endplate lines along the straightened image and an alternating disc/body chain
    (``column.find_lines``, ``column.chain_lines``), then per-disc endplate following for centre,
    margins, plane normal and height (``column.fit_disc``).
-4. Numbering from the sacrum upward (``numbering``), cross-checked with a second sagittal series
-   and with level names in slab descriptions.
+4. Numbering from the sacrum upward (``numbering``) for the classical labeller. With the learned labeller
+   (default) the discs come from the network; in both cases the numbering is then fused
+   (:mod:`.fusion`): numbering cues, level names in slab descriptions, the classical labeller as a weak
+   second opinion and the second sagittal series (T1 against T2) as a consistency check.
 5. Conus tip from the cord signal inside the thecal sac (``column.conus_tip``).
+6. Calibrated disc and numbering confidence and the numbering status ``confirmed`` / ``probable`` /
+   ``unconfirmed`` (:mod:`.calibration`, :mod:`.numbering`; policy in docs/labeling/lab08_fusion.md).
 
 Failure is reported, not raised: missing sequences or an unfollowable column produce warnings and
 low confidence in the returned :class:`Anchors`.
@@ -30,9 +34,20 @@ from ..config import DEFAULT, Config
 from ..geometry import Stack
 from ..study import Study
 from .anchors import Anchors, Disc, Vertebra
+from .calibration import disc_feature_rows, load_calibration, volume_feature_vector
 from .column import DiscFit, Segment, chain_lines, conus_tip, endplate_profile, find_lines, fit_disc
+from .fusion import FusionResult, fuse_numbering, fusion_record, relabel_anchors, stack_z_range
 from .midline import MidlineChoice, pols_for, refine_midline_axial, select_midline
-from .numbering import disc_names, sacrum_check, slab_crosscheck, vertebra_name
+from .numbering import (
+    DEFAULT_STATUS_THRESHOLDS,
+    STATUS_CONFIRMED,
+    STATUS_PROBABLE,
+    STATUS_UNCONFIRMED,
+    disc_names,
+    numbering_status,
+    sacrum_check,
+    vertebra_name,
+)
 from .sagittal import BodyAxis, CanalTrack, SagImage, build_body_axis, sagittal_image, straighten, track_canal
 
 log = logging.getLogger(__name__)
@@ -282,6 +297,10 @@ def _vertebrae(res: StackResult, cfg: Config) -> dict[str, Vertebra]:
 #: Labelling backends accepted by :func:`label_spine`. ``auto`` uses the learned (ONNX) labeller when
 #: ONNX Runtime and the packaged model are available, otherwise the classical one.
 BACKENDS = ("auto", "ml", "classical")
+METHOD_NUMBERING = (
+    "fusion/1 numbering: learned-labeller discs, slab/tilt/conus/slab-name votes, classical tilt (weak), "
+    "second sagittal series (consistency), calibrated confidence and status"
+)
 
 
 def _ml_available() -> bool:
@@ -295,27 +314,29 @@ def _ml_available() -> bool:
         return False
 
 
-def label_spine(study: Study, config: Config | None = None, *, backend: str = "auto") -> Anchors:
-    """Detect discs, vertebrae and the conus of a lumbar MRI study and number them from the sacrum.
+@dataclass
+class LabelDetails:
+    """:func:`label_spine_details` output: the anchors plus what the fusion and calibration used.
 
-    Uses the best sagittal stack (``study.best('sag')``). Returns :class:`Anchors` in LPS mm with
-    confidence and evidence on every anchor. Missing inputs give warnings instead of exceptions.
-
-    ``backend``: ``"auto"`` (default: the learned labeller if available, else classical), ``"ml"``
-    (learned; validated on public data, see docs/model_card.md) or ``"classical"`` (no model;
-    much less accurate). Unknown names raise :class:`ValueError`.
+    ``raw_disc_confidence`` and ``raw_numbering_confidence`` are the values before calibration (the numbering one
+    is the labeller's own heuristic, as on main). ``disc_features`` / ``volume_features`` are the calibration
+    inputs (see :mod:`spinescope.anatomy.calibration`). Used by the calibration tool; most callers want
+    :func:`label_spine`.
     """
-    if backend not in BACKENDS:
-        raise ValueError(f"unknown labelling backend {backend!r}; available: {', '.join(BACKENDS)}")
-    if backend == "auto":
-        backend = "ml" if _ml_available() else "classical"
-        if backend == "classical":
-            log.warning("learned labeller unavailable (pip install onnxruntime); using the classical backend")
-    if backend == "ml":
-        from .ml import label_spine_ml
 
-        return label_spine_ml(study, config)
-    cfg = config or DEFAULT
+    anchors: Anchors
+    backend: str  # "ml" | "classical" | "none"
+    raw_disc_confidence: dict[str, float] = field(default_factory=dict)
+    raw_numbering_confidence: float = 0.0
+    disc_features: dict[str, NDArray[np.float64]] = field(default_factory=dict)
+    volume_features: NDArray[np.float64] | None = None
+    fusion: FusionResult | None = None
+    calibrated: bool = False
+    unfused: Anchors | None = None  # the primary's anchors before the numbering was fused (for evaluation)
+
+
+def _label_classical(study: Study, cfg: Config) -> Anchors:
+    """Classical labelling of the best sagittal stack: discs, bodies, conus and the sacrum-check numbering."""
     anchors = Anchors(method=METHOD)
     stack = study.best("sag")
     if stack is None:
@@ -334,79 +355,215 @@ def label_spine(study: Study, config: Config | None = None, *, backend: str = "a
     anchors.vertebrae = _vertebrae(res, cfg)
     anchors.midline_x = _midline_x(stack, res.d_mid)
     anchors.warnings.extend(res.warnings)
-    conf_num = res.sacrum_conf
-    notes = list(res.numbering_notes)
-    # Cross-check with a second sagittal series (e.g. T1 against T2): agreement of labels.
-    other = [
-        s for s in study.find("sag") if s.key != stack.key and not s.meta.get("role", {}).get("localizer")
-    ]
-    agree_n = 0
-    for st in other[:1]:
-        res2 = _analyse_stack(st, cfg, study)
-        if res2 is None or not res2.anchors_discs:
-            notes.append(f"second sagittal series {st.key}: no disc chain")
-            continue
-        agree, total = _compare_labels(anchors.discs, res2.anchors_discs, cfg.disc_match_mm)
-        agree_n = agree
-        if total:
-            notes.append(
-                f"second sagittal series {st.key}: {agree}/{total} discs agree in label and position"
-            )
-            if agree == total:
-                conf_num = min(1.0, conf_num + 0.1)
-            else:
-                anchors.warnings.append(
-                    f"sagittal series {st.key} numbers {total - agree} disc(s) differently"
-                )
-                conf_num = max(0.0, conf_num - 0.2)
-    # Slab cross-check: level names in oblique slab descriptions.
-    slabs = study.slabs("ax")
-    if slabs:
-        centres = {k: np.asarray(v.center) for k, v in anchors.discs.items()}
-        normals = {k: np.asarray(v.normal) for k, v in anchors.discs.items()}
-        heights = {k: float(v.height_mm or 8.0) for k, v in anchors.discs.items()}
-        ag, dis, sl_ev = slab_crosscheck(slabs, centres, normals, heights)
-        notes.extend(sl_ev)
-        if dis:
-            anchors.warnings.append("oblique slab level names disagree with the numbering")
-            conf_num = max(0.0, conf_num - 0.2)
-        elif ag:
-            conf_num = min(1.0, conf_num + 0.05)
     _attach_conus(anchors, res)
     anchors.numbering = {
-        "method": "count up from the lowest disc (L5-S1 when bone is visible below it)",
-        "confidence": round(float(conf_num), 3),
-        "notes": "; ".join(notes),
-        "second_series_agreement": agree_n,
+        "method": "classical: count up from the lowest disc, sacrum check",
+        "confidence": round(float(res.sacrum_conf), 3),
+        "notes": "; ".join(res.numbering_notes),
     }
-    if conf_num < 0.5:
-        anchors.warnings.append("numbering confidence is low")
     return anchors
+
+
+def _classical_discs_of(stack: Stack, cfg: Config, study: Study) -> Anchors | None:
+    """Classical disc set of one sagittal stack (used for a second series with the classical backend)."""
+    res = _analyse_stack(stack, cfg, study)
+    if res is None or not res.anchors_discs:
+        return None
+    a = Anchors(method=METHOD, source_stack=stack.key)
+    a.discs = res.anchors_discs
+    return a
+
+
+def _ml_discs_of(stack: Stack, cfg: Config) -> Anchors:
+    """Learned-labeller disc set of one sagittal stack (run on the stack itself, not ``study.best``)."""
+    from .ml import anchors_from_segmentation, segment_stack
+
+    return anchors_from_segmentation(segment_stack(stack, cfg), cfg)
+
+
+def _second_sagittal(study: Study, primary_key: str) -> Stack | None:
+    """The first non-localizer sagittal stack other than the primary (e.g. T1 when T2 is primary)."""
+    others = [
+        s for s in study.find("sag") if s.key != primary_key and not s.meta.get("role", {}).get("localizer")
+    ]
+    return others[0] if others else None
+
+
+def _apply_status_caps(status: str, *, sacrum_below: bool, applied: bool, second_extra: bool) -> str:
+    """Hard caps on the status: confirmed needs bone below the lowest disc, and a relabelled or
+    second-series-contradicted study is at most probable."""
+    if status == STATUS_CONFIRMED and (not sacrum_below or applied or second_extra):
+        return STATUS_PROBABLE
+    return status
+
+
+def _finalise(study: Study, primary: Anchors, kind: str, cfg: Config, calibrate: bool) -> LabelDetails:
+    """Second series, classical opinion, numbering fusion, relabelling, calibration and status."""
+    det = LabelDetails(anchors=primary, backend=kind)
+    if not primary.discs:
+        primary.numbering = {**primary.numbering, "status": STATUS_UNCONFIRMED, "calibrated": False}
+        return det
+    stack = study.best("sag")
+    if stack is None:  # cannot happen when discs were found; keep the numbering contract anyway
+        primary.numbering = {**primary.numbering, "status": STATUS_UNCONFIRMED, "calibrated": False}
+        return det
+    z_cov = stack_z_range(stack)
+    raw_num = float(primary.numbering.get("confidence", 0.0) or 0.0)
+    det.raw_numbering_confidence = raw_num
+    sacrum_below = (
+        "S1" in primary.vertebrae and primary.vertebrae["S1"].confidence >= 0.5
+        if kind == "ml"
+        else raw_num
+        >= 0.8  # classical: the sacrum check (>= 9 mm of bone below the lowest disc) is confident
+    )
+
+    second: Anchors | None = None
+    second_stack = _second_sagittal(study, primary.source_stack)
+    warn: list[str] = []
+    if second_stack is not None:
+        try:
+            second = (
+                _ml_discs_of(second_stack, cfg)
+                if kind == "ml"
+                else _classical_discs_of(second_stack, cfg, study)
+            )
+        except Exception as exc:  # a failing second series must not sink the primary labels
+            log.warning("second sagittal series %s failed: %s", second_stack.key, exc)
+            warn.append(f"second sagittal series {second_stack.key}: labelling failed ({type(exc).__name__})")
+        if second is not None and not second.discs:
+            warn.append(f"second sagittal series {second_stack.key}: no disc chain")
+            second = None
+    classical: Anchors | None = None
+    if kind == "ml":
+        try:
+            classical = _label_classical(study, cfg)
+        except Exception as exc:  # the classical opinion is optional: never let it sink the learned labels
+            log.warning("classical second opinion failed: %s", exc)
+            warn.append(f"classical second opinion failed ({type(exc).__name__}): not used")
+
+    fus = fuse_numbering(
+        primary,
+        study=study,
+        second=second,
+        second_key=second_stack.key if second_stack is not None else "",
+        classical=classical,
+        coverage_z=z_cov,
+        sacrum_below=sacrum_below,
+    )
+    det.fusion = fus
+    # Features are taken before the names shift: the T1/T2 comparison is between count-based names.
+    raw_pre = {lab: float(d.confidence) for lab, d in primary.discs.items()}
+    det.unfused = Anchors.from_dict(primary.to_dict())
+    mapping = relabel_anchors(primary, fus.offset if fus.applied else 0)
+    det.raw_disc_confidence = {mapping[lab]: v for lab, v in raw_pre.items()}
+    t1t2 = {mapping[lab]: v for lab, v in fus.t1t2_by_label.items()}
+    second_present = second is not None
+    det.disc_features = disc_feature_rows(
+        primary, det.raw_disc_confidence, t1t2, second_present=second_present, sacrum_below=sacrum_below
+    )
+    det.volume_features = volume_feature_vector(
+        fus.p_applied,
+        det.raw_disc_confidence,
+        sacrum_below=sacrum_below,
+        second_present=second_present,
+        t1t2_fraction=fus.t1t2_fraction,
+        classical_agree=bool(fus.classical and fus.classical["agrees"]),
+    )
+
+    cal = load_calibration() if (calibrate and kind == "ml") else None
+    fallback = fus.p_applied * (1.0 if sacrum_below else 0.9)
+    if cal is not None:
+        det.calibrated = True
+        labels = list(det.disc_features)
+        probs = cal.disc.predict(np.stack([det.disc_features[lab] for lab in labels]))
+        for lab, p in zip(labels, probs, strict=True):
+            d = primary.discs[lab]
+            d.evidence.append(
+                f"confidence {float(p):.2f} calibrated (raw model probability {det.raw_disc_confidence[lab]:.2f})"
+            )
+            d.confidence = float(p)
+        conf_num = float(cal.volume.predict(det.volume_features)[0])
+        thresholds = cal.thresholds
+    else:
+        conf_num = float(fallback)
+        thresholds = DEFAULT_STATUS_THRESHOLDS
+        warn.append("numbering confidence is uncalibrated (no calibration for this backend)")
+    status = numbering_status(conf_num, thresholds)
+    status = _apply_status_caps(
+        status,
+        sacrum_below=sacrum_below,
+        applied=fus.applied,
+        second_extra=bool(fus.second and fus.second["extra_below"]),
+    )
+    rec = fusion_record(fus)
+    notes = list(fus.notes)
+    if not sacrum_below:
+        notes.append(
+            "no vertebral bone visible below the lowest disc: the lowest name is not confirmed by bone"
+        )
+    midline_keys = {k: v for k, v in primary.numbering.items() if k.startswith("midline")}
+    primary.numbering = {
+        **midline_keys,
+        **rec,
+        "method": METHOD_NUMBERING,
+        "confidence": round(conf_num, 4),
+        "confidence_raw": round(raw_num, 4),
+        "calibrated": det.calibrated,
+        "status": status,
+        "sacrum_below": sacrum_below,
+        "notes": "; ".join(notes),
+        "second_series_agreement": fus.second["agree"] if fus.second else 0,
+    }
+    primary.warnings.extend(fus.warnings)
+    primary.warnings.extend(warn)
+    if status != STATUS_CONFIRMED:
+        primary.warnings.append(f"numbering {status} (P={conf_num:.2f}): level names need confirmation")
+    if status == STATUS_UNCONFIRMED:
+        primary.warnings.append("numbering confidence is low")
+    return det
+
+
+def label_spine_details(
+    study: Study, config: Config | None = None, *, backend: str = "auto", calibrate: bool = True
+) -> LabelDetails:
+    """As :func:`label_spine`, but also returns the fusion record, raw confidences and calibration features."""
+    if backend not in BACKENDS:
+        raise ValueError(f"unknown labelling backend {backend!r}; available: {', '.join(BACKENDS)}")
+    if backend == "auto":
+        backend = "ml" if _ml_available() else "classical"
+        if backend == "classical":
+            log.warning("learned labeller unavailable (pip install onnxruntime); using the classical backend")
+    cfg = config or DEFAULT
+    if backend == "ml":
+        from .ml import label_spine_ml
+
+        primary = label_spine_ml(study, cfg)
+        return _finalise(study, primary, "ml", cfg, calibrate)
+    primary = _label_classical(study, cfg)
+    return _finalise(study, primary, "classical", cfg, calibrate)
+
+
+def label_spine(study: Study, config: Config | None = None, *, backend: str = "auto") -> Anchors:
+    """Detect discs, vertebrae and the conus of a lumbar MRI study and number them from the sacrum.
+
+    Uses the best sagittal stack (``study.best('sag')``). Returns :class:`Anchors` in LPS mm with
+    confidence and evidence on every anchor. Missing inputs give warnings instead of exceptions.
+
+    ``backend``: ``"auto"`` (default: the learned labeller if available, else classical), ``"ml"``
+    (learned; validated on public data, see docs/model_card.md) or ``"classical"`` (no model;
+    much less accurate). Unknown names raise :class:`ValueError`.
+
+    The numbering is fused from the labeller, its cues and a second sagittal series when the study has one
+    (:mod:`spinescope.anatomy.fusion`). ``anchors.numbering['status']`` is ``confirmed``, ``probable`` or
+    ``unconfirmed``; see docs/labeling/lab08_fusion.md for the abstain policy.
+    """
+    return label_spine_details(study, config, backend=backend).anchors
 
 
 def _midline_x(stack: Stack, d_mid: float) -> float | None:
     if abs(float(stack.normal[0])) < 0.95:
         return None
     return float(d_mid / float(stack.normal[0]))
-
-
-def _compare_labels(a: dict[str, Disc], b: dict[str, Disc], tol: float) -> tuple[int, int]:
-    """Agreement of two disc sets: a disc of ``a`` agrees if the nearest disc of ``b`` (within tol mm in
-    the sagittal plane) has the same label. Returns (agree, compared)."""
-    agree = total = 0
-    for lab, d in a.items():
-        ca = np.asarray(d.center)
-        best: tuple[float, str] | None = None
-        for lb, e in b.items():
-            cb = np.asarray(e.center)
-            dd = float(np.linalg.norm((ca - cb)[1:]))
-            if best is None or dd < best[0]:
-                best = (dd, lb)
-        if best is None or best[0] > tol:
-            continue
-        total += 1
-        agree += int(best[1] == lab)
-    return agree, total
 
 
 def _attach_conus(anchors: Anchors, res: StackResult) -> None:
