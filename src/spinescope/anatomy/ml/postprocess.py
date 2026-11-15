@@ -395,10 +395,15 @@ def anchors_from_segmentation(seg: SegmentedStack, cfg: Config = DEFAULT) -> Anc
         anchors.numbering = {"method": "none", "confidence": 0.0, "notes": "no canal"}
         return anchors
     anchors.midline_x = mid.x_lps
-    # Lateral curve (lab30): with a significant curve each disc is measured on its own sagittal plane (3-D), else
-    # the single mid-sagittal plane path below is kept.
+    # Lateral curvature (lab30, screening, unvalidated): the measurement is always recorded; with relocation switched on
+    # (opt-in, Config.scoliosis_relocate) a significant curve moves disc measurements onto their own planes.
     curve = measure_curve(seg, cfg)
     anchors.alignment["coronal"] = curve.to_dict()
+    if curve.active:  # screening only: a large canal offset can move discs off the mid-sagittal plane
+        anchors.warnings.append(
+            f"large lateral canal offset (screening, unvalidated: amplitude {curve.amplitude_mm:.0f} mm): "
+            "disc labels on the mid-sagittal plane may be affected; check the level names"
+        )
     relocated = curve.active and cfg.scoliosis_relocate
     if relocated:
         discs, warns = discs_on_curve(seg, curve, cfg, mid.k)

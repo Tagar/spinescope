@@ -57,7 +57,7 @@
     },
     "alignment": {
       "type": "object",
-      "description": "Spine alignment in the coronal plane (1.2). Key coronal: the canal's lateral curve x(z) with its Cobb-like angle, apex, direction, confidence and whether it is active (labels measured on their own planes). Empty when not measured (classical backend, no sagittal).",
+      "description": "Lateral curvature SCREENING, unvalidated (1.2): key coronal holds the canal's lateral curve with amplitude_mm first; cobb_like_uncalibrated_deg is an uncalibrated estimate, not a Cobb angle. Empty when not measured (classical backend, no sagittal).",
       "additionalProperties": true
     },
     "numbering": {

@@ -1,4 +1,20 @@
-# lab30_scoliosis: lateral curves, and disc planes that follow them
+# lab30_scoliosis: lateral curvature screening, and opt-in disc planes that follow it
+
+## Decision (final, coordinator)
+
+- Shipped as **measure-only**: `Config.scoliosis_relocate = False` by default. Labels are exactly the mid-sagittal
+  path's; `benchmarks/golden.json` is unchanged.
+- The relocation code path (section 2) stays, opt-in, with its tests, so it can be re-evaluated later.
+- Reasons: the pre-registered rule allows a golden change only when all numbers improve. Sudirman `wrong_announced`
+  went 11 to 12, and a wrong announced level is the failure ranked worst. The calibration ECE got worse because the
+  calibration (calibration_v2) was fitted without relocation. Validation was looked at while choosing rules, so the
+  +1.9 pp label gain is optimistic.
+- Presentation: the output is "lateral curvature screening (unvalidated)". The amplitude in mm leads. The Cobb-like
+  angle is an uncalibrated estimate, not a Cobb angle (the network's angle correlates 0.30 with the mask angle, and the
+  network curve also fires on the straight phantom). A warning ("large lateral canal offset, screening, unvalidated")
+  is raised when the curve clears the screening thresholds, because labels could be affected. It is not a finding of
+  scoliosis.
+- Section 7 is the protocol for a future re-evaluation.
 
 Branch `lab/lab30_scoliosis` (from main 9f160fc). Owner: `src/spinescope/anatomy/scoliosis.py`,
 `tests/test_anatomy_scoliosis.py`, this file. Shared-file edits (additive): `anatomy/ml/postprocess.py` (the
@@ -187,10 +203,19 @@ normal is the less reliable one: on SPIDER a 2-D own-plane normal for every relo
 one (curved subset median 4.2 against 3.8 deg), which is why the mid-plane normal is kept where it exists. Centres still
 come from the 3-D pooled disc. `scoliosis_normal_3d = True` gives the 3-D normal for every relocated disc.
 
-## 5. Benchmarks (`tools/benchmark.py --check benchmarks/golden.json`)
+## 5. Benchmarks
 
-Final code, default configuration (`scoliosis_relocate` = True, `scoliosis_normal_3d` = False). The check does NOT pass,
-and `benchmarks/golden.json` is NOT updated.
+### 5.1 Shipped default (relocation off): `tools/benchmark.py --check benchmarks/golden.json`
+
+Result: **PASS, no regressions** against the unchanged `benchmarks/golden.json` (127 metrics within tolerance, no
+improvements, because with relocation off the labels are the mid-sagittal path's). The check notes that the labeller
+fingerprint changed (the new `scoliosis.py`), which does not move numbers. Full suite: 1441 passed, 1 skipped, 43 xfailed.
+
+The relocation-on run (5.2) is kept below for the record only. Its metrics are not part of the shipped default.
+
+### 5.2 Relocation on (opt-in, for the record, not shipped)
+
+Final code with `scoliosis_relocate` = True. The check failed and `golden.json` was not updated.
 
 Improvements (all judged "improved" by the check):
 
@@ -240,7 +265,19 @@ phantom and on calibration, which is why the check fails.
 - Thresholds (Cobb 10 degrees, amplitude 4 mm, confidence 0.3, reach 20 mm, clash gap one level spacing) are judgement
   values in `Config`, documented there. They were not fitted to any split.
 
-## 7. Reproduce
+## 7. Follow-up protocol (re-evaluating relocation)
+
+1. Recalibrate on SPIDER training only, with `scoliosis_relocate = True`: refit the numbering calibration
+   (`tools/calibrate_labeling.py`, as lab14 did) so the calibration inputs match relocated discs.
+2. Freeze every rule: the Config defaults (`scoliosis_*`, `ml_disc_*`), the one-to-one protection, the clash rule, the
+   normal rule and the calibration. No changes after this point.
+3. Evaluate once on SPIDER validation, Sudirman and qx5rt, with relocation on, and once on the phantom suites.
+4. Pass criterion: the benchmark `--check` passes against a golden file regenerated from the frozen run, with every
+   metric better or within tolerance, and Sudirman `wrong_announced` not above the current golden value. Any other
+   result stays opt-in.
+5. Record the numbers in this file. Do not tune on the validation or Sudirman results.
+
+## 8. Reproduce
 
 The runners used for these numbers are in `/tmp/spinescope-lab30_scoliosis/` (not committed: they write per-case
 records with case identifiers, and this repository keeps no per-case outputs). The benchmark is the committed

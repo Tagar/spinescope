@@ -118,7 +118,7 @@ def test_no_canal_gives_an_invalid_inactive_curve():
     curve = scoliosis.measure_curve(seg, DEFAULT)
     assert curve.valid is False and curve.active is False
     rec = curve.to_dict()
-    assert rec["valid"] is False and rec["cobb_deg"] is None
+    assert rec["valid"] is False and rec["cobb_like_uncalibrated_deg"] is None
     assert np.all(np.isnan(curve.x_at(np.array([0.0, 10.0]))))
 
 
@@ -183,7 +183,7 @@ def test_switch_off_keeps_the_mid_plane_path(oracle_scoliosis):
 def test_relocation_falls_back_to_the_mid_plane_when_no_disc_is_found(oracle_scoliosis, monkeypatch):
     _case, seg = oracle_scoliosis
     monkeypatch.setattr(postprocess, "discs_on_curve", lambda *a, **k: ([], []))
-    anchors = anchors_from_segmentation(seg, DEFAULT)
+    anchors = anchors_from_segmentation(seg, dataclasses.replace(DEFAULT, scoliosis_relocate=True))
     assert anchors.discs  # the mid-sagittal discs are used
     assert any("mid-sagittal discs used" in w for w in anchors.warnings)
     assert not any("own sagittal planes" in w for w in anchors.warnings)
@@ -240,6 +240,33 @@ def test_classical_backend_records_that_the_curve_was_not_measured(phantom_study
 
 def test_config_defaults_are_the_documented_ones():
     assert DEFAULT.scoliosis_min_cobb_deg == 10.0
-    assert DEFAULT.scoliosis_relocate is True
+    assert DEFAULT.scoliosis_relocate is False  # opt-in (lab30 decision)
     assert DEFAULT.scoliosis_disc_reach_mm == 20.0
     assert DEFAULT.scoliosis_normal_3d is False
+
+
+def test_default_labels_are_the_mid_plane_path_even_with_a_large_curve(oracle_scoliosis):
+    _case, seg = oracle_scoliosis
+    default = anchors_from_segmentation(seg, DEFAULT)
+    off = anchors_from_segmentation(seg, dataclasses.replace(DEFAULT, scoliosis_relocate=False))
+    assert default.alignment["coronal"]["active"] is True  # measured and reported
+    assert {k: (d.center, d.normal) for k, d in default.discs.items()} == {
+        k: (d.center, d.normal) for k, d in off.discs.items()
+    }
+    assert not any("own sagittal planes" in w for w in default.warnings)
+
+
+def test_record_leads_with_amplitude_and_marks_the_angle_uncalibrated(oracle_scoliosis):
+    _case, seg = oracle_scoliosis
+    anchors = anchors_from_segmentation(seg, DEFAULT)
+    rec = anchors.alignment["coronal"]
+    assert list(rec)[:2] == ["label", "amplitude_mm"]
+    assert rec["label"] == "lateral curvature screening (unvalidated)"
+    assert "cobb_like_uncalibrated_deg" in rec and "cobb_deg" not in rec
+
+
+def test_large_curve_raises_a_screening_warning_not_a_finding(oracle_scoliosis):
+    _case, seg = oracle_scoliosis
+    anchors = anchors_from_segmentation(seg, DEFAULT)
+    msgs = [w for w in anchors.warnings if "screening" in w]
+    assert msgs and all("scoliosis" not in w.lower() for w in msgs)

@@ -326,7 +326,7 @@ class Config:
     scoliosis_smooth_mm: float = (
         15.0  # Gaussian width of x(z) before its tangent and apex (a vertebra is about 25 mm)
     )
-    # Cobb >= 10 degrees is the clinical scoliosis threshold (Scoliosis Research Society). Below it the curve is
+    # Cobb-like >= 10 degrees (the clinical scoliosis cut-off, applied to an uncalibrated estimate). Below it the curve is
     # negligible and the single mid-sagittal plane path is kept.
     scoliosis_min_cobb_deg: float = 10.0
     # Apex displacement from the chord of about one SPIDER slice (3.3 mm); a smaller lateral offset is not resolved.
@@ -337,9 +337,10 @@ class Config:
     # A sagittal slice cuts a lumbar disc only within about half its transverse width (35-45 mm): a candidate further
     # than this from the curve at its height is not the disc (far-lateral slices give partial blobs).
     scoliosis_disc_reach_mm: float = 20.0
-    # Measure the discs on their own sagittal planes when the curve is active. False keeps the mid-plane path
-    # (the "before" of the lab30 evaluation).
-    scoliosis_relocate: bool = True
+    # Measure the discs on their own sagittal planes when the curve is active. Opt-in (lab30 decision): off by default,
+    # so labels are exactly the mid-plane path's. Turning it on changes calibration inputs; re-evaluate first (see
+    # docs/labeling/lab30_scoliosis.md, section 7).
+    scoliosis_relocate: bool = False
     # Normal of a relocated disc. False (default): a disc the mid-sagittal slice shows keeps the mid-plane normal, others
     # take the 2-D normal of their own plane. True: the 3-D pooled normal for every relocated disc. On SPIDER the 3-D
     # normal is closer to the 3-D mask truth (curved subset, training: median 0.7 against 3.1 deg), but on the independent

@@ -71,22 +71,27 @@ class LateralCurve:
         return np.interp(zz, self.grid_z, self.smooth_x)
 
     def to_dict(self) -> dict[str, Any]:
-        """JSON-ready record (no arrays): the form stored in ``Anchors.alignment['coronal']``."""
+        """JSON-ready record (no arrays): the form stored in ``Anchors.alignment['coronal']``.
+
+        Lateral curvature SCREENING, unvalidated (lab30). The amplitude in mm is the primary figure; the Cobb-like angle
+        is an uncalibrated estimate, not a Cobb angle.
+        """
 
         def _r(v: float | None, nd: int = 2) -> float | None:
             return None if v is None or not np.isfinite(v) else round(float(v), nd)
 
         return {
+            "label": "lateral curvature screening (unvalidated)",
+            "amplitude_mm": _r(self.amplitude_mm, 1),
+            "apex_z_mm": _r(self.apex_z, 1),
+            "apex_x_mm": _r(self.apex_x, 1),
+            "direction": self.direction,
+            "cobb_like_uncalibrated_deg": _r(self.cobb_deg, 1),
+            "confidence": _r(self.confidence, 3),
+            "coverage": _r(self.coverage, 3),
             "valid": bool(self.valid),
             "active": bool(self.active),
             "method": self.method,
-            "cobb_deg": _r(self.cobb_deg, 1),
-            "apex_z_mm": _r(self.apex_z, 1),
-            "apex_x_mm": _r(self.apex_x, 1),
-            "amplitude_mm": _r(self.amplitude_mm, 1),
-            "direction": self.direction,
-            "confidence": _r(self.confidence, 3),
-            "coverage": _r(self.coverage, 3),
             "knots": [
                 [_r(z, 1), _r(x, 2), int(s)]
                 for z, x, s in zip(self.knots_z, self.knots_x, self.support, strict=True)
@@ -262,13 +267,13 @@ def measure_curve(seg: SegmentedStack, cfg: Config = DEFAULT) -> LateralCurve:
     ev = [
         f"canal x(z) from {zk.size} knots every {cfg.scoliosis_knot_mm:.0f} mm over "
         f"{int(np.min(sup))}-{int(np.max(sup))} slices each; slice spacing {spacing:.1f} mm",
-        f"Cobb-like {cobb:.1f} deg; apex {amp:.1f} mm from the chord at z={res['apex_z']:.0f} mm "
+        f"amplitude {amp:.1f} mm from the chord at z={res['apex_z']:.0f} mm; uncalibrated Cobb-like {cobb:.1f} deg "
         f"({res['direction']})",
         f"residual {rms:.1f} mm about the smoothed curve; coverage {coverage:.2f}",
     ]
     if not active:
         ev.append(
-            "negligible or unreliable: single mid-sagittal plane path kept "
+            "below the screening thresholds (not reported as a finding): mid-sagittal plane path kept "
             f"(needs Cobb >= {cfg.scoliosis_min_cobb_deg:.0f} deg, amplitude >= "
             f"{cfg.scoliosis_min_amplitude_mm:.0f} mm, confidence >= {cfg.scoliosis_min_confidence:.2f})"
         )
@@ -448,7 +453,7 @@ def discs_on_curve(
     kept = [out[j] for j in kept_idx]
     out = sorted(kept, key=lambda q: q.center[2])
     warns.append(
-        f"lateral curve (Cobb-like {curve.cobb_deg or 0.0:.0f} deg, apex {curve.amplitude_mm:.0f} mm {curve.direction}): "
+        f"lateral curvature screening (unvalidated, amplitude {curve.amplitude_mm:.0f} mm {curve.direction}; opt-in): "
         f"{len(out)} discs measured on their own sagittal planes (largest offset from the canal {moved:.1f} mm"
         + (f"; {dropped} candidate(s) seen on fewer than 3 slices dropped" if dropped else "")
         + (f"; {clash} closer than {gap_min:.0f} mm to a more confident disc dropped" if clash else "")
