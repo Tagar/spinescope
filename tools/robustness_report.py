@@ -7,8 +7,8 @@ disk except the phantom itself, and the output carries no file paths.
 
 Usage::
 
-    .venv/bin/python tools/robustness_report.py            # Markdown table on stdout
-    .venv/bin/python tools/robustness_report.py --json out.json
+    .venv/bin/python tools/robustness_report.py            # Markdown table on stdout (cartoon phantom)
+    .venv/bin/python tools/robustness_report.py --realism realistic --json out.json
 """
 
 from __future__ import annotations
@@ -20,6 +20,7 @@ import sys
 from typing import Any
 
 from spinescope.anatomy.pipeline import BACKENDS
+from spinescope.testing.phantom import REALISMS
 from spinescope.testing.robustness import SCENARIOS, build_case, evaluate
 
 log = logging.getLogger("robustness_report")
@@ -27,25 +28,36 @@ log = logging.getLogger("robustness_report")
 _LABEL = {"pass": "PASS", "unsure": "FAIL (unsure)", "silent_error": "FAIL (silent)"}
 
 
-def run(names: list[str] | None = None, backends: tuple[str, ...] = BACKENDS) -> list[dict[str, Any]]:
+def run(
+    names: list[str] | None = None, backends: tuple[str, ...] = BACKENDS, realism: str = "cartoon"
+) -> list[dict[str, Any]]:
     """Evaluate the scenarios (optionally a subset) for each backend. One dict per scenario and backend."""
     rows: list[dict[str, Any]] = []
     for sc in SCENARIOS:
         if names and sc.name not in names:
             continue
-        case = build_case(sc)
+        case = build_case(sc, realism)
         for backend in backends:
             try:
                 r = evaluate(case, backend)
             except Exception as exc:  # a backend failing must not hide the other rows
                 log.warning("%s on %s raised %s", sc.name, backend, exc)
-                rows.append({"scenario": sc.name, "group": sc.group, "backend": backend, "error": str(exc)})
+                rows.append(
+                    {
+                        "scenario": sc.name,
+                        "group": sc.group,
+                        "backend": backend,
+                        "realism": realism,
+                        "error": str(exc),
+                    }
+                )
                 continue
             rows.append(
                 {
                     "scenario": sc.name,
                     "group": sc.group,
                     "backend": backend,
+                    "realism": realism,
                     "outcome": r.outcome,
                     "passed": r.passed,
                     "recall": r.metrics["recall"],
@@ -90,9 +102,10 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--json", metavar="PATH", help="also write the rows as JSON")
     ap.add_argument("--only", nargs="+", metavar="NAME", help="run only these scenarios")
+    ap.add_argument("--realism", default="cartoon", choices=REALISMS, help="phantom look (default: cartoon)")
     args = ap.parse_args(argv)
     logging.basicConfig(level=logging.WARNING)
-    rows = run(args.only)
+    rows = run(args.only, realism=args.realism)
     print(markdown(rows))
     if args.json:
         with open(args.json, "w", encoding="utf-8") as fh:
