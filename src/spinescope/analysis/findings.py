@@ -162,9 +162,11 @@ def _discs_pfirrmann(res: Result, level: str) -> Candidate | None:
             grade = r.get("pfirrmann_suggestion")
             if not grade:
                 return None
-            # The thresholds are not calibrated yet, so the suggestion is never reported above medium.
+            # Fitted on SPIDER training; validation numbers in docs/analysis/discs.md. Never reported above medium.
             conf = min(float(r.get("pfirrmann_confidence") or 0.0), 0.6)
-            return Candidate(int(grade), conf, "uncalibrated suggestion")
+            return Candidate(
+                int(grade), conf, "model suggestion (SPIDER-trained; see docs/analysis/discs.md)"
+            )
     return None
 
 

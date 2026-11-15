@@ -6,8 +6,8 @@ connects the existing analyses to them, and registers the SPIDER case loader.
 Predictor rules (fixed before any validation number was looked at; see ``docs/analysis/README.md``):
 
 * ``pfirrmann`` (discs): the disc's Pfirrmann suggestion (``pfirrmann_suggestion``).
-* ``disc_narrowing`` (discs): positive when the disc has the analysis' ``low_disc_height`` flag (height ratio < 0.6,
-  the threshold already in ``discs.py``); score is minus the height ratio, for AUC.
+* ``disc_narrowing`` (discs): positive when the disc height index ``dhi`` is below the SPIDER-training threshold
+  (``disc_narrowing_dhi_threshold``, Youden's J on training; see ``docs/analysis/discs.md``); score is minus ``dhi``.
 * ``modic`` (endplates): the highest Modic type over the two endplates of the disc (type from the endplate pattern:
   ``none`` -> 0, ``Modic 1`` and ``Modic 1-like`` -> 1, ``Modic 2`` -> 2, ``Modic 3`` -> 3). 0 only when both endplates
   are known to be normal; unknown when either is unknown and none is abnormal.
@@ -77,16 +77,16 @@ def _pfirrmann(res: Result, anchors: Anchors) -> dict[str, tuple[Any, float | No
 
 def _disc_narrowing(res: Result, anchors: Anchors) -> dict[str, tuple[Any, float | None]]:
     rows = _disc_rows(res)
-    flagged = {str(f.get("level")) for f in res.flags if f.get("kind") == "low_disc_height"}
     out: dict[str, tuple[Any, float | None]] = {}
     for lab in anchors.discs:
         r = rows.get(lab)
-        raw = r.get("height_ratio") if r else None
-        ratio = float(raw) if raw is not None else float("nan")
-        if not math.isfinite(ratio):
+        call = r.get("disc_narrowing_suggestion") if r else None
+        raw = r.get("dhi") if r else None
+        dhi = float(raw) if raw is not None else float("nan")
+        if call is None or not math.isfinite(dhi):
             out[lab] = (None, None)
             continue
-        out[lab] = (1 if lab in flagged else 0, -ratio)
+        out[lab] = (int(call), -dhi)
     return out
 
 

@@ -215,13 +215,31 @@ class Config:
     # HIZ candidates within this distance of CSF-bright voxels are partial volume with the sac; dropped.
     hiz_csf_exclusion_mm: float = 1.5
     hiz_area_mm2: tuple[float, float] = (0.5, 20.0)
-    # Pfirrmann suggestion ladders (grade 1..4 thresholds; grade 5 below the last). UNCALIBRATED until
-    # validated on public gradings (see docs/validation.md). Brightness: nucleus/CSF; homogeneity: nucleus CV
-    # (upper limits); contrast: nucleus-annulus contrast (lower limits); height: mean height / study median.
-    pfirrmann_brightness: tuple[float, float, float, float] = (0.85, 0.70, 0.55, 0.40)
-    pfirrmann_cv: tuple[float, float, float, float] = (0.10, 0.16, 0.22, 0.30)
-    pfirrmann_contrast: tuple[float, float, float, float] = (0.50, 0.40, 0.30, 0.20)
-    pfirrmann_height: tuple[float, float, float, float] = (0.90, 0.75, 0.60, 0.45)
+    # Anchored-height frame of a disc (no traced endplates) is used for signal only if this share of its samples is in
+    # the image (a disc cut by the field of view is not measured). Judgement; 0.9 is a convention.
+    disc_anchor_min_coverage: float = 0.9
+    # Disc traced on enough columns to measure heights (fraction of AP columns with both endplates). Below it the
+    # disc is measured on its anchored height (signal only). Judgement; 0.5 is the level the trace was validated at.
+    disc_min_valid_fraction: float = 0.5
+    # Quality factor of a disc measured on the anchored height instead of traced endplates (confidence multiplier).
+    disc_anchor_geometry_factor: float = 0.6
+    # Pfirrmann model (proportional odds, fitted by maximum likelihood on SPIDER training only, 1181 discs of 172
+    # patients; spinescope.analysis.discs). Features in order: log(nucleus/CSF), nucleus CV (homogeneity),
+    # nucleus-annulus contrast (distinction). Mean and SD standardise each feature; weights are the linear
+    # predictor coefficients; cutpoints are the four thresholds of the latent scale (P(grade <= g) = logistic(c_g - eta)).
+    pfirrmann_feature_mean: tuple[float, float, float] = (-1.362, 0.327, 0.100)
+    pfirrmann_feature_sd: tuple[float, float, float] = (0.596, 0.181, 0.124)
+    pfirrmann_weights: tuple[float, float, float] = (-1.107, 1.188, -0.346)
+    pfirrmann_cutpoints: tuple[float, float, float, float] = (-2.735, -0.776, 1.460, 3.482)
+    # Confidence multiplier when a disc has one slice only.
+    pfirrmann_single_slice_factor: float = 0.9
+    # Nucleus SNR (nucleus mean / noise sigma of the stack) at which image noise stops reducing confidence.
+    # SPIDER training median (27.5 over 981 T2 discs; see docs/analysis/discs.md).
+    pfirrmann_snr_reference: float = 27.5
+    # Disc narrowing: disc height index (mean disc height / mean adjacent body height) below this is narrowing.
+    # Chosen on SPIDER training by Youden's J (J 0.30 over 898 discs with a height index; tools/calibrate_disc_grade.py).
+    # See docs/analysis/discs.md.
+    disc_narrowing_dhi_threshold: float = 0.262
 
     # ---- analysis_core: endplates / Modic / marrow ----
     # Marrow band next to an endplate: 3-8 mm inside the body, clear of cortex and partial volume.
