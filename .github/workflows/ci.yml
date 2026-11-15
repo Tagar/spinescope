@@ -8,16 +8,23 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
-      - run: uv venv && uv pip install -e ".[dev]"
-      - run: uv run ruff check .
-      - run: uv run ruff format --check .
-      - run: uv run mypy
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: python -m pip install -e ".[dev]"
+      - run: ruff check .
+      - run: ruff format --check .
+      - run: mypy
 
   test:
     needs: lint
@@ -29,30 +36,30 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
-      - run: uv venv && uv pip install -e ".[dev]"
-      - run: uv run pytest --cov=spinescope --cov-report=term-missing --cov-report=xml
+          cache: pip
       - uses: actions/setup-node@v4
-        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.12'
         with:
           node-version: "20"
-      - name: Viewer JavaScript syntax check
-        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.12'
-        run: uv run pytest -q tests -k viewer
+      - run: python -m pip install -e ".[dev]"
+      - run: python -m pytest --cov=spinescope --cov-report=term-missing --cov-report=xml
 
   build:
     needs: test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
-      - run: uv venv && uv pip install build twine
-      - run: uv run python -m build
-      - run: uv run twine check dist/*
-      - name: Install the built wheel and smoke-test the CLI
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install build twine
+      - run: python -m build
+      - run: twine check dist/*
+      - name: Install the built wheel in a clean venv and smoke-test the CLI
         run: |
-          uv venv /tmp/wheelenv
-          uv pip install --python /tmp/wheelenv dist/*.whl
+          python -m venv /tmp/wheelenv
+          /tmp/wheelenv/bin/pip install dist/*.whl
           /tmp/wheelenv/bin/spinescope --help
+          /tmp/wheelenv/bin/python -c "import spinescope, spinescope.testing.phantom; print(spinescope.__version__)"
