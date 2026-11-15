@@ -13,8 +13,10 @@ this repository unless stated next to it.
 
 Learned spine labeller (optional, `spinescope[ml]`)
 
-The packaged weights `src/spinescope/anatomy/ml/assets/labeller_v1.onnx` were trained on the SPIDER
-lumbar spine MRI dataset: van der Graaf JW, et al. "Lumbar spine segmentation in MR images: a dataset
+The packaged weights `src/spinescope/anatomy/ml/assets/labeller_v1.onnx` and
+`src/spinescope/anatomy/lumbosacral_v1.onnx` were trained on the SPIDER lumbar spine MRI dataset
+(`lumbosacral_v1.json` holds thresholds from SPIDER training; `calibration_v2.json` was fitted on SPIDER
+training and Sudirman; see docs/model_card.md): van der Graaf JW, et al. "Lumbar spine segmentation in MR images: a dataset
 and a public benchmark." Scientific Data (2024), doi:10.1038/s41597-024-03090-w; dataset
 doi:10.5281/zenodo.10159290. SPIDER is licensed CC BY 4.0. The weights are derived from it and are
 distributed with that attribution; no SPIDER images or masks are included in this repository. The

@@ -16,15 +16,16 @@ Every labelling result has a numbering status, and it decides what may be done w
 
 | status | meaning | use the names? |
 |---|---|---|
-| `confirmed` | a human reviewer confirmed the names, the sacrum was in view and the numbering confidence is high | yes |
-| `probable` | a human reviewed or corrected the names, but has not confirmed them | yes, marked "to be confirmed" |
-| `unconfirmed` | automatic only, or an AI reader relabelled them and no human has looked since, or the bone is not in view | no, positions only |
+| `confirmed` | the automatic labeller is confident and bone is in view below the lowest disc; or a human reviewer confirmed the names after the last change | yes |
+| `probable` | the automatic labeller is less sure, or a second series disagrees, or a sacral disc was removed; or a human reviewed or corrected the names without confirming them; or an AI reader answered | yes, marked "to be confirmed" |
+| `unconfirmed` | the labeller is not confident, or the bone is not in view, or the lowest-disc check is unsure, or an AI reader relabelled the names and no human has looked since | no, positions only |
 
-Two rules are enforced in code (`spinescope.anatomy.review`), not left to the page:
+Rules enforced in code (`spinescope.anatomy.review`, `spinescope.anatomy.verify`), not left to the page:
 
-* An AI reader can never confirm the names. Its relabelling is `unconfirmed` until a human reviews it.
-* `confirmed` needs an explicit human **Confirm levels** after the last change, and the sacrum must be in the field of
-  view. If the sacrum is out of view, the viewer refuses to confirm and the file is kept at `unconfirmed`.
+* An AI reader can never confirm the names, and an AI answer never raises the status or the confidence. Its relabelling is
+  `unconfirmed` until a human reviews it.
+* `confirmed` after a human review needs an explicit **Confirm levels** after the last change, and the sacrum must be in the
+  field of view. If the sacrum is out of view, the viewer refuses to confirm and the file is kept at `unconfirmed`.
 
 The status in a file is never trusted as written. `apply-labels` recomputes it from the provenance (who changed what,
 and whether a human confirmed it last).
