@@ -231,5 +231,12 @@ class Config:
     verify_sacrum_offset_mm: float = 30.0
     verify_sacrum_fov_mm: float = 100.0
 
+    # ---- viewer: label review (viewer/assets/labels.js) ----
+    # Disc confidence colour bands: at or above ``high`` green, at or above ``low`` amber, else red.
+    # Numbering confidence below ``low`` raises the "labels unconfirmed" banner (the same 0.5 that
+    # anatomy.pipeline uses for "numbering confidence is low"). Judgement defaults, not calibrated.
+    viewer_conf_high: float = 0.8
+    viewer_conf_low: float = 0.5
+
 
 DEFAULT = Config()

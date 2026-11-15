@@ -11,56 +11,118 @@ __CSS__
 </style>
 </head>
 <body>
+<a class="skip" href="#panes">Skip to images</a>
 <div id="app">
-  <aside id="side">
+  <aside id="side" aria-label="Study, labels and corrections">
     <div class="brand">
       <h1 id="title"></h1>
       <p class="disclaimer" id="disclaimer"></p>
       <p class="hint" id="scanner"></p>
     </div>
-    <h2>Series</h2>
-    <ul id="series"></ul>
-    <p class="hint reformat-note" id="reformatnote" hidden></p>
-    <h2>Panes</h2>
-    <div class="row" id="layout"></div>
-    <h2>Window / level</h2>
-    <div class="row" id="presets"></div>
-    <p class="hint">Drag in an image: left/right = width, up/down = level. Presets apply to the focused pane.</p>
-    <div id="discblock">
-      <h2>Disc levels</h2>
-      <select id="disc"></select>
-    </div>
-    <div class="row"><button id="clear">Clear cursor</button><button id="helpbtn">Keys (?)</button></div>
+
+    <section class="block" id="labels-sec" aria-labelledby="h-labels">
+      <h2 id="h-labels">Vertebral labels</h2>
+      <p class="hint" id="method"></p>
+      <p class="numline" id="numline"></p>
+      <ul class="warnlist" id="warnlist"></ul>
+      <ul class="disclist" id="disclist" aria-label="Disc levels, superior first"></ul>
+    </section>
+
+    <section class="block" id="corr" aria-labelledby="h-corr">
+      <h2 id="h-corr">Corrections</h2>
+      <div class="field">
+        <label for="corr-why">Reason (required, saved with each change and the export)</label>
+        <textarea id="corr-why" name="corr_why" rows="2" maxlength="200" placeholder="e.g. lowest disc sits on the sacrum"></textarea>
+      </div>
+      <div class="row">
+        <button id="shift-up" type="button" title="Every level one step cranial: L5-S1 becomes L4-L5">Shift all labels up 1</button>
+        <button id="shift-down" type="button" title="Every level one step caudal: L4-L5 becomes L5-S1">Shift all labels down 1</button>
+      </div>
+      <div class="field">
+        <label for="ren-from">Rename disc</label>
+        <div class="inline">
+          <select id="ren-from" name="ren_from"></select>
+          <input id="ren-to" name="ren_to" type="text" placeholder="new, e.g. L5-L6" autocomplete="off" spellcheck="false">
+          <button id="ren-go" type="button">Rename</button>
+        </div>
+      </div>
+      <div class="field">
+        <label for="del-disc">Delete disc</label>
+        <div class="inline">
+          <select id="del-disc" name="del_disc"></select>
+          <button id="del-go" type="button">Delete</button>
+        </div>
+      </div>
+      <div class="field">
+        <label for="add-label">Add a disc missed by the labeller</label>
+        <div class="inline">
+          <input id="add-label" name="add_label" type="text" placeholder="e.g. L4-L5" autocomplete="off" spellcheck="false" aria-describedby="add-msg">
+          <button id="add-go" type="button" aria-pressed="false">Place</button>
+        </div>
+        <p class="fieldmsg" id="add-msg" role="status">Type the level, press Place, then click the disc centre on a sagittal pane.</p>
+      </div>
+      <div class="row">
+        <button id="undo" type="button">Undo</button>
+        <button id="confirm" type="button" title="Records that a reviewer confirmed the levels">Confirm levels</button>
+        <button id="export" type="button">Export JSON</button>
+      </div>
+      <p class="fieldmsg" id="corr-msg" role="status"></p>
+      <a id="export-link" class="exportlink" hidden>Download corrected anchors (JSON)</a>
+      <ol class="corrlog" id="corrlog" aria-label="Corrections this session"></ol>
+    </section>
+
+    <section class="block" aria-labelledby="h-series">
+      <h2 id="h-series">Series</h2>
+      <ul id="series"></ul>
+      <p class="hint reformat-note" id="reformatnote" hidden></p>
+    </section>
+
+    <section class="block" aria-labelledby="h-panes">
+      <h2 id="h-panes">Panes</h2>
+      <div class="row" id="layout"></div>
+      <h2 id="h-wl">Window / level</h2>
+      <div class="row" id="presets"></div>
+      <p class="hint">Drag in an image: left/right = width, up/down = level. Presets apply to the focused pane.</p>
+    </section>
+
+    <div class="row"><button id="clear" type="button">Clear cursor</button><button id="helpbtn" type="button" aria-haspopup="dialog">Keys (?)</button></div>
   </aside>
   <main id="main">
+    <div id="banner" role="status" hidden></div>
     <div id="panes"></div>
-    <div id="status"></div>
+    <div id="status" role="status" aria-live="polite"></div>
   </main>
 </div>
 
 <div id="help" hidden>
-  <div class="dialog">
-    <h2>Keyboard and mouse</h2>
+  <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="h-help">
+    <h2 id="h-help">Keyboard and mouse</h2>
     <table>
       <tr><td><kbd>1</kbd> to <kbd>4</kbd></td><td>number of panes</td></tr>
-      <tr><td><kbd>Tab</kbd></td><td>move focus to the next pane</td></tr>
+      <tr><td><kbd>Tab</kbd></td><td>move between the controls and the panes (native order)</td></tr>
+      <tr><td><kbd>[</kbd> <kbd>]</kbd></td><td>move the focused pane backward or forward</td></tr>
       <tr><td>Wheel, <kbd>&uarr;</kbd> <kbd>&darr;</kbd></td><td>scroll slices in the focused pane</td></tr>
       <tr><td><kbd>PgUp</kbd> <kbd>PgDn</kbd>, <kbd>Home</kbd> <kbd>End</kbd></td><td>5 slices, first or last slice</td></tr>
       <tr><td>Ctrl/Cmd + wheel, <kbd>+</kbd> <kbd>-</kbd></td><td>zoom (<kbd>0</kbd> or double-click resets)</td></tr>
       <tr><td>Shift-drag or middle-drag</td><td>pan</td></tr>
       <tr><td>Drag</td><td>window width (left/right) and level (up/down)</td></tr>
-      <tr><td>Click</td><td>set the 3D cursor; other panes move to the nearest slice</td></tr>
+      <tr><td>Click</td><td>set the 3D cursor; other panes move to the nearest slice. While adding a disc: place its centre</td></tr>
       <tr><td><kbd>C</kbd></td><td>clear the cursor</td></tr>
-      <tr><td><kbd>?</kbd> or <kbd>Esc</kbd></td><td>show or hide this list</td></tr>
+      <tr><td>Ctrl/Cmd + <kbd>Z</kbd></td><td>undo the last label correction</td></tr>
+      <tr><td><kbd>?</kbd> or <kbd>Esc</kbd></td><td>show or hide this list (Esc also cancels disc placement)</td></tr>
     </table>
     <p class="hint">Orientation letters on the image edges follow the acquisition geometry: R/L, A/P, S/I.
     Reference lines show where the other panes' slices cut this one. Research and education only. Not for diagnosis.</p>
+    <div class="row"><button id="helpclose" type="button">Close</button></div>
   </div>
 </div>
 
 <script>window.SPINESCOPE_DATA = __DATA__;</script>
 <script>
 __MATH__
+</script>
+<script>
+__LABELS__
 </script>
 <script>
 __APP__
