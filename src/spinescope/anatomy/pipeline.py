@@ -13,7 +13,8 @@ Steps (each is a documented module function; the numbers come from :class:`spine
    (default) the discs come from the network; in both cases the numbering is then fused
    (:mod:`.fusion`): numbering cues, level names in slab descriptions, the classical labeller as a weak
    second opinion and the second sagittal series (T1 against T2) as a consistency check.
-5. Conus tip from the cord signal inside the thecal sac (``column.conus_tip``).
+5. Conus tip: the classical tip (``column.conus_tip``) as a fallback; the learned-canal conus locator
+   (:mod:`.conus`) runs after the labels are final and replaces it when it finds the cord.
 6. Calibrated disc and numbering confidence and the numbering status ``confirmed`` / ``probable`` /
    ``unconfirmed`` (:mod:`.calibration`, :mod:`.numbering`; policy in docs/labeling/lab08_fusion.md).
 
@@ -537,10 +538,22 @@ def label_spine_details(
     if backend == "ml":
         from .ml import label_spine_ml
 
-        primary = label_spine_ml(study, cfg)
-        return _finalise(study, primary, "ml", cfg, calibrate)
-    primary = _label_classical(study, cfg)
-    return _finalise(study, primary, "classical", cfg, calibrate)
+        det = _finalise(study, label_spine_ml(study, cfg), "ml", cfg, calibrate)
+    else:
+        det = _finalise(study, _label_classical(study, cfg), "classical", cfg, calibrate)
+    _conus_after_labels(study, det.anchors, cfg)
+    return det
+
+
+def _conus_after_labels(study: Study, anchors: Anchors, cfg: Config) -> None:
+    """Locate the conus once the anchors are final (:mod:`.conus`); a failure keeps the labels and warns."""
+    from .conus import attach_conus
+
+    try:
+        attach_conus(study, anchors, cfg)
+    except Exception as exc:  # the conus is additional: it must never sink the labels
+        log.warning("conus locator failed: %s", exc)
+        anchors.warnings.append(f"conus not located (locator failed: {type(exc).__name__})")
 
 
 def label_spine(study: Study, config: Config | None = None, *, backend: str = "auto") -> Anchors:
