@@ -617,10 +617,9 @@ class Config:
     # Noren et al. (1991, Spine) used 7 degrees; the 7 to 10 degree range is cited in the literature. Used only by
     # spinescope.analysis.facets.tropism_flag: joint angles are not measured in this version.
     facets_tropism_deg: float = 7.0
-    # Confidence caps (analysis confidence in [0, 1]): parasagittal fallback and fluid touching the window edge.
-    # Fluid is called only on fat-suppressed images (STIR or fat-sat T2): on plain T2 fat is as bright as fluid.
+    # Confidence cap of the parasagittal fallback (analysis confidence in [0, 1]). Fluid is called only on fat-suppressed
+    # images (STIR or fat-sat T2): on plain T2 fat is as bright as fluid. Judgement: single-slice sagittal sampling.
     facets_sagittal_max_confidence: float = 0.3
-    facets_roi_limited_max_confidence: float = 0.4
 
 
 DEFAULT = Config()

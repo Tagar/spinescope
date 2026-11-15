@@ -17,12 +17,14 @@ Method, per disc level and side (no fixed slice numbers, no per-study constants)
    connected component that reaches within ``facets_seed_mm`` of the site is the fluid. Width = maximal caliper of
    that component (mm); roundness = minimal / maximal caliper. A call is made only when the CSF-muscle contrast is at
    least ``facets_min_contrast`` of the sampled intensity range.
-5. Calls. Effusion present when the width is at least ``facets_effusion_min_mm``. A round collection of at least
-   ``facets_cyst_min_mm`` is reported as a possible synovial cyst (wording "possible"). The fluid ratio
-   (fluid vs muscle over CSF vs muscle) states how bright the fluid is relative to CSF.
-6. Confidence. Fat-suppressed sequences (STIR, fat-sat) keep the full confidence; non-suppressed T2 is capped at
-   ``facets_no_fatsat_max_confidence``, a fluid component that touches the window edge at
-   ``facets_roi_limited_max_confidence``, and the parasagittal fallback at ``facets_sagittal_max_confidence``.
+5. Calls. Only on fat-suppressed images (STIR, fat-sat T2); plain T2 is recorded but not called, because fat is as
+   bright as fluid on it. A fluid component that reaches the window edge is not called (its width is a lower bound
+   and such regions were not joints). Otherwise effusion present when the width is at least
+   ``facets_effusion_min_mm``. A round collection of at least ``facets_cyst_min_mm`` is reported as a possible
+   synovial cyst (wording "possible"). The fluid ratio (fluid vs muscle over CSF vs muscle) states how bright the fluid
+   is relative to CSF.
+6. Confidence. 0.8 for a window-contained fat-suppressed call; the parasagittal fallback is capped at
+   ``facets_sagittal_max_confidence``.
 
 Not measured in this version: joint-space narrowing, osteophytes, the Weishaupt grade, periarticular oedema and facet
 orientation (see the doc). Output rows carry ``scope = "joint"`` with one row per level and side.
@@ -281,10 +283,8 @@ def tropism_flag(left_deg: float, right_deg: float, threshold_deg: float | None 
 
 
 # ----------------------------------------------------------------------------- analysis
-def _confidence(stack_plane: str, roi_limited: bool, cfg: Config) -> float:
+def _confidence(stack_plane: str, cfg: Config) -> float:
     conf = 0.8  # fat-suppressed fluid call (the only kind made)
-    if roi_limited:
-        conf = min(conf, cfg.facets_roi_limited_max_confidence)
     if stack_plane == "sag":
         conf = min(conf, cfg.facets_sagittal_max_confidence)
     return round(conf, 3)
@@ -379,7 +379,7 @@ def analyze(study: Study, anchors: Anchors, config: Config | None = None) -> Res
             contrast, fat_sup = _contrast_of(st)
             m = measure_joint(st, plane, site, cfg)
             used[st.key] += 1
-            conf = _confidence(plane, m.roi_limited, cfg)
+            conf = _confidence(plane, cfg)
             width = m.width_mm
             present: bool | None
             cyst = False
@@ -393,6 +393,12 @@ def analyze(study: Study, anchors: Anchors, config: Config | None = None) -> Res
                 present = None
                 conf = 0.0
                 notes.append("fat not suppressed (plain T2): fluid not called; extent recorded for review")
+            elif m.roi_limited:
+                # Fluid reaching the window edge is not a joint-sized collection (it is CSF, fat or another structure
+                # outside the joint): the width is only a lower bound, so no call is made.
+                present = None
+                conf = 0.0
+                notes.append("fluid reaches the window edge: not a joint-sized collection; no call")
             else:
                 present = width >= cfg.facets_effusion_min_mm
                 cyst = bool(
@@ -452,7 +458,15 @@ def analyze(study: Study, anchors: Anchors, config: Config | None = None) -> Res
                         "wording": "possible synovial cyst (round fluid collection), consider review",
                     }
                 )
-            shown = "no fluid call" if width is None else f"fluid {width:.1f} mm"
+            if width is None:
+                shown = "no fluid call (no contrast)"
+            elif not fat_sup:
+                shown = f"plain T2, not called ({width:.1f} mm)"
+            elif m.roi_limited:
+                shown = "fluid at window edge, not called"
+            else:
+                call = "present" if present else "absent"
+                shown = f"fluid {width:.1f} mm, {call}"
             panels.setdefault(label, {})[side] = (m, f"{contrast or plane}: {shown}")
     for label, per in panels.items():
         fig = _figure(label, per, cfg)
