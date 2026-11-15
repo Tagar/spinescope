@@ -100,3 +100,9 @@ def test_cli_hook_returns_dict_without_paths(ph, tmp_path):
     d = label_spine_cli(root)
     assert "discs" in d and "numbering" in d
     assert str(tmp_path) not in str(d)
+
+
+def test_unknown_backend_is_rejected(study):
+    with pytest.raises(ValueError, match="labelling backend"):
+        label_spine(study, backend="ml")
+    assert label_spine(study, backend="classical").method
