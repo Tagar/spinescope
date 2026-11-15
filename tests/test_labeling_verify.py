@@ -366,3 +366,55 @@ def test_inconsistent_lowest_answer_leaves_anchors_untouched():
     with pytest.raises(AnswerError):
         apply_answer(a, {"lowest_disc_is": "L5-L6"})  # a lumbarized S1 would keep the upper level L5
     assert a.to_dict() == before
+
+
+def test_lumbosacral_context_lists_bottom_up_candidates_and_skips_bad_records():
+    from spinescope.anatomy.verify import lumbosacral_context
+
+    a = _chain(LUMBAR)
+    assert lumbosacral_context(a) is None  # the CNN did not run
+    a.numbering["lumbosacral"] = {
+        "status": "keep",
+        "drop": 0,
+        "p_l5s1": [0.99991, 0.00002, None],
+        "candidates": ["L5-S1", "L4-L5", "L3-L4"],
+        "evidence": ["P(L5-S1) rank 0 (L5-S1) = 1.00"],
+    }
+    ctx = lumbosacral_context(a)
+    assert ctx == {"candidates": ["L5-S1", "L4-L5"], "p_l5s1": [1.0, 0.0]}
+    a.numbering["lumbosacral"]["candidates"] = ["L5-S1", "L4-L5"]
+    a.numbering["lumbosacral"]["p_l5s1"] = [float("nan"), 0.1]
+    assert lumbosacral_context(a) == {"candidates": ["L4-L5"], "p_l5s1": [0.1]}
+    a.numbering["lumbosacral"]["p_l5s1"] = [0.5]  # length mismatch: no context rather than a wrong pairing
+    assert lumbosacral_context(a) is None
+
+
+def test_packet_carries_lumbosacral_probability_and_an_overview_sheet(phantom_study, phantom):
+    import io
+
+    from PIL import Image
+
+    from spinescope.anatomy.verify import OVERVIEW_TILE_PX
+
+    auto = _truth_anchors(phantom)
+    auto.numbering["lumbosacral"] = {
+        "status": "keep",
+        "drop": 0,
+        "p_l5s1": [0.9, 0.1],
+        "candidates": ["L5-S1", "L4-L5"],
+        "evidence": [],
+    }
+    packet = build_packet(phantom_study, auto)
+    assert packet.lumbosacral == {"candidates": ["L5-S1", "L4-L5"], "p_l5s1": [0.9, 0.1]}
+    assert any("P(L5-S1)" in n and "L4-L5 0.100" in n for n in packet.notes)
+    assert packet.to_dict()["lumbosacral"] == packet.lumbosacral
+    assert "overview" in packet.images and next(reversed(packet.images)) == "overview"
+    sheet = Image.open(io.BytesIO(packet.images["overview"]))
+    assert sheet.height == 2 * OVERVIEW_TILE_PX  # four panels in two columns
+    assert "CNN" in packet.question and "lowest mobile disc" in packet.question
+
+
+def test_packet_without_lumbosacral_record_says_not_run(phantom_study, phantom):
+    packet = build_packet(phantom_study, _truth_anchors(phantom))
+    assert packet.lumbosacral is None
+    assert any("lumbosacral CNN: not run" in n for n in packet.notes)
