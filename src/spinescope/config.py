@@ -533,5 +533,38 @@ class Config:
     # PPV stayed below 0.11 at every threshold on SPIDER training (docs/analysis/alignment.md).
     alignment_flag_max_confidence: float = 0.3
 
+    # ---- analysis: central canal (spinescope.analysis.canal; dx06). Sagittal AP (mm) comes from the labeller's canal
+    # mask (anchors.canal), the axial dural sac area (mm^2) from the axial slab through each disc.
+    # Dural sac cross-sectional area, mm^2 (Hamanishi et al., Spine 1994: CSA under 100 mm^2 as relative and under
+    # 75 mm^2 as absolute canal stenosis). Cited from the wave brief; the paper text was not re-checked here.
+    canal_csa_relative_mm2: float = 100.0
+    canal_csa_absolute_mm2: float = 75.0
+    # Sagittal canal AP diameter, mm (Steurer et al., BMC Musculoskelet Disord 2011, systematic review of quantitative
+    # criteria): under 10 mm absolute stenosis, 10 to 13 mm relative (borderline). Cited from the wave brief.
+    canal_ap_absolute_mm: float = 10.0
+    canal_ap_relative_mm: float = 13.0
+    # Axial sac search: half width of the square window around the canal centre, mm. Judgement: the adult lumbar
+    # dural sac is about 12 to 18 mm across, so 16 mm holds it with a margin; a sac touching the window is truncated.
+    canal_axial_halfwindow_mm: float = 16.0
+    # Distance (mm) within which a sac component must lie of the projected canal centre to be taken (judgement).
+    canal_axial_centre_tol_mm: float = 3.0
+    # Obliquity of the axial slab against the disc normal (deg). The area is corrected by cos(angle) up to
+    # ``canal_axial_obliquity_max_deg``; above it no area is reported. Above ``canal_axial_obliquity_lower_deg`` the
+    # confidence is lowered (judgement: beyond the 12 degree slab tolerance of the correspondence module).
+    canal_axial_obliquity_max_deg: float = 35.0
+    canal_axial_obliquity_lower_deg: float = 15.0
+    # Plausible dural sac area, mm^2, after the correction (outside: not measured). Judgement, a loose gate.
+    canal_csa_min_mm2: float = 15.0
+    canal_csa_max_mm2: float = 300.0
+    # Reference for the relative value of each level: this quantile of the study's disc-level areas stands for the
+    # non-stenotic sac (judgement; the upper quartile is robust to one or two stenotic levels). Needs
+    # ``canal_reference_min_levels`` measured disc levels.
+    canal_reference_quantile: float = 0.75
+    canal_reference_min_levels: int = 3
+    # Axial area is reported as unvalidated (confidence capped) until the pre-registered validation passes
+    # (docs/analysis/canal.md, section 4). Set to True only after that check, never on a single image.
+    canal_axial_validated: bool = False
+    canal_axial_unvalidated_cap: float = 0.4
+
 
 DEFAULT = Config()
