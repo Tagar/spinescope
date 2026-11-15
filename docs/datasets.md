@@ -43,6 +43,9 @@ Data dataset page "Licence CC BY 4.0"). Re-check before a public release.
 - Mask labels observed on the release: vertebrae 1..N, spinal canal 100, intervertebral discs
   201..200+N. The loader exposes these as `CANAL_LABEL`, `VERTEBRA_LABELS` and `DISC_LABEL_OFFSET`.
 - Patient-identifying columns of `overview.csv` (sex, birth date, device serial number) are never read.
+- Checked on 40 cases: image and mask headers agree (size, spacing, origin, direction) to within 1e-4 mm
+  (float32 storage), so the same voxel indices address both. A mid-sagittal overlay of vertebrae, discs
+  and canal lined up with the anatomy after loading.
 - Tests: `tests/test_datasets_spider.py` runs on a synthetic tree with the same layout. A test marked
   `dataset` runs on the real release when it is on disk and is skipped otherwise.
 
