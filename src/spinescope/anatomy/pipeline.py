@@ -497,7 +497,7 @@ def _finalise(
             warn.append(f"second sagittal series {second_stack.key}: no disc chain")
             second = None
     classical: Anchors | None = None
-    if kind == "ml":
+    if kind == "ml" and cfg.classical_second_opinion:
         try:
             classical = _label_classical(study, cfg)
         except Exception as exc:  # the classical opinion is optional: never let it sink the learned labels
@@ -629,13 +629,15 @@ def label_spine_details(
     if backend == "ml" and det.anchors.discs:
         from .vertebrae import attach_geometry  # body, canal and posterior-element geometry (additive)
 
-        attach_geometry(study, det.anchors, cfg)
+        attach_geometry(study, det.anchors, cfg, seg=seg)  # reuses the primary network output
     if det.anchors.discs:
-        _conus_after_labels(study, det.anchors, cfg)
+        _conus_after_labels(study, det.anchors, cfg, seg=seg)
     return det
 
 
-def _conus_after_labels(study: Study, anchors: Anchors, cfg: Config) -> None:
+def _conus_after_labels(
+    study: Study, anchors: Anchors, cfg: Config, *, seg: SegmentedStack | None = None
+) -> None:
     """Locate the conus once the anchors are final (:mod:`.conus`); a failure keeps the labels and warns.
 
     The conus locator is EXPERIMENTAL (uncalibrated; a visual audit on public data could not verify most tips):
@@ -644,7 +646,7 @@ def _conus_after_labels(study: Study, anchors: Anchors, cfg: Config) -> None:
     from .conus import attach_conus
 
     try:
-        attach_conus(study, anchors, cfg)
+        attach_conus(study, anchors, cfg, seg=seg)
     except Exception as exc:  # the conus is additional: it must never sink the labels
         log.warning("conus locator failed: %s", exc)
         anchors.warnings.append(f"conus not located (locator failed: {type(exc).__name__})")

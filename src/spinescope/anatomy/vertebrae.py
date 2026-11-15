@@ -398,17 +398,22 @@ def _plane_centre(mask: BoolArray, grid: PlaneGrid) -> FloatArray:
     return np.array([float(down.mean()), float(post.mean())])
 
 
-def attach_geometry(study: Study, anchors: Anchors, config: Config | None = None) -> Anchors:
+def attach_geometry(
+    study: Study, anchors: Anchors, config: Config | None = None, *, seg: SegmentedStack | None = None
+) -> Anchors:
     """Run :func:`measure_geometry` on the study's best sagittal series (the learned labeller's own input).
 
-    Failures add a warning to ``anchors`` and leave the labels unchanged.
+    ``seg`` is the network output already computed for that stack (reused, so the network runs once per study);
+    it is recomputed when it is missing or belongs to another stack. Failures add a warning to ``anchors`` and
+    leave the labels unchanged.
     """
     cfg = config or DEFAULT
     stack = study.best("sag")
     if stack is None:
         return anchors
     try:
-        seg = segment_stack(stack, cfg)
+        if seg is None or seg.stack is not stack:
+            seg = segment_stack(stack, cfg)
         measure_geometry(seg, anchors, cfg)
     except Exception as exc:  # the geometry is an addition: never let it sink the labels
         log.warning("vertebral geometry failed: %s", exc)

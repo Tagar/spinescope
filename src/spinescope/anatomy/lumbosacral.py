@@ -39,7 +39,7 @@ from ..config import DEFAULT, Config
 from ..geometry import Stack
 from .anchors import Anchors, Vertebra
 from .ml.grid import PlaneGrid, normalise, resample_slice
-from .ml.labeller import SegmentedStack, session_options
+from .ml.labeller import SegmentedStack, load_session
 from .ml.postprocess import mid_sagittal
 from .numbering import disc_names, vertebra_name
 
@@ -135,11 +135,9 @@ class LumbosacralModel:
         return 1.0 / (1.0 + np.exp(-np.clip(logits, -60.0, 60.0)))
 
 
-@lru_cache(maxsize=2)
 def _session(path: str) -> ort.InferenceSession:
-    import onnxruntime as ort
-
-    return ort.InferenceSession(path, sess_options=session_options(), providers=["CPUExecutionProvider"])
+    """Shared ONNX session for the lumbosacral model (same thread control and cache as the labeller)."""
+    return load_session(path)
 
 
 def model_dir() -> Path:
