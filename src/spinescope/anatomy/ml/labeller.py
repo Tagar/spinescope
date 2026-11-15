@@ -64,7 +64,13 @@ class SegmentedStack:
 
 
 def model_path(name: str = MODEL_ASSET) -> Path:
-    """Path of a packaged ONNX weights file (default: the shipped labeller, ``labeller_v1.onnx``)."""
+    """Path of a packaged ONNX weights file (default: the shipped labeller, ``labeller_v1.onnx``).
+
+    An absolute path to an existing ONNX file is returned as it is (candidate weights in evaluation; see
+    ``Config.ml_model``).
+    """
+    if Path(name).is_absolute():
+        return Path(name)
     return Path(str(resources.files("spinescope.anatomy.ml") / "assets" / name))
 
 
@@ -191,11 +197,13 @@ def run_network(
     name = session.get_inputs()[0].name
     if images.shape[0] == 0:
         n_out = int(session.get_outputs()[0].shape[1] or N_CLASSES)
-        return np.zeros((0, n_out, *images.shape[1:]), dtype=np.float32)
+        return np.zeros((0, n_out, *images.shape[-2:]), dtype=np.float32)
     probs: NDArray[np.float32] | None = None
     step = max(1, int(batch))
     for lo in range(0, images.shape[0], step):
-        x = np.ascontiguousarray(images[lo : lo + step, None], dtype=np.float32)
+        chunk = images[lo : lo + step]
+        # (n, rows, cols) for one-slice models; (n, channels, rows, cols) for adjacent-slice (2.5-D) models.
+        x = np.ascontiguousarray(chunk[:, None] if chunk.ndim == 3 else chunk, dtype=np.float32)
         logits = np.asarray(session.run(None, {name: x})[0], dtype=np.float32)
         logits -= logits.max(axis=1, keepdims=True)
         np.exp(logits, out=logits)
@@ -207,6 +215,30 @@ def run_network(
     return probs
 
 
+def input_channels(session: ort.InferenceSession) -> int:
+    """Number of input channels of the network: 1 for one-slice models, 3 for adjacent-slice (2.5-D) models."""
+    shape = session.get_inputs()[0].shape
+    if len(shape) == 4 and isinstance(shape[1], int) and shape[1] > 0:
+        return int(shape[1])
+    return 1
+
+
+def adjacent_channels(images: NDArray[np.float32], channels: int) -> NDArray[np.float32]:
+    """Stack each slice with its neighbours along the stack as channels (k-1, k, k+1; edges repeat).
+
+    ``images`` is (n, rows, cols) on one grid per slice (the grids share their shape and in-plane offsets, so
+    the same pixel index means the same in-plane position on each neighbour). One channel returns the input.
+    """
+    if channels == 1:
+        return images
+    if channels != 3:
+        raise ValueError(f"unsupported number of input channels: {channels} (1 or 3)")
+    n = images.shape[0]
+    prev_idx = np.clip(np.arange(n) - 1, 0, max(n - 1, 0))
+    next_idx = np.clip(np.arange(n) + 1, 0, max(n - 1, 0))
+    return np.stack([images[prev_idx], images, images[next_idx]], axis=1)
+
+
 def segment_stack(
     stack: Stack, cfg: Config = DEFAULT, session: ort.InferenceSession | None = None
 ) -> SegmentedStack:
@@ -216,7 +248,7 @@ def segment_stack(
     grids = [plane_grid(stack, k, res) for k in range(stack.n)]
     window = intensity_window(stack.vol, cfg.ml_intensity_pct, cfg.background_frac)
     imgs = np.stack([normalise(resample_slice(stack, g), window) for g in grids])
-    probs = run_network(sess, imgs)
+    probs = run_network(sess, adjacent_channels(imgs, input_channels(sess)))
     return SegmentedStack(stack=stack, grids=grids, probs=probs, window=window)
 
 
@@ -276,7 +308,9 @@ __all__ = [
     "METHOD",
     "MODEL_ASSET",
     "SegmentedStack",
+    "adjacent_channels",
     "in_worker_process",
+    "input_channels",
     "label_spine_ml",
     "label_spine_ml_segmented",
     "load_session",

@@ -23,18 +23,28 @@ Slices: sagittal slices resampled to a 1 mm grid (rows superior->inferior, colum
 see ``spinescope.anatomy.ml.grid``), on a 320 x 320 canvas centred on the spine, from the slices within
 ``--para-mm`` of the canal centre (midline plus parasagittal).
 
-Classes (v2): background, vertebral body (labels 1-99), disc (200-299), spinal canal (100) and sacrum.
-SPIDER has no sacrum label, so the sacrum is a pseudo-label (:func:`sacrum_pseudo_label`): on each slice,
-the bone box directly below the lowest disc (label 201), in that disc's columns, from 2 mm below its
-inferior edge to at most 40 mm, cut at the acquired field of view. Boxes too short to be a body (under
-8 mm, field of view ends above the sacrum) are left empty, so the network also learns "no sacrum in view".
+Classes (v3, as v1): background, vertebral body (labels 1-99), disc (200-299), spinal canal (100). The sacrum
+is not a network class (lab25; the v2 sacrum channel hurt disc detection, docs/model_card.md). The sacrum
+pseudo-label (:func:`sacrum_pseudo_label`) is still computed, for the evaluation report only.
 
-Augmentation (v2): small rotation, scale and translation; partial field-of-view cuts (inferior/superior, with
-the labels cut the same way); in-plane resolution reduction; Gaussian blur; smooth multiplicative bias
-fields; gamma, contrast and brightness; random monotone intensity curves that stand in for other contrasts
-(STIR/PD-like tissue contrast changes, a proxy, not a physical simulation); Gaussian and Rician noise.
-No flips (A/P orientation is clinically meaningful). Loss: cross-entropy (class weights) + soft Dice on the
-foreground classes.
+Input (v3 options): ``--context 3`` stacks the slice with its two neighbours along the stack (k-1, k, k+1) as
+channels, so posterior elements and interspinous tissue can be told from discs by 3-D context. The neighbours
+are cropped with the same canvas origin as the centre slice, and at the ends of a stack the edge slice repeats,
+exactly as at inference (:func:`spinescope.anatomy.ml.labeller.adjacent_channels`).
+
+Loss options: ``--post-weight W`` multiplies the cross-entropy weight of background pixels posterior to the spinal
+canal (posterior elements and interspinous spaces are background in SPIDER and are where phantom discs appeared;
+lab21). The Dice term is unchanged.
+
+Augmentation: small rotation, scale and translation; partial field-of-view cuts (inferior/superior, with the labels
+cut the same way; ``--fov-cut`` enables the v2 probabilities 0.3 / 0.1); in-plane resolution reduction; Gaussian
+blur; smooth multiplicative bias fields; gamma, contrast and brightness; random monotone intensity curves that
+stand in for other contrasts (a proxy, not a physical simulation); Gaussian and Rician noise. No flips
+(A/P orientation is clinically meaningful). Loss: cross-entropy (class weights) + soft Dice on the foreground.
+
+Model selection protocol (lab25): ``--holdout 0.1`` removes 10 % of the TRAINING patients (fixed seed, by patient,
+see :func:`holdout_patients`) from the fit; ``evaluate --fold holdout`` scores exactly that fold. The validation
+subset is only read for the final, one-shot report.
 """
 
 from __future__ import annotations
@@ -60,13 +70,14 @@ from spinescope.config import DEFAULT
 
 log = logging.getLogger("train_labeller")
 
-CLASS_CANAL, CLASS_BODY, CLASS_DISC, CLASS_SACRUM = 3, 1, 2, 4
-CLASS_NAMES = {1: "vertebral body", 2: "disc", 3: "spinal canal", 4: "sacrum"}
-N_CLASSES = 5
+CLASS_CANAL, CLASS_BODY, CLASS_DISC, CLASS_SACRUM = 3, 1, 2, 4  # SACRUM is used only for the truth report
+CLASS_NAMES = {1: "vertebral body", 2: "disc", 3: "spinal canal"}
+N_CLASSES = 4  # network classes (v3 and v1): background, body, disc, canal
 CANVAS = 320  # training canvas (1 mm pixels) centred on the spine
 PATCH = 256  # network training patch (random affine crop of the canvas)
 WIDTHS = (16, 32, 64, 128, 128)
-CLASS_WEIGHTS = (0.5, 1.0, 2.0, 2.0, 2.0)  # background, body, disc, canal, sacrum
+CLASS_WEIGHTS = (0.5, 1.0, 2.0, 2.0)  # background, body, disc, canal
+HOLDOUT_SEED = 20260
 LOWEST_DISC = 201  # SPIDER label of the lowest disc (L5-S1 in the dataset's convention)
 # Sacrum pseudo-label recipe (mm; see sacrum_pseudo_label). Anatomy: S1 body is about 30-40 mm tall.
 SACRUM_GAP_MM = 2.0
@@ -74,6 +85,7 @@ SACRUM_MAX_MM = 40.0
 SACRUM_MIN_MM = 8.0
 SACRUM_MIN_DISC_MM2 = 30.0
 PSEUDO_VERSION = "sacrum-box-v1"
+MODEL_NAME = "labeller_v3"
 
 
 def spider_root(arg: str | None) -> Path:
@@ -111,6 +123,29 @@ def class_map(labels: np.ndarray) -> np.ndarray:
     cls[(v >= 200) & (v <= 299)] = CLASS_DISC
     cls[v == 100] = CLASS_CANAL
     return cls
+
+
+def network_class_map(labels: np.ndarray) -> np.ndarray:
+    """Network target (4 classes, no sacrum): :func:`class_map` on the SPIDER label volume or grid."""
+    return class_map(labels)
+
+
+def canvas_origin(lab: np.ndarray, size: int) -> tuple[int, int]:
+    """Top-left (row, col) of the ``size`` canvas centred on the foreground of ``lab`` (as :func:`to_canvas`)."""
+    fg = np.argwhere(lab > 0)
+    cy, cx = fg.mean(axis=0) if len(fg) else (lab.shape[0] / 2, lab.shape[1] / 2)
+    return int(np.rint(cy)) - size // 2, int(np.rint(cx)) - size // 2
+
+
+def crop_canvas(img: np.ndarray, y0: int, x0: int, size: int) -> np.ndarray:
+    """``img`` cut to the canvas at (y0, x0), zero-padded outside the image."""
+    h, w = img.shape
+    out = np.zeros((size, size), img.dtype)
+    ys, xs = max(0, y0), max(0, x0)
+    ye, xe = min(h, y0 + size), min(w, x0 + size)
+    if ye > ys and xe > xs:
+        out[ys - y0 : ye - y0, xs - x0 : xe - x0] = img[ys:ye, xs:xe]
+    return out
 
 
 def sacrum_pseudo_label(raw: np.ndarray, covered: np.ndarray, res: float) -> np.ndarray:
@@ -152,8 +187,12 @@ def class_map_grid(raw: np.ndarray, covered: np.ndarray, res: float) -> np.ndarr
     return cls
 
 
-def prepare_volume(name: str, root: Path, para_mm: float, res: float) -> tuple[np.ndarray, np.ndarray] | None:
-    """Canvas images (float32 in [0,1]) and class labels (v2 classes) for the slices of one SPIDER volume."""
+def prepare_volume(name: str, root: Path, para_mm: float, res: float) -> dict[str, Any] | None:
+    """Canvas images and labels for the slices of one SPIDER volume near the canal.
+
+    Returns ``x`` (n, 3, CANVAS, CANVAS) float32 in [0, 1] with channels (slice k-1, slice k, slice k+1) on the
+    canvas of slice k (edges of the stack repeat), and ``y`` (n, CANVAS, CANVAS) network classes (4 classes).
+    """
     from spinescope.io.volumes import read_volume
 
     st = read_volume(str(root / "images" / f"{name}.mha"))
@@ -172,26 +211,27 @@ def prepare_volume(name: str, root: Path, para_mm: float, res: float) -> tuple[n
     pos = np.asarray(st.positions, dtype=np.float64)
     x_canal = float(np.average(pos, weights=areas))
     window = intensity_window(st.vol, DEFAULT.ml_intensity_pct, DEFAULT.background_frac)
-    ones = np.ones(st.vol.shape, dtype=np.float32)
-    imgs, labs = [], []
-    for k in range(st.n):
-        if abs(pos[k] - x_canal) > para_mm:
-            continue
-        g = plane_grid(st, k, res)
-        img = normalise(resample_slice(st, g), window)
-        raw = np.rint(resample_slice(st, g, array=raw_all, order=0)).astype(np.int64)
-        covered = resample_slice(st, g, array=ones, order=1) > 0.5
-        lab = class_map_grid(raw, covered, res)
-        ci, cl = to_canvas(img, lab, CANVAS)
-        imgs.append(ci)
-        labs.append(cl)
-    if not imgs:
+    core = [k for k in range(st.n) if abs(pos[k] - x_canal) <= para_mm]
+    if not core:
         return None
-    return np.stack(imgs), np.stack(labs)
+    need = sorted({j for k in core for j in (max(k - 1, 0), k, min(k + 1, st.n - 1))})
+    img_of: dict[int, np.ndarray] = {}
+    for j in need:
+        img_of[j] = normalise(resample_slice(st, plane_grid(st, j, res)), window)
+    imgs, labs = [], []
+    for k in core:
+        g = plane_grid(st, k, res)
+        raw = np.rint(resample_slice(st, g, array=raw_all, order=0)).astype(np.int64)
+        lab = network_class_map(raw)
+        y0, x0 = canvas_origin(lab, CANVAS)
+        chans = [crop_canvas(img_of[j], y0, x0, CANVAS) for j in (max(k - 1, 0), k, min(k + 1, st.n - 1))]
+        imgs.append(np.stack(chans))
+        labs.append(crop_canvas(lab.astype(np.uint8), y0, x0, CANVAS))
+    return {"x": np.stack(imgs), "y": np.stack(labs)}
 
 
 def prepare(root: Path, subset: str, para_mm: float, res: float, limit: int | None) -> dict[str, Any]:
-    """Cache the slices of a SPIDER subset in memory (float16 images, uint8 labels)."""
+    """Cache the slices of a SPIDER subset in memory (float16 images with 3 channels, uint8 labels)."""
     rows = rows_for(root, subset)
     if limit:
         rows = rows[:limit]
@@ -201,14 +241,29 @@ def prepare(root: Path, subset: str, para_mm: float, res: float, limit: int | No
         res_v = prepare_volume(name, root, para_mm, res)
         if res_v is None:
             continue
-        xs.append(res_v[0].astype(np.float16))
-        ys.append(res_v[1])
-        names.extend([name] * len(res_v[0]))
+        xs.append(res_v["x"].astype(np.float16))
+        ys.append(res_v["y"])
+        names.extend([name] * len(res_v["x"]))
         if (i + 1) % 50 == 0:
             log.info("prepared %d/%d volumes (%d slices)", i + 1, len(rows), sum(len(x) for x in xs))
     x = np.concatenate(xs)
     y = np.concatenate(ys)
     return {"x": x, "y": y, "names": names, "volumes": len(xs)}
+
+
+def patient_of(name: str) -> str:
+    """SPIDER patient id of a volume name (``"12_t2_SPACE"`` -> ``"12"``)."""
+    return name.split("_")[0]
+
+
+def holdout_patients(names: list[str], frac: float, seed: int = HOLDOUT_SEED) -> set[str]:
+    """Patient ids held out for model selection: ``frac`` of the patients, drawn with a fixed seed (no image data)."""
+    import random
+
+    pats = sorted({patient_of(n) for n in names})
+    rng = random.Random(seed)
+    rng.shuffle(pats)
+    return set(pats[: round(frac * len(pats))])
 
 
 # ----------------------------------------------------------------------------- model and training
@@ -220,8 +275,8 @@ def _torch() -> Any:
     return torch
 
 
-def build_model(widths: tuple[int, ...] = WIDTHS, n_classes: int = N_CLASSES) -> Any:
-    """Small 2-D U-Net: 4 down-sampling stages, batch norm, transposed-conv up-sampling."""
+def build_model(widths: tuple[int, ...] = WIDTHS, n_classes: int = N_CLASSES, in_channels: int = 1) -> Any:
+    """Small 2-D U-Net: 4 down-sampling stages, batch norm, transposed-conv up-sampling (``in_channels`` 1 or 3)."""
     torch = _torch()
     nn = torch.nn
     F = torch.nn.functional
@@ -240,7 +295,7 @@ def build_model(widths: tuple[int, ...] = WIDTHS, n_classes: int = N_CLASSES) ->
         def __init__(self) -> None:
             super().__init__()
             self.downs = nn.ModuleList()
-            cin = 1
+            cin = in_channels
             for w in widths:
                 self.downs.append(block(cin, w))
                 cin = w
@@ -266,22 +321,20 @@ def build_model(widths: tuple[int, ...] = WIDTHS, n_classes: int = N_CLASSES) ->
     return UNet()
 
 
-def augment(x: Any, y: Any, out: int) -> tuple[Any, Any]:
-    """Training augmentation (v2), all per sample and label-consistent.
+def augment(x: Any, y: Any, out: int, fov_cut: bool = False) -> tuple[Any, Any]:
+    """Training augmentation, all per sample and label-consistent; x is (b, channels, H, W), y is (b, H, W).
 
-    Geometry: rotation +-10 deg, scale +-15 %, translation +-12 % of the canvas (nearest sampling for labels).
-    Partial field of view: with p=0.3 the inferior and with p=0.1 the superior part of the patch is cut off
-    (image and labels set to background beyond the cut, so a cut sacrum or disc is not labelled).
-    Resolution: p=0.3 of the batch is down-sampled by 1.5-3x along one in-plane axis and back (slice/pixel
-    blur of acquisitions with coarser sampling). Blur: Gaussian sigma 0.3-1.2 px with p=0.3.
-    Intensity: smooth multiplicative bias field (log-amplitude up to ~0.25), gamma, contrast and brightness,
-    and a random monotone curve with p=0.4 (proxy for other sequences' tissue contrast, e.g. STIR/PD-like).
-    Noise: Gaussian (p=0.6) and Rician magnitude noise (p=0.3), sigma up to 0.04 of the window.
-    No flips.
+    Geometry: rotation +-10 deg, scale +-15 %, translation +-12 % of the canvas (nearest sampling for labels); the
+    same geometry for every channel. Partial field of view (``fov_cut``): with p=0.3 the inferior and with p=0.1
+    the superior part of the patch is cut off (image and labels set to background beyond the cut, so a cut disc is
+    not labelled). Resolution: p=0.3 of the batch is down-sampled by 1.5-3x along one in-plane axis and back.
+    Blur: Gaussian sigma 0.3-1.2 px with p=0.3. Intensity: smooth multiplicative bias field (log-amplitude up to
+    ~0.25), gamma, contrast and brightness, and a random monotone curve with p=0.4, the same for all channels.
+    Noise: Gaussian (p=0.6) and Rician magnitude noise (p=0.3), sigma up to 0.04 of the window. No flips.
     """
     torch = _torch()
     F = torch.nn.functional
-    b = x.shape[0]
+    b, c = x.shape[0], x.shape[1]
     dev = x.device
     rnd = lambda *s: torch.rand(*s, device=dev) * 2 - 1  # noqa: E731  (uniform in [-1, 1))
     unit = lambda *s: torch.rand(*s, device=dev)  # noqa: E731  (uniform in [0, 1))
@@ -303,8 +356,9 @@ def augment(x: Any, y: Any, out: int) -> tuple[Any, Any]:
     yo = yo[:, 0].round().long()
     # --- partial field of view (cut inferior and/or superior rows; the labels follow the image)
     rows = torch.arange(out, device=dev)[None, :].expand(b, -1)
-    lo = torch.where(unit(b) < 0.3, 0.55 + 0.45 * unit(b), torch.ones(b, device=dev)) * out
-    hi = torch.where(unit(b) < 0.1, 0.4 * unit(b), torch.zeros(b, device=dev)) * out
+    p_inf, p_sup = (0.3, 0.1) if fov_cut else (0.0, 0.0)
+    lo = torch.where(unit(b) < p_inf, 0.55 + 0.45 * unit(b), torch.ones(b, device=dev)) * out
+    hi = torch.where(unit(b) < p_sup, 0.4 * unit(b), torch.zeros(b, device=dev)) * out
     keep = (rows < lo[:, None]) & (rows >= hi[:, None])
     xo = xo * keep[:, None, :, None]
     yo = yo * keep.long()[:, :, None]
@@ -322,10 +376,11 @@ def augment(x: Any, y: Any, out: int) -> tuple[Any, Any]:
     kern = kern / kern.sum(dim=1, keepdim=True)
     delta = (t == 0).float()[None].expand(b, -1)
     kern = torch.where(sig[:, None] > 0, kern, delta)
-    xb = xo.reshape(1, b, out, out)
-    xb = F.conv2d(xb, kern.reshape(b, 1, 1, 7), padding=(0, 3), groups=b)
-    xb = F.conv2d(xb, kern.reshape(b, 1, 7, 1), padding=(3, 0), groups=b)
-    xo = xb.reshape(b, 1, out, out)
+    kern_c = kern.repeat_interleave(c, dim=0)  # one kernel per (sample, channel)
+    xb = xo.reshape(1, b * c, out, out)
+    xb = F.conv2d(xb, kern_c.reshape(b * c, 1, 1, 7), padding=(0, 3), groups=b * c)
+    xb = F.conv2d(xb, kern_c.reshape(b * c, 1, 7, 1), padding=(3, 0), groups=b * c)
+    xo = xb.reshape(b, c, out, out)
     # --- bias field, gamma, contrast, brightness
     amp = 0.05 + 0.2 * unit(b, 1, 1, 1)
     field = torch.exp(
@@ -348,7 +403,7 @@ def augment(x: Any, y: Any, out: int) -> tuple[Any, Any]:
     frac = pos4 - idx.float()
     y0 = torch.gather(yk, 1, idx)
     y1 = torch.gather(yk, 1, idx + 1)
-    xo = (y0 * (1 - frac) + y1 * frac).reshape(b, 1, out, out)
+    xo = (y0 * (1 - frac) + y1 * frac).reshape(b, c, out, out)
     # --- noise: Gaussian and Rician magnitude
     sd = 0.04 * unit(b, 1, 1, 1)
     gauss_on = (unit(b, 1, 1, 1) < 0.6).float()
@@ -360,11 +415,33 @@ def augment(x: Any, y: Any, out: int) -> tuple[Any, Any]:
     return xo.clamp(0, 1), yo
 
 
-def dice_ce_loss(logits: Any, y: Any) -> Any:
+def posterior_weights(y: Any, post_w: float) -> Any:
+    """Per-pixel loss weight: ``post_w`` on background pixels posterior to the spinal canal of their sample, else 1.
+
+    The canal is the label CLASS_CANAL; "posterior" means a column beyond the canal's most posterior column in the
+    sample. Samples without canal get weight 1 everywhere. Posterior elements and interspinous tissue are background
+    in SPIDER, and they are where a disc-like signal appears in other inputs (lab21), so they are up-weighted.
+    """
+    torch = _torch()
+    b, h, w = y.shape
+    cols = torch.arange(w, device=y.device)[None, None, :].expand(b, h, w)
+    canal_col = torch.where(y == CLASS_CANAL, cols, torch.full_like(cols, -1)).amax(dim=(1, 2))
+    region = (y == 0) & (cols > canal_col[:, None, None]) & (canal_col[:, None, None] >= 0)
+    return torch.where(
+        region, torch.full_like(cols, post_w, dtype=torch.float32), torch.ones_like(cols, dtype=torch.float32)
+    )
+
+
+def dice_ce_loss(logits: Any, y: Any, post_weight: float = 1.0) -> Any:
     torch = _torch()
     F = torch.nn.functional
     w = torch.tensor(CLASS_WEIGHTS, device=logits.device)
-    ce = F.cross_entropy(logits, y, weight=w)
+    ce_pix = F.cross_entropy(logits, y, weight=w, reduction="none")
+    if post_weight != 1.0:
+        pw = posterior_weights(y, post_weight)
+        ce = (ce_pix * pw).sum() / (w[y] * pw).sum()
+    else:
+        ce = ce_pix.mean()
     p = logits.softmax(dim=1)
     oh = F.one_hot(y, N_CLASSES).permute(0, 3, 1, 2).to(p.dtype)
     inter = (p * oh).sum(dim=(0, 2, 3))
@@ -403,6 +480,7 @@ def versions() -> dict[str, str]:
 
 def cmd_train(args: argparse.Namespace) -> None:
     torch = _torch()
+    torch.set_num_threads(args.threads)
     seed = args.seed
     random.seed(seed)
     torch.manual_seed(seed)
@@ -410,18 +488,31 @@ def cmd_train(args: argparse.Namespace) -> None:
     out.mkdir(parents=True, exist_ok=True)
     root = spider_root(args.spider)
     t0 = time.time()
-    cache = out / f"train_cache_v2_{args.para_mm:g}mm_{args.limit or 'all'}.npz"
+    cache = out / f"train_cache_v3_{args.para_mm:g}mm_{args.limit or 'all'}.npz"
     if cache.exists() and not args.rebuild:
-        d = np.load(cache, allow_pickle=True)
-        x, y, n_vol = d["x"], d["y"], int(d["volumes"])
+        d = np.load(cache)
+        x, y, n_vol, names = d["x"], d["y"], int(d["volumes"]), [str(n) for n in d["names"]]
         log.info("loaded cached slices from %s", cache)
     else:
         data = prepare(root, "training", args.para_mm, args.res, args.limit)
-        x, y, n_vol = data["x"], data["y"], data["volumes"]
-        np.savez(cache, x=x, y=y, volumes=np.array(n_vol))
-    log.info("training slices: %d from %d volumes (%.0f s)", len(x), n_vol, time.time() - t0)
+        x, y, n_vol, names = data["x"], data["y"], data["volumes"], data["names"]
+        np.savez(cache, x=x, y=y, volumes=np.array(n_vol), names=np.array(names))
+    held = holdout_patients(sorted(set(names)), args.holdout) if args.holdout > 0 else set()
+    keep = np.array([patient_of(n) not in held for n in names], dtype=bool)
+    chans = [1] if args.context == 1 else [0, 1, 2]
+    x = x[keep][:, chans]
+    y = y[keep]
+    n_vol_fit = len({n for n, kp in zip(names, keep, strict=True) if kp})
+    log.info(
+        "training slices: %d from %d volumes (%.0f s); held out %d patients (%d volumes)",
+        len(x),
+        n_vol_fit,
+        time.time() - t0,
+        len(held),
+        n_vol - n_vol_fit,
+    )
     device = pick_device(torch, args.device)
-    model = build_model().to(device)
+    model = build_model(in_channels=len(chans)).to(device)
     n_params = sum(p.numel() for p in model.parameters())
     log.info("model: %d parameters on %s", n_params, device)
     xt = torch.from_numpy(x)
@@ -446,13 +537,13 @@ def cmd_train(args: argparse.Namespace) -> None:
         t_ep = time.time()
         for it in range(steps_per_epoch):
             idx = perm[it * args.batch : (it + 1) * args.batch]
-            xb = xt[idx].to(device=device, dtype=torch.float32)[:, None]
+            xb = xt[idx].to(device=device, dtype=torch.float32)
             yb = yt[idx].to(device)
-            xb, yb = augment(xb, yb, PATCH)
+            xb, yb = augment(xb, yb, PATCH, fov_cut=args.fov_cut)
             for g in opt.param_groups:
                 g["lr"] = lr_at(step)
             logits = model(xb)
-            loss = dice_ce_loss(logits, yb)
+            loss = dice_ce_loss(logits, yb, args.post_weight)
             opt.zero_grad(set_to_none=True)
             loss.backward()
             opt.step()
@@ -462,26 +553,26 @@ def cmd_train(args: argparse.Namespace) -> None:
         history.append(mean)
         log.info("epoch %d/%d loss %.4f (%.0f s)", ep + 1, args.epochs, mean, time.time() - t_ep)
         torch.save(model.state_dict(), out / "checkpoint.pt")
-    export_onnx(model.cpu().eval(), out / "labeller_v2.onnx")
+    onnx_path = out / f"{args.name}.onnx"
+    export_onnx(model.cpu().eval(), onnx_path, in_channels=len(chans))
     meta = {
-        "model": "labeller_v2",
+        "model": args.name,
         "widths": list(WIDTHS),
         "parameters": n_params,
-        "classes": ["background", "vertebral body", "disc", "spinal canal", "sacrum"],
-        "sacrum_pseudo_label": {
-            "version": PSEUDO_VERSION,
-            "gap_mm": SACRUM_GAP_MM,
-            "max_mm": SACRUM_MAX_MM,
-            "min_mm": SACRUM_MIN_MM,
-            "min_disc_mm2": SACRUM_MIN_DISC_MM2,
-            "lowest_disc_label": LOWEST_DISC,
-        },
+        "in_channels": len(chans),
+        "context": args.context,
+        "classes": ["background", "vertebral body", "disc", "spinal canal"],
         "class_weights": list(CLASS_WEIGHTS),
+        "post_weight": args.post_weight,
+        "fov_cut": bool(args.fov_cut),
+        "holdout_fraction": args.holdout,
+        "holdout_seed": HOLDOUT_SEED,
+        "holdout_patients": sorted(held, key=int),
         "resolution_mm": args.res,
         "canvas_px": CANVAS,
         "train_patch_px": PATCH,
         "para_mm": args.para_mm,
-        "training_volumes": n_vol,
+        "training_volumes": n_vol_fit,
         "training_slices": len(x),
         "epochs": args.epochs,
         "batch": args.batch,
@@ -494,15 +585,13 @@ def cmd_train(args: argparse.Namespace) -> None:
         "versions": versions(),
         "command": " ".join(sys.argv),
     }
-    (out / "train_meta.json").write_text(json.dumps(meta, indent=1))
-    log.info(
-        "exported %s (%.2f MB)", out / "labeller_v2.onnx", (out / "labeller_v2.onnx").stat().st_size / 1e6
-    )
+    (out / f"{args.name}_meta.json").write_text(json.dumps(meta, indent=1))
+    log.info("exported %s (%.2f MB)", onnx_path, onnx_path.stat().st_size / 1e6)
 
 
-def export_onnx(model: Any, path: Path) -> None:
+def export_onnx(model: Any, path: Path, in_channels: int = 1) -> None:
     torch = _torch()
-    dummy = torch.zeros(1, 1, PATCH, PATCH)
+    dummy = torch.zeros(1, in_channels, PATCH, PATCH)
     kwargs: dict[str, Any] = {}
     if "dynamo" in torch.onnx.export.__code__.co_varnames:
         kwargs["dynamo"] = False
@@ -561,6 +650,9 @@ def cmd_evaluate(args: argparse.Namespace) -> None:
     cfg = DEFAULT
     root = spider_root(args.spider)
     rows = rows_for(root, args.subset)
+    if args.subset == "training" and args.fold != "all":
+        held = holdout_patients([r["new_file_name"] for r in rows], args.holdout)
+        rows = [r for r in rows if (patient_of(r["new_file_name"]) in held) == (args.fold == "holdout")]
     if args.limit:
         rows = rows[: args.limit]
     session = load_session_for(args.model, args.threads)
@@ -611,7 +703,7 @@ def cmd_evaluate(args: argparse.Namespace) -> None:
         for k, g in enumerate(seg.grids):
             raw = np.rint(resample_slice(mstack, g, array=raw_all, order=0)).astype(np.int64)
             covered = fov_coverage_rows(seg, k)
-            gt = class_map_grid(raw, covered, cfg.ml_resolution_mm)
+            gt = network_class_map(raw)
             for c in range(1, N_CLASSES):
                 p_c = pred[k] == c
                 g_c = gt == c
@@ -645,6 +737,7 @@ def cmd_evaluate(args: argparse.Namespace) -> None:
             log.info("evaluated %d/%d (%.0f s)", i + 1, len(rows), time.time() - t0)
     res: dict[str, Any] = {
         "subset": args.subset,
+        "fold": args.fold if args.subset == "training" else "all",
         "model": args.model or "packaged",
         "volumes": len(rows),
         "overall": aggregate(scores),
@@ -733,6 +826,20 @@ def main(argv: list[str] | None = None) -> None:
     sub = ap.add_subparsers(dest="cmd", required=True)
     t = sub.add_parser("train", help="train on the training subset and export ONNX")
     t.add_argument("--epochs", type=int, default=30)
+    t.add_argument(
+        "--context", type=int, choices=(1, 3), default=1, help="1: one slice; 3: slices k-1, k, k+1"
+    )
+    t.add_argument(
+        "--post-weight", type=float, default=1.0, help="loss weight of posterior background (1 = off)"
+    )
+    t.add_argument(
+        "--fov-cut", action="store_true", help="partial field-of-view cuts (inferior 0.3, superior 0.1)"
+    )
+    t.add_argument(
+        "--holdout", type=float, default=0.0, help="fraction of training patients held out (by patient)"
+    )
+    t.add_argument("--name", default=MODEL_NAME, help="output file stem")
+    t.add_argument("--threads", type=int, default=4, help="torch CPU threads (MPS work is on the GPU)")
     t.add_argument("--batch", type=int, default=12)
     t.add_argument("--lr", type=float, default=2e-3)
     t.add_argument("--seed", type=int, default=20260)
@@ -745,7 +852,16 @@ def main(argv: list[str] | None = None) -> None:
     t.add_argument("--device", default="auto", help="auto | mps | cuda | cpu")
     e = sub.add_parser("evaluate", help="metrics on a subset (default validation)")
     e.add_argument("--subset", default="validation")
-    e.add_argument("--model", default=None, help="ONNX file (default: packaged labeller_v2.onnx)")
+    e.add_argument(
+        "--fold",
+        choices=("all", "train", "holdout"),
+        default="all",
+        help="training subset only: the fit fold, the held-out fold, or all volumes",
+    )
+    e.add_argument(
+        "--holdout", type=float, default=0.0, help="held-out fraction used at training (for --fold)"
+    )
+    e.add_argument("--model", default=None, help="ONNX file (default: packaged labeller_v1.onnx)")
     e.add_argument("--limit", type=int, default=0)
     e.add_argument(
         "--threads",
