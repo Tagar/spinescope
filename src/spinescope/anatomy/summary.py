@@ -145,6 +145,13 @@ def conus_line(anchors: Anchors) -> str:
     return f"conus: near {level}, confidence {conf:.2f}{extra} (EXPERIMENTAL, not validated)"
 
 
+def lstv_line(anchors: Anchors) -> str:
+    """Transitional-vertebra check in one line (see :mod:`spinescope.anatomy.lstv`)."""
+    from .lstv import lstv_line as _line
+
+    return _line(anchors)
+
+
 def numbering_votes(anchors: Anchors) -> tuple[int, int]:
     """(votes that agree with the applied numbering, votes counted), from ``numbering['votes']`` (weight > 0)."""
     votes = anchors.numbering.get("votes") or []
@@ -210,6 +217,15 @@ def labelling_summary(anchors: Anchors, cfg: Config = DEFAULT) -> dict[str, Any]
             "experimental": True,
             "line": conus_line(anchors),
         },
+        "lstv": None
+        if not isinstance(anchors.lstv, dict)
+        else {
+            "status": anchors.lstv.get("status"),
+            "kind": anchors.lstv.get("kind"),
+            "p_transitional": anchors.lstv.get("p_transitional"),
+            "castellvi": (anchors.lstv.get("castellvi") or {}).get("grade"),
+            "line": lstv_line(anchors),
+        },
         "warnings": list(anchors.warnings),
     }
 
@@ -225,6 +241,8 @@ def summary_lines(anchors: Anchors, cfg: Config = DEFAULT) -> list[str]:
     if s["fov"]["line"]:
         lines.append(f"Field of view: {s['fov']['line']}.")
     lines.append(conus_line(anchors) + ".")
+    if s["lstv"] is not None:
+        lines.append(s["lstv"]["line"] + ".")
     if s["lumbosacral"] is not None:
         removed = s["lumbosacral"]["removed"]
         lines.append(

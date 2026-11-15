@@ -499,6 +499,18 @@ def _s1_signals(primary: Anchors) -> tuple[float | None, float | None]:
     return below, ratio
 
 
+def _lstv_stage(anchors: Anchors) -> None:
+    """Transitional-vertebra check after the numbering is final (:mod:`.lstv`); suggests, never renames. A failure
+    keeps the labels and warns."""
+    from .lstv import attach_lstv
+
+    try:
+        attach_lstv(anchors)
+    except Exception as exc:  # the check is additional: it must never sink the labels
+        log.warning("transitional vertebra check failed: %s", exc)
+        anchors.warnings.append(f"transitional vertebra check failed ({type(exc).__name__})")
+
+
 def _conus_stage(study: Study, anchors: Anchors, cfg: Config, seg: SegmentedStack | None) -> None:
     """Locate the conus before the numbering fusion (experimental; its tip is a weak vote). A failure keeps the
     labels and warns. The final names and the status factor are set by :func:`refresh_conus` after numbering."""
@@ -815,6 +827,7 @@ def label_spine_details(
             refresh_conus(det.anchors, cfg)  # level, low-lying flag and status factor in the final names
         else:
             _conus_after_labels(study, det.anchors, cfg)
+    _lstv_stage(det.anchors)
     return det
 
 
