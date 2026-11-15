@@ -1,5 +1,7 @@
 # Labelling lab reports: index
 
+Start with [pipeline.md](pipeline.md): the stage order as it runs, and every place that can change the numbering status.
+
 Each lab report records one piece of work on the level labeller: what was built or measured, and what was decided.
 The reports are kept as they were written. Their numbers are from the commit each one was run on, and some predate the
 learned labeller (the default since `1c9f553`). For the current numbers read `docs/validation.md`. For the rejected

@@ -500,18 +500,20 @@ def _lowest_action(work: Anchors, target: str, why: str, who: str, source: str) 
 
 
 def review_status(anchors: Anchors, source: str) -> str:
-    """The numbering status after a reviewed correction, consistent with the applicability record.
+    """The numbering status after a reviewed correction (AI reader or human answer), never ``confirmed``.
 
-    A review that cannot see the bone (``applicability.unconfirmed_reasons``, e.g. no sacrum in view) stays
-    ``unconfirmed``. An AI reader's answer is never enough for ``confirmed``: it is at most ``probable``. A human
-    review may reach ``confirmed`` when its confidence does.
+    Policy (docs/guide/correcting-labels.md; the same as :func:`spinescope.anatomy.review.reconcile_status`): a
+    review that cannot see the bone (``applicability.unconfirmed_reasons``, e.g. no sacrum in view) stays
+    ``unconfirmed``; a review that leaves the confidence above the probable threshold is ``probable``. ``confirmed``
+    needs an explicit reviewer confirm (the viewer's "Confirm levels", a ``confirm`` record from a human), which an
+    answer to the verification packet is not. ``source`` is accepted for the caller's provenance; it does not
+    change the result.
     """
+    del source  # the same cap for every source: a review is at most probable
     if anchors.applicability.get("unconfirmed_reasons"):
         return STATUS_UNCONFIRMED
     status = numbering_status(float(anchors.numbering.get("confidence", 0.0) or 0.0))
-    if source != "human" and status != STATUS_UNCONFIRMED:
-        return STATUS_PROBABLE
-    return status
+    return STATUS_UNCONFIRMED if status == STATUS_UNCONFIRMED else STATUS_PROBABLE
 
 
 def apply_answer(
@@ -622,12 +624,12 @@ def apply_answer(
     # (docs/labeling/lab24_ai_verify.md) AI confirmations lifted wrong numberings from unconfirmed to
     # probable, while AI-proposed shifts were never right. So keep the prior confidence as a ceiling,
     # never exceed the prior status, and treat any AI relabelling as a suggestion awaiting a human.
-    if source != "human" and prior_conf is not None:
-        conf = min(conf, prior_conf)
+    if source != "human":
+        conf = min(conf, prior_conf if prior_conf is not None else 0.0)
     work.record_correction("review", who=who, source=source, why=why, detail=detail, confidence=conf)
     status = review_status(work, source)
     if source != "human":
-        status = _min_status(status, prior_status)
+        status = _min_status(status, prior_status)  # an AI reader lowers trust only
         if relabelled:
             status = STATUS_UNCONFIRMED
             work.warnings.append(
@@ -643,9 +645,10 @@ _STATUS_RANK = {STATUS_UNCONFIRMED: 0, STATUS_PROBABLE: 1, STATUS_CONFIRMED: 2}
 
 
 def _min_status(a: str, b: str | None) -> str:
-    """The less trusted of two numbering statuses (``b`` None or unknown: ``a``)."""
+    """The less trusted of two numbering statuses. A prior status that is missing or unknown counts as unconfirmed:
+    a reader's answer must never raise trust above what the anchors already said."""
     if b not in _STATUS_RANK:
-        return a
+        return STATUS_UNCONFIRMED
     return a if _STATUS_RANK.get(a, 0) <= _STATUS_RANK[b] else str(b)
 
 

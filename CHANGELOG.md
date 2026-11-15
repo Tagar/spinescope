@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- Labelling integration review (lab37, `docs/labeling/pipeline.md`): one map of the pipeline stage order and of every
+  place that changes the numbering status. Fixes: a human answer to the verification packet no longer sets `confirmed`
+  on its own (it is `probable`, as a human correction without a confirm; the import already downgraded it); the
+  labeller's "numbering unconfirmed" warning no longer stands under a probable or confirmed status (one status summary,
+  written after the last cap); the conus confidence and its status note are derived after the image-quality and
+  transitional-vertebra caps; the second sagittal series is no longer run through the network twice; an AI answer on
+  anchors with no status can no longer raise trust; a suspected transitional vertebra keeps its message when the kind is
+  unresolved. Faster: the image-quality ghosting correlation is about twice as fast (same values). Output changes are
+  wording and order of warnings, conus confidence after a quality or transitional cap, and the verification-packet
+  status above.
+
 - Human review of the level names, end to end (`docs/guide/correcting-labels.md`): `spinescope label --out`, then
   `spinescope viewer --anchors`, correct in the viewer (shift, rename, add, drop, each with a reason), export, then
   `spinescope apply-labels STUDY corrected.json --out reviewed.json` (also `label --anchors`). Corrected files are

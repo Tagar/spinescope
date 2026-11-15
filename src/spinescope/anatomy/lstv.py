@@ -603,6 +603,12 @@ def assess_lstv(
     )
 
 
+_SUSPECTED_MESSAGES: tuple[str, ...] = (
+    "possible lumbosacral transitional vertebra",
+    "transitional kind unresolved",
+)
+
+
 def attach_lstv(
     anchors: Anchors,
     *,
@@ -613,9 +619,10 @@ def attach_lstv(
     rec = res.to_dict()
     anchors.lstv = rec
     if res.status == STATUS_SUSPECTED:
-        msg = res.warnings[0]
-        if msg not in anchors.warnings:
-            anchors.warnings.append(msg)
+        # Pick the messages by their text: the first warning can be the kind note ("kind unresolved"), not the suspicion.
+        for msg in res.warnings:
+            if msg.startswith(_SUSPECTED_MESSAGES) and msg not in anchors.warnings:
+                anchors.warnings.append(msg)
     return rec
 
 

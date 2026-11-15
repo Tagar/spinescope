@@ -13,10 +13,14 @@ Steps (each is a documented module function; the numbers come from :class:`spine
    (default) the discs come from the network; in both cases the numbering is then fused
    (:mod:`.fusion`): numbering cues, level names in slab descriptions, the classical labeller as a weak
    second opinion and the second sagittal series (T1 against T2) as a consistency check.
-5. Conus tip: the classical tip (``column.conus_tip``) as a fallback; the learned-canal conus locator
-   (:mod:`.conus`) runs after the labels are final and replaces it when it finds the cord.
-6. Calibrated disc and numbering confidence and the numbering status ``confirmed`` / ``probable`` /
-   ``unconfirmed`` (:mod:`.calibration`, :mod:`.numbering`; policy in docs/labeling/lab08_fusion.md).
+5. Calibrated disc and numbering confidence and the numbering status ``confirmed`` / ``probable`` /
+   ``unconfirmed`` (:mod:`.calibration`, :mod:`.numbering`).
+6. Applicability (:mod:`.ood`), image quality (:mod:`.artifacts`), transitional vertebra (:mod:`.lstv`): each can
+   only lower confidence or cap the status. The conus (:mod:`.conus`, experimental) is derived after them, and one
+   status summary is written last.
+
+The full stage order, what each stage reads and writes, and every place that can change the status are in
+docs/labeling/pipeline.md.
 
 Failure is reported, not raised: missing sequences or an unfollowable column produce warnings and
 low confidence in the returned :class:`Anchors`.
@@ -275,18 +279,16 @@ def _analyse_stack(stack: Stack, cfg: Config, study: Study | None = None) -> Sta
     # Numbering from the bottom (lowest disc = L5-S1 when bone is visible below it).
     names = disc_names(len(an.discs))
     arc0 = float(an.axis.arc[0])
-    normals = []
-    for fit in an.discs:
-        g = _disc_geometry(an, fit, d_mid)
-        normals.append(g["tilt_deg"])
+    # Geometry of every disc, once: the tilts below and the anchors use the same values.
+    geoms = [_disc_geometry(an, fit, d_mid) for fit in an.discs]
+    normals = [g["tilt_deg"] for g in geoms]
     low_angle = normals[0]
     next_angle = normals[1] if len(normals) > 1 else None
     sc = sacrum_check(an.discs[0].arc - an.discs[0].height / 2, arc0, low_angle, next_angle, cfg)
     warns.extend(sc.warnings)
     notes = list(sc.evidence)
     anchors_discs: dict[str, Disc] = {}
-    for name, fit in zip(names, an.discs, strict=True):
-        g = _disc_geometry(an, fit, d_mid)
+    for name, fit, g in zip(names, an.discs, geoms, strict=True):
         conf = _disc_confidence(fit, cfg) * (1.0 if sc.confidence >= 0.8 else 0.85)
         ev = list(fit.evidence)
         ev.append(f"height {fit.height:.1f} mm, tilt {g['tilt_deg']:.0f} deg from the sagittal superior axis")
@@ -300,8 +302,6 @@ def _analyse_stack(stack: Stack, cfg: Config, study: Study | None = None) -> Sta
             confidence=float(np.clip(conf, 0.0, 1.0)),
             evidence=ev,
         )
-    if study is not None and study.find("sag") and len(an.discs) and mid.track is not None:
-        pass
     return StackResult(an, mid, d_mid, names, anchors_discs, sc.confidence, notes, warns)
 
 
@@ -311,7 +311,6 @@ def _vertebrae(res: StackResult, cfg: Config) -> dict[str, Vertebra]:
     discs = an.discs
     sag = an.sag
     arc_lo, arc_hi = float(an.axis.arc[0]), float(an.axis.arc[-1])
-    names = res.names
 
     def add(name: str, arc: float, conf: float, ev: str) -> None:
         if not (arc_lo <= arc <= arc_hi):
@@ -326,7 +325,6 @@ def _vertebrae(res: StackResult, cfg: Config) -> dict[str, Vertebra]:
     if discs:
         add(vertebra_name(0), discs[0].arc - 20.0, 0.4 * res.sacrum_conf, "20 mm below the lowest disc")
         add(vertebra_name(len(discs)), discs[-1].arc + 20.0, 0.4, "20 mm above the highest disc")
-    del names
     return out
 
 
@@ -530,13 +528,19 @@ def _lstv_stage(anchors: Anchors) -> None:
         )
 
 
-def _conus_stage(study: Study, anchors: Anchors, cfg: Config, seg: SegmentedStack | None) -> None:
+def _conus_stage(
+    study: Study,
+    anchors: Anchors,
+    cfg: Config,
+    seg: SegmentedStack | None,
+    segs: dict[str, SegmentedStack] | None = None,
+) -> None:
     """Locate the conus before the numbering fusion (experimental; its tip is a weak vote). A failure keeps the
     labels and warns. The final names and the status factor are set by :func:`refresh_conus` after numbering."""
     from .conus import attach_conus
 
     try:
-        attach_conus(study, anchors, cfg, seg=seg)  # reuses the primary network output
+        attach_conus(study, anchors, cfg, seg=seg, segs=segs)  # reuses the network outputs of this study
     except Exception as exc:  # the conus is additional: it must never sink the labels
         log.warning("conus locator failed: %s", exc)
         anchors.warnings.append(f"conus not located (locator failed: {type(exc).__name__})")
@@ -592,7 +596,7 @@ def _finalise(
         _geometry_step(primary, seg, cfg)
     s1_below, s1_ratio = _s1_signals(primary) if kind == "ml" else (None, None)
     if kind == "ml":
-        _conus_stage(study, primary, cfg, seg)
+        _conus_stage(study, primary, cfg, seg, segs)
     if kind == "ml":
         sacrum_below = s1_below is not None and s1_below >= cfg.sacrum_min_visible_mm
     else:
@@ -752,11 +756,23 @@ def _finalise(
         )
     primary.warnings.extend(fus.warnings)
     primary.warnings.extend(warn)
-    if status != STATUS_CONFIRMED:
-        primary.warnings.append(f"numbering {status} (P={conf_num:.2f}): level names need confirmation")
-    if status == STATUS_UNCONFIRMED:
-        primary.warnings.append("numbering confidence is low")
     return det
+
+
+def _status_warnings(anchors: Anchors) -> None:
+    """One status summary, written after every cap (applicability, image quality, transitional check, review).
+
+    The earlier stages used to write their own status sentence, so a status that a later stage capped was announced
+    with the wrong word. The summary is the only status sentence the labeller writes; the cause warnings stay.
+    """
+    status = str(anchors.numbering.get("status", "") or "")
+    if not anchors.discs or not status:
+        return
+    if status != STATUS_CONFIRMED:
+        conf = float(anchors.numbering.get("confidence", 0.0) or 0.0)
+        anchors.warnings.append(f"numbering {status} (P={conf:.2f}): level names need confirmation")
+    if status == STATUS_UNCONFIRMED:
+        anchors.warnings.append("numbering confidence is low")
 
 
 def _segmentations(study: Study, seg: SegmentedStack, cfg: Config) -> dict[str, SegmentedStack]:
@@ -819,8 +835,10 @@ def label_spine_details(
 ) -> LabelDetails:
     """As :func:`label_spine`, but also returns the fusion record, raw confidences and calibration features.
 
-    Stage order (lab22): network segmentation (once per stack) -> anchors -> lumbosacral check -> vertebral geometry
-    -> conus (weak vote) -> second series and fusion votes -> calibrated numbering -> applicability (may still cap).
+    Stage order (docs/labeling/pipeline.md has the full table): network segmentation (once per stack) -> anchors ->
+    lumbosacral check -> vertebral geometry -> conus (weak vote) -> second series and fusion votes -> calibrated
+    numbering -> applicability -> recap of the caps -> image quality -> transitional vertebra -> conus (final names)
+    -> status summary.
 
     ``lumbosacral=False`` skips the sacral-disc check (:mod:`.lumbosacral`): the labeller-only numbering, used as
     the "before" in evaluations. The default check is on. ``fusion`` overrides the fusion settings (e.g.
@@ -843,7 +861,7 @@ def label_spine_details(
 
         primary, seg = label_spine_ml_segmented(study, cfg)
         # lab35: the variants are compared with the labeller's chain before any numbering step changes it.
-        tta_res = analyse_tta(primary, seg, cfg) if (cfg.ml_tta and seg is not None) else None
+        tta_res = _tta_stage(primary, seg, cfg)
         segs = _segmentations(study, seg, cfg) if seg is not None else {}
         det = _finalise(
             study,
@@ -873,6 +891,11 @@ def label_spine_details(
     app = assess_applicability(study, det.anchors, seg=seg, cfg=cfg)
     apply_applicability(det.anchors, app, thresholds=det.status_thresholds)
     _recap_status(det.anchors)
+    # Caps that come last: image quality, then the transitional check. Only then is the status final, so the conus
+    # (whose confidence and evidence depend on the status) is derived after them.
+    if det.anchors.discs:
+        _quality_stage(study, det.anchors, cfg)
+    _lstv_stage(det.anchors)
     if det.anchors.discs:
         if backend == "ml":
             from .conus import refresh_conus
@@ -880,8 +903,7 @@ def label_spine_details(
             refresh_conus(det.anchors, cfg)  # level, low-lying flag and status factor in the final names
         else:
             _conus_after_labels(study, det.anchors, cfg)
-        _quality_stage(study, det.anchors, cfg)
-    _lstv_stage(det.anchors)
+    _status_warnings(det.anchors)
     stamp_study(det.anchors, study)  # binds the labels to this study (corrected files are checked against it)
     return det
 
@@ -913,6 +935,19 @@ def _quality_stage(study: Study, anchors: Anchors, cfg: Config) -> None:
         anchors.warnings.append(f"image quality not assessed ({type(exc).__name__})")
         return
     apply_quality(anchors, record, cfg)
+
+
+def _tta_stage(primary: Anchors, seg: SegmentedStack | None, cfg: Config) -> TTAResult | None:
+    """Test-time augmentation (opt-in, ``Config.ml_tta``). Additional, so a failure leaves the labels as they are and
+    adds a warning; the variants are computed on the primary labels before any numbering step changes them."""
+    if not (cfg.ml_tta and seg is not None):
+        return None
+    try:
+        return analyse_tta(primary, seg, cfg)
+    except Exception as exc:  # the augmentation is additional: it must never sink the labels
+        log.warning("test-time augmentation failed: %s", exc)
+        primary.warnings.append(f"test-time augmentation not measured ({type(exc).__name__})")
+        return None
 
 
 def _attach_tta(det: LabelDetails, res: TTAResult) -> None:

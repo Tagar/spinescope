@@ -14,7 +14,8 @@ anchors JSON. That file is only used once it passes this module:
 
    * a bone-blind review (``applicability.unconfirmed_reasons``, e.g. no sacrum in view) is always ``unconfirmed``;
    * ``confirmed`` needs an explicit human ``confirm`` after the last change, and a numbering confidence at or above
-     the confirmed threshold (:data:`spinescope.anatomy.numbering.DEFAULT_STATUS_THRESHOLDS`);
+     the confirmed threshold (:data:`spinescope.anatomy.numbering.DEFAULT_STATUS_THRESHOLDS`; the human confirm is
+     gated by the default on purpose, see section 6 of docs/labeling/pipeline.md);
    * any other human review (a correction, an export or an applied review) is at most ``probable``;
    * an AI reader's relabelling with no human review since is ``unconfirmed``;
    * AI-only review is capped at ``probable`` (the same cap as :func:`spinescope.anatomy.verify.review_status`).
@@ -51,10 +52,13 @@ log = logging.getLogger(__name__)
 FINGERPRINT_KEY = "study_fingerprint"
 #: Correction actions that change level names or positions (a relabelling of the study).
 STRUCTURAL_ACTIONS: frozenset[str] = frozenset({"shift", "relabel", "drop", "add"})
-#: Labeller warnings about the numbering status; a review that sets a higher status supersedes them.
+#: Labeller warnings about the numbering status and the bone below the lowest disc; a review that sets a higher
+#: status supersedes them (the status summary is written by the pipeline, see ``pipeline._status_warnings``).
 _SUPERSEDED_WARNINGS: tuple[str, ...] = (
     "numbering unconfirmed",
+    "numbering probable (",
     "numbering confidence is low",
+    "lowest disc not confirmed by bone:",
 )
 #: Stack planes the labeller reads; their geometry is what the fingerprint hashes.
 _LABELLED_PLANES: tuple[str, ...] = ("sag", "ax")

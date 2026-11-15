@@ -230,6 +230,16 @@ def _targets_of_body(anchors: Anchors, z: float) -> list[str]:
     return out
 
 
+def _pearson(a: NDArray[np.float64], b: NDArray[np.float64]) -> float | None:
+    """Pearson r of two equal-length vectors, as ``np.corrcoef`` gives it (centred dot products, clipped to [-1, 1]);
+    None when either vector is constant. Same value, without the per-call overhead of ``np.corrcoef``."""
+    da, db = a - a.mean(), b - b.mean()
+    saa, sbb = float(da @ da), float(db @ db)
+    if saa <= 0 or sbb <= 0:
+        return None
+    return float(np.clip((da @ db) / np.sqrt(saa * sbb), -1.0, 1.0))
+
+
 def detect_ghosting(stack: Stack, anchors: Anchors, cfg: Config = DEFAULT) -> dict[str, Any]:
     """Motion ghosting: repeated structures along the phase (row) axis, found as a peak in the lag autocorrelation.
 
@@ -259,9 +269,11 @@ def detect_ghosting(stack: Stack, anchors: Anchors, cfg: Config = DEFAULT) -> di
         for j, lag in enumerate(lags):
             a = hp[:-lag][win[:-lag]]
             b = hp[lag:][win[:-lag]]
-            if a.size < 50 or a.std() <= 0 or b.std() <= 0:
+            if a.size < 50:
                 continue
-            row[j] = float(np.corrcoef(a, b)[0, 1])
+            r_lag = _pearson(a, b)
+            if r_lag is not None:
+                row[j] = r_lag
         if np.isfinite(row).any():
             per_slice.append(row)
     if not per_slice:

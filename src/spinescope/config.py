@@ -16,6 +16,7 @@ class Config:
     level_spacing_mm: tuple[float, float] = (25.0, 50.0)  # disc centre to disc centre
     canal_ap_mm: tuple[float, float] = (8.0, 25.0)
     # Stenosis reference thresholds (dural sac CSA; Hamanishi 1994 / Schizas 2010, approximate).
+    # Deprecated: no module reads these today (the canal analysis uses its own limits). Kept because they are public.
     sac_area_relative_mm2: float = 100.0
     sac_area_absolute_mm2: float = 75.0
     # Reader consensus (report/merge.py). Judgement defaults, not literature: relative weight of a
@@ -123,8 +124,10 @@ class Config:
     conus_smooth_mm: float = 3.0  # median filter along the canal (removes single-row flicker)
     conus_min_run_mm: float = 6.0  # shortest cord-like run that counts as cord
     conus_full_run_mm: float = 20.0  # run length that gives full length credit to the confidence
+    # Deprecated (lab26): no code reads it; conus v2 analyses ``conus_max_slices`` sac slices nearest the midline.
+    # Kept because it is a public field.
     conus_slice_halfwidth_mm: float = (
-        4.0  # sagittal slices within this distance of the midline are analysed (~1 either side)
+        4.0  # was: sagittal slices within this distance of the midline (~1 either side)
     )
     conus_agree_mm: float = (
         6.0  # slices whose tip lies within this of the median tip agree (about half a body)
@@ -289,8 +292,9 @@ class Config:
 
     # ---- viewer: label review (viewer/assets/labels.js) ----
     # Disc confidence colour bands: at or above ``high`` green, at or above ``low`` amber, else red.
-    # Numbering confidence below ``low`` raises the "labels unconfirmed" banner (the same 0.5 that
-    # anatomy.pipeline uses for "numbering confidence is low"). Judgement defaults, not calibrated.
+    # Display thresholds only (the viewer's colour bands and "labels unconfirmed" banner, and the report's disc tiers in
+    # anatomy.summary). The labeller's own numbering status (confirmed / probable / unconfirmed) comes from the
+    # calibrated thresholds (anatomy.calibration), not from these. Judgement defaults, not calibrated.
     viewer_conf_high: float = 0.8
     viewer_conf_low: float = 0.5
     # Disc plausibility. SPIDER training truth: normals tilt at most ~60 deg from the superior-inferior axis

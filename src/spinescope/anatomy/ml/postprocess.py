@@ -502,13 +502,11 @@ def anchors_from_segmentation(seg: SegmentedStack, cfg: Config = DEFAULT, *, pla
     if not confirmed:
         if fov_short:
             anchors.warnings.append(
-                "numbering unconfirmed: field of view ends "
-                f"{fov_mm:.0f} mm below the lowest disc (sacrum not in view)"
+                "lowest disc not confirmed by bone: field of view ends "
+                f"{fov_mm:.0f} mm below it (sacrum not in view)"
             )
         else:
-            anchors.warnings.append(
-                "numbering unconfirmed: no vertebral body or sacrum below the lowest disc"
-            )
+            anchors.warnings.append("lowest disc not confirmed by bone: no vertebral body or sacrum below it")
     return anchors
 
 

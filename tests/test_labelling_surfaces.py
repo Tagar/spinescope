@@ -149,7 +149,8 @@ def test_review_status_rules():
     assert review_status(a, "ai_reader") == STATUS_PROBABLE  # an AI answer is never confirmed
     a.numbering["confidence"] = 0.95
     assert review_status(a, "ai_reader") == STATUS_PROBABLE
-    assert review_status(a, "human") == STATUS_CONFIRMED
+    # a human answer to the packet is a review, not a confirm: probable at most (confirm = an explicit record)
+    assert review_status(a, "human") == STATUS_PROBABLE
     a.numbering["confidence"] = 0.3
     assert review_status(a, "human") == STATUS_UNCONFIRMED
     a.numbering["confidence"] = 0.95
