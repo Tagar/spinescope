@@ -420,7 +420,7 @@ def cmd_evaluate(args: argparse.Namespace) -> None:
         anchors = label_spine_ml(study, session=session)
         sc = score_anchors(anchors, truth, mx)
         scores.append(sc)
-        seq = "T2" if name.endswith("t2") else "T1"
+        seq = "T1" if name.endswith("t1") else ("T2 SPACE" if "SPACE" in name else "T2")
         per_vol.append(
             {
                 "name": name,
