@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from types import SimpleNamespace
 
 import numpy as np
 
@@ -120,7 +121,7 @@ def test_missing_t1_warns_and_does_not_assign_modic_type(phantom, phantom_study)
     assert any("T1" in w for w in res.warnings)
     assert not _modic_flags(res)
     assert all(
-        r["pattern"] in ("indeterminate (no T1)", "not assessed")
+        r["pattern"] in ("not assessed (no T1)", "presence only (no T1)", "not assessed")
         for r in res.rows
         if r["scope"] == "endplate" and r["side"] != "all"
     )
@@ -158,3 +159,81 @@ def test_graceful_with_lordosis_noise_and_cropped_fov():
 def test_registry_runs_endplates_on_a_study(phantom, phantom_study):
     out = base.run("endplates", phantom_study, Anchors.from_truth(phantom.truth))
     assert out.name == "endplates" and out.rows
+
+
+def test_missing_t2_gives_presence_only_and_no_modic_type(phantom, phantom_study):
+    res = endplates.analyze(keep_contrasts(phantom_study, ("t1", "stir")), Anchors.from_truth(phantom.truth))
+    assert any("T2" in w for w in res.warnings)
+    assert not _modic_flags(res)
+    rows = [r for r in res.rows if r["scope"] == "endplate" and r["side"] != "all"]
+    assert rows
+    assert all(not r["pattern"].startswith("Modic") for r in rows)
+    presence = [f for f in res.flags if f["kind"] == "marrow_change_presence"]
+    assert presence, "the phantom Modic 1 must show as a presence-only change without T2"
+    assert all(f["confidence"] <= 0.3 for f in presence)
+
+
+def test_pattern_rule_needs_t1_and_t2():
+    cfg = endplates.DEFAULT
+    nan = float("nan")
+    assert endplates._pattern(0.5, nan, nan, cfg) == endplates.PRESENCE_NO_T2
+    assert endplates._pattern(1.0, nan, nan, cfg) == "none"
+    assert endplates._pattern(nan, 1.3, nan, cfg) == endplates.PRESENCE_NO_T1
+    assert endplates._pattern(nan, 1.0, nan, cfg) == endplates.NOT_ASSESSED_NO_T1
+    assert endplates._pattern(0.5, 1.3, nan, cfg) == "Modic 1"
+    assert endplates._pattern(0.5, 1.3, 1.5, cfg) == "Modic 1"
+    assert endplates._pattern(0.5, 1.0, 1.5, cfg) == "Modic 1-like"
+    assert endplates._pattern(0.5, 1.0, 1.0, cfg) == "indeterminate"
+    assert endplates._pattern(0.5, 0.5, nan, cfg) == "Modic 3"
+    assert endplates._pattern(1.3, 1.0, nan, cfg) == "Modic 2"
+    assert endplates._pattern(1.0, 1.0, nan, cfg) == "none"
+
+
+def test_width_pct_is_share_of_endplate_width_with_abnormal_marrow(phantom, phantom_study):
+    res = endplates.analyze(phantom_study, Anchors.from_truth(phantom.truth))
+    r = _rows(res, "L4", "inferior", "left")
+    assert 0.0 < r["width_pct"] <= 100.0
+    healthy = _rows(res, "L2", "superior", "all")
+    assert healthy["width_pct"] == healthy["width_pct"]  # defined (not NaN) on a normal endplate
+    assert healthy["width_pct"] <= 1.0
+
+
+def _trace(bot: np.ndarray, top: np.ndarray | None = None, step: float = 1.0) -> SimpleNamespace:
+    """Minimal disc-trace stand-in for the defect measure (columns 1 mm apart, all traced)."""
+    s = np.arange(bot.size, dtype=float) * step
+    return SimpleNamespace(
+        s=s,
+        bot=bot,
+        top=bot if top is None else top,
+        ok=np.ones(bot.size, dtype=bool),
+    )
+
+
+def test_defect_flat_contour_has_no_concavity():
+    conc, irr = endplates._defect_profile(_trace(np.full(40, 10.0)), "bot", 20.0)
+    assert conc == 0.0 and irr == 0.0
+
+
+def test_defect_notch_into_body_is_measured_in_mm():
+    bot = np.full(60, 10.0)
+    bot[25:31] -= 3.0  # superior endplate of the body below dips 3 mm into the body (Schmorl-like intrusion)
+    conc, irr = endplates._defect_profile(_trace(bot), "bot", 20.0)
+    assert 2.5 <= conc <= 3.2
+    assert irr > 0.0
+
+
+def test_defect_upward_notch_for_top_endplate_and_sign():
+    top = np.full(60, 10.0)
+    top[25:31] += 3.0  # inferior endplate of the body above: intrusion raises the line
+    conc, _ = endplates._defect_profile(_trace(np.full(60, 10.0), top), "top", 20.0)
+    assert 2.5 <= conc <= 3.2
+    # the same downward notch on a "top" endplate is not an intrusion into the body
+    top_down = np.full(60, 10.0)
+    top_down[25:31] -= 3.0
+    conc_down, _ = endplates._defect_profile(_trace(np.full(60, 10.0), top_down), "top", 20.0)
+    assert conc_down == 0.0
+
+
+def test_defect_too_few_columns_is_not_assessed():
+    conc, irr = endplates._defect_profile(_trace(np.full(3, 10.0)), "bot", 20.0)
+    assert np.isnan(conc) and np.isnan(irr)

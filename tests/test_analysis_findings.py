@@ -106,3 +106,23 @@ def test_endplate_figure_depends_on_the_level() -> None:
     out = fd.level_findings({"endplates": res}, "L4-L5", _anchors("confirmed"), figures=figs)
     assert out["endplate_above"]["modic"]["value"] == "1"
     assert out["endplate_above"]["modic"]["evidence"][0]["image"] == "t.png"
+
+
+def test_presence_only_endplate_becomes_null_modic_with_low_confidence() -> None:
+    """A marrow change with a missing sequence is reported as presence: null Modic value, low confidence."""
+    res = Result(name="endplates")
+    res.rows.append(
+        {
+            "scope": "endplate",
+            "adjacent_disc": "L4-L5",
+            "endplate": "inferior",
+            "side": "all",
+            "pattern": "presence only (no T2)",
+            "confidence": 0.3,
+        }
+    )
+    cand = fd._endplate_modic("inferior")(res, "L4-L5")
+    assert cand is not None
+    assert cand.value is None
+    assert cand.confidence <= 0.3
+    assert "type not assessed" in cand.notes

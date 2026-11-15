@@ -95,6 +95,32 @@ class _Body:
     depth_inf: NDArray[np.float64]
     height_mm: float
     intersects: bool
+    ap_mm: NDArray[
+        np.float64
+    ]  # anterior-posterior position of every pixel along the endplate (mm, NaN outside)
+
+
+def _defect_profile(tr: DiscTrace, which: str, window_mm: float) -> tuple[float, float]:
+    """Endplate contour defect of one traced endplate: (concavity_mm, irregularity_mm).
+
+    ``which`` is ``"bot"`` (the superior endplate of the body below the disc: intrusion lowers the line) or ``"top"``
+    (the inferior endplate of the body above: intrusion raises it). The smooth contour is a running median over
+    ``window_mm`` along AP. Concavity is the largest intrusion into the body relative to that contour (mm, >= 0);
+    irregularity is the RMS deviation from it. Both are NaN when fewer than 5 columns are traced.
+    """
+    ok = tr.ok
+    if ok.sum() < 5:
+        return float("nan"), float("nan")
+    s_ok = tr.s[ok]
+    v = (tr.bot if which == "bot" else tr.top)[ok]
+    step = float(np.median(np.diff(s_ok))) if s_ok.size > 1 else 1.0
+    size = max(3, round(window_mm / max(step, 1e-6)) | 1)
+    smooth = ndi.median_filter(v, size=size, mode="nearest")
+    resid = v - smooth
+    sign = -1.0 if which == "bot" else 1.0  # into the body
+    concavity = float(max(0.0, np.max(sign * resid)))
+    irregularity = float(np.sqrt(np.mean(resid**2)))
+    return concavity, irregularity
 
 
 def _interp_endplate(
@@ -177,7 +203,9 @@ def _body_geometry(
         core &= s_post_ok
     height = float(np.nanmedian(H[body])) if body.any() else float("nan")
     x_mm = float(ref.ipp[k] @ np.array([1.0, 0.0, 0.0]))
+    ap = s_u if upper is not None else s_d
     return _Body(
+        ap_mm=np.where(body, ap, np.nan),
         name=name,
         k=k,
         x_mm=x_mm,
@@ -196,18 +224,32 @@ def _body_geometry(
 
 
 # ----------------------------------------------------------------------- pattern rules
+PRESENCE_NO_T1 = "presence only (no T1)"
+PRESENCE_NO_T2 = "presence only (no T2)"
+PRESENCE_PATTERNS = (PRESENCE_NO_T1, PRESENCE_NO_T2)
+NOT_ASSESSED_NO_T1 = "not assessed (no T1)"
+
+
 def _pattern(r1: float, r2: float, rs: float, cfg: Config) -> str:
-    """Modic-type suggestion from band-to-mid-body ratios (NaN = sequence missing)."""
+    """Modic-type suggestion from band-to-mid-body ratios (NaN = sequence missing).
+
+    A type needs T1 and T2: every Modic type changes T1, and T1 with T2 separate the types. With one of them missing
+    the result is presence-only (a change is seen, the type is not assessed) or ``none`` when T1 is normal, because
+    no Modic type exists with a normal T1. STIR decides Modic 1-like (T1 low, STIR high, T2 not high) when present.
+    """
     have1, have2, haves = np.isfinite(r1), np.isfinite(r2), np.isfinite(rs)
-    if not have1:
-        return "indeterminate (no T1)"
-    t1_lo, t1_hi = r1 < cfg.t1_low, r1 > cfg.t1_high
+    t1_lo = have1 and r1 < cfg.t1_low
+    t1_hi = have1 and r1 > cfg.t1_high
     t2_lo = have2 and r2 < cfg.t2_low
     t2_hi = have2 and r2 > cfg.t2_high
     s_hi = haves and rs > cfg.stir_high
+    if not have1:
+        return PRESENCE_NO_T1 if (t2_lo or t2_hi or s_hi) else NOT_ASSESSED_NO_T1
+    if not have2:
+        return PRESENCE_NO_T2 if (t1_lo or t1_hi or s_hi) else "none"
     if t1_lo and t2_hi and (s_hi or not haves):
         return "Modic 1"
-    if t1_lo and s_hi:
+    if t1_lo and s_hi and not t2_hi:
         return "Modic 1-like"
     if t1_lo and t2_lo:
         return "Modic 3"
@@ -240,6 +282,7 @@ class _Obs:
     x_mm: float
     side: str
     band: dict[str, NDArray[np.float64]]  # seq -> band values (smoothed)
+    ap_band: NDArray[np.float64]  # AP position of each band pixel (mm)
     mid: dict[str, float]  # seq -> mid-body median (smoothed)
     abn: NDArray[np.bool_]  # abnormal flag per band pixel
     depth_abn: NDArray[np.float64]  # depth of abnormal body pixels from this endplate (mm)
@@ -386,7 +429,13 @@ def _summarise(ob: list[_Obs], cfg: Config) -> dict[str, dict[str, Any]]:
         pats: list[str] = []
         n_abn = n_band = 0
         depths: list[float] = []
+        bins_all: set[int] = set()
+        bins_abn: set[int] = set()
         for o in grp:
+            ap_ok = np.isfinite(o.ap_band)
+            bins = np.floor(o.ap_band[ap_ok]).astype(int)
+            bins_all.update(bins.tolist())
+            bins_abn.update(bins[o.abn[ap_ok]].tolist())
             per: dict[str, float] = {}
             for c in SEQS:
                 if c in o.band and o.mid.get(c) and np.isfinite(o.band[c]).any():
@@ -397,8 +446,10 @@ def _summarise(ob: list[_Obs], cfg: Config) -> dict[str, dict[str, Any]]:
             n_abn += int(o.abn.sum())
             n_band += int(o.abn.size)
             depths.extend(o.depth_abn.tolist())
-        pat, agree = _mode(pats)
+        _, agree = _mode(pats)  # share of slices agreeing with the per-slice pattern (confidence only)
         med = {c: (float(np.median(ratios[c])) if ratios[c] else float("nan")) for c in SEQS}
+        # pre-registered rule: the type comes from the median band/mid-body ratios over slices
+        pat = _pattern(med["t1"], med["t2"], med["stir"], cfg) if pats else "not assessed"
         raw_med = {c: (float(np.median(raw[c])) if raw[c] else float("nan")) for c in SEQS}
         n_seq = sum(1 for c in SEQS if np.isfinite(med[c]))
         note = f"{len(grp)} slice(s); {agree:.0%} agree"
@@ -417,8 +468,12 @@ def _summarise(ob: list[_Obs], cfg: Config) -> dict[str, dict[str, Any]]:
             "T2_raw": raw_med["t2"],
             "STIR_raw": raw_med["stir"],
             "pattern": pat,
-            "confidence": _confidence(n_seq, agree, len(grp)),
+            # presence-only (type not assessed, a sequence missing) is always low confidence
+            "confidence": min(0.3, _confidence(n_seq, agree, len(grp)))
+            if pat in PRESENCE_PATTERNS
+            else _confidence(n_seq, agree, len(grp)),
             "extent_pct": round(100.0 * n_abn / n_band, 1) if n_band else float("nan"),
+            "width_pct": round(100.0 * len(bins_abn) / len(bins_all), 1) if bins_all else float("nan"),
             "depth_mm": round(float(np.percentile(depths, 95)), 1)
             if depths and pat in MODIC_PATTERNS
             else float("nan"),
@@ -606,6 +661,7 @@ def analyze(study: Study, anchors: Anchors, config: Config | None = None) -> Res
     obs: dict[tuple[str, str], list[_Obs]] = {}
     body_geo: dict[tuple[str, int], _Body] = {}
     lesion_inputs: list[tuple[int, str, _Body, dict[str, NDArray[np.float64]]]] = []
+    defects: dict[tuple[str, str], list[tuple[float, float]]] = {}
     for k in range(ref.n):
         tr_k = traces_by_k[k]
         pts = ref.ipp[k] + cc[..., None] * ref.col_mm * ref.row_dir + rr[..., None] * ref.row_mm * ref.col_dir
@@ -643,6 +699,11 @@ def analyze(study: Study, anchors: Anchors, config: Config | None = None) -> Res
             ):
                 if not traced or not band.any():
                     continue  # nominal planes are not assessed
+                tr_ep = upper if ep == "sup" else lower
+                if tr_ep is not None:
+                    defects.setdefault((V, ep), []).append(
+                        _defect_profile(tr_ep, "bot" if ep == "sup" else "top", cfg.endplate_defect_window_mm)
+                    )
                 # depth statistics: marrow between the band and mid-height, away from the cortex at both ends
                 near = (
                     bg.body
@@ -656,6 +717,7 @@ def analyze(study: Study, anchors: Anchors, config: Config | None = None) -> Res
                         x_mm=bg.x_mm,
                         side=side,
                         band={c: img[band] for c, img in smoothed.items()},
+                        ap_band=bg.ap_mm[band],
                         mid=mid_vals,
                         abn=abn[band],
                         depth_abn=depth[ab_body] if ab_body.any() else np.zeros(0),
@@ -701,17 +763,40 @@ def analyze(study: Study, anchors: Anchors, config: Config | None = None) -> Res
                         "T1_ratio": s["T1"],
                         "T2_ratio": s["T2"],
                         "STIR_ratio": s["STIR"],
+                        "concavity_mm": _defect_median(defects.get((V, ep), []), 0)
+                        if side == "all"
+                        else float("nan"),
+                        "irregularity_mm": _defect_median(defects.get((V, ep), []), 1)
+                        if side == "all"
+                        else float("nan"),
                         "T1_vs_healthy": _vs(s["T1_raw"], healthy_ref.get("t1")),
                         "T2_vs_healthy": _vs(s["T2_raw"], healthy_ref.get("t2")),
                         "STIR_vs_healthy": _vs(s["STIR_raw"], healthy_ref.get("stir")),
                         "pattern": s["pattern"],
                         "confidence": s["confidence"],
                         "extent_pct": s["extent_pct"],
+                        "width_pct": s["width_pct"],
                         "depth_mm": s["depth_mm"],
                         "nominal_plane": False,
                         "note": s["note"],
                     }
                 )
+                if side != "all" and s["pattern"] in PRESENCE_PATTERNS:
+                    res.flags.append(
+                        {
+                            "kind": "marrow_change_presence",
+                            "vertebra": V,
+                            "endplate": endplate,
+                            "adjacent_disc": disc_lab,
+                            "side": side,
+                            "pattern": s["pattern"],
+                            "confidence": s["confidence"],
+                            "extent_pct": s["extent_pct"],
+                            "width_pct": s["width_pct"],
+                            "depth_mm": s["depth_mm"],
+                            "note": "marrow change seen, Modic type not assessed (a sequence is missing)",
+                        }
+                    )
                 if side != "all" and s["pattern"] in MODIC_PATTERNS:
                     res.flags.append(
                         {
@@ -723,6 +808,7 @@ def analyze(study: Study, anchors: Anchors, config: Config | None = None) -> Res
                             "pattern": s["pattern"],
                             "confidence": s["confidence"],
                             "extent_pct": s["extent_pct"],
+                            "width_pct": s["width_pct"],
                             "depth_mm": s["depth_mm"],
                             "note": "suggestion for reader confirmation",
                         }
@@ -758,6 +844,12 @@ def analyze(study: Study, anchors: Anchors, config: Config | None = None) -> Res
         title = f"{V} {endplate} k={best.k} x={best.x_mm:+.0f}mm"
         res.figures[f"triptych_{V}_{endplate}"] = _triptych(ref, seqs, best.k, bg, masks, curves, title)
     return res
+
+
+def _defect_median(vals: list[tuple[float, float]], idx: int) -> float:
+    """Median over slices of one endplate defect measure (index 0 concavity, 1 irregularity); NaN if none."""
+    xs = [v[idx] for v in vals if np.isfinite(v[idx])]
+    return round(float(np.median(xs)), 2) if xs else float("nan")
 
 
 def _body_rank(v: str) -> int:
