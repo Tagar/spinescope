@@ -34,6 +34,7 @@ from PIL import Image as PILImage
 
 from ..anatomy.anchors import Anchors
 from ..anatomy.pipeline import label_spine
+from ..anatomy.summary import labelling_summary, summary_lines
 from ..anatomy.verify import AnswerError, apply_answer, build_packet
 from ..config import DEFAULT, Config
 from ..geometry import Stack
@@ -210,15 +211,18 @@ class SpineTools:
         """Packet for a reader to check the level labels: labelled mid-sagittal T2 and T1, the localizer with the
         predicted levels when there is one, and a sacrum zoom, plus the question and the JSON answer format.
         The reader answers with the question; pass the answer to apply_label_verification. Shows the automatic
-        labels (before any correction)."""
+        labels (before any correction). The metadata carries the numbering status being checked and its policy:
+        while the status is unconfirmed, the level names are not to be used until this review is applied."""
         study = self._study(study_id)
-        packet = build_packet(study, self._auto_for(study_id), cfg=self._cfg)
+        auto = self._auto_for(study_id)
+        packet = build_packet(study, auto, cfg=self._cfg)
         saved: list[str] = []
         if self._out is not None:
             d = self._out / study_id / "verify"
             saved = packet.write(d)
         meta = {k: v for k, v in packet.to_dict().items() if k != "images"}
         meta["images"] = [name for name, _ in packet.images.items()]
+        meta.update(_status_fields(auto, self._cfg))
         return PacketResult(images=list(packet.images.items()), meta=meta, saved_to=saved)
 
     def apply_label_verification(
@@ -227,7 +231,8 @@ class SpineTools:
         """Apply a reader's answer (JSON text: lowest_disc_is, missing, extra, transitional, notes) to the automatic
         labels of the study, with provenance in numbering.corrections. Re-applying replaces the previous
         correction, since every answer is applied to the automatic labels. Returns the corrected disc labels,
-        the numbering record and the warnings."""
+        the numbering record, the resulting numbering status (an AI answer is at most probable; 'unsure' keeps
+        it unconfirmed), its policy and the warnings."""
         try:
             new = apply_answer(
                 Anchors.from_dict(self._auto_for(study_id).to_dict()),
@@ -243,6 +248,7 @@ class SpineTools:
             "disc_labels": new.disc_labels(),
             "numbering": new.numbering,
             "warnings": list(new.warnings),
+            **_status_fields(new, self._cfg),
         }
 
     def list_series(self, study_id: str) -> list[dict[str, Any]]:
@@ -250,9 +256,15 @@ class SpineTools:
         return series_table(self._study(study_id))
 
     def get_anchors(self, study_id: str) -> dict[str, Any]:
-        """Automatic spine anatomy (label_spine): disc labels, centres, heights, midline, conus, numbering,
-        each with confidence and evidence. Computed once per study and cached."""
-        return self._anchors_for(study_id).to_dict()
+        """Spine anatomy from label_spine: disc levels, centres, heights, midline, vertebral bodies, canal, conus
+        (experimental), numbering status, applicability and field of view, each with confidence and evidence.
+        Adds ``labelling`` (structured summary) and ``summary`` (short plain-text lines: status, policy,
+        applicability, coverage, conus). Computed once per study and cached."""
+        anchors = self._anchors_for(study_id)
+        doc = anchors.to_dict()
+        doc["labelling"] = labelling_summary(anchors, self._cfg)
+        doc["summary"] = "\n".join(summary_lines(anchors, self._cfg))
+        return doc
 
     # ---------------------------------------------------------- rendering
     def render_slice(
@@ -541,6 +553,18 @@ class SpineTools:
             (d / "report.md").write_text(md, encoding="utf-8")
             files = {"consensus": str(d / "consensus.json"), "report": str(d / "report.md")}
         return {"consensus": out, "markdown": md, "files": files}
+
+
+def _status_fields(anchors: Anchors, cfg: Config) -> dict[str, Any]:
+    """The numbering status fields every label tool returns, computed by the shared summary (one wording)."""
+    s = labelling_summary(anchors, cfg)
+    return {
+        "status": s["status"],
+        "status_text": s["status_text"],
+        "policy": s["policy"],
+        "applicability": s["applicability"]["line"],
+        "field_of_view": s["fov"]["line"],
+    }
 
 
 def _centre_along(stack: Stack, plane: str) -> float:

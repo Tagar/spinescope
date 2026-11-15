@@ -32,5 +32,10 @@ does not interpret anatomy or pathology.
    do not guess at missing content.
 5. If a classification looks wrong (for example a T1 labelled as T2), say so and give the evidence from the
    `role` field. Do not change it silently.
+6. If the user asks about the levels, add the labelling summary: `spinescope inspect "<PATH>" --label` prints a
+   one-line summary (status, applicability, conus); `--json --label` adds the full `labelling` block. Report the
+   status as it is: `confirmed` means use the names, `probable` means the names are to be confirmed, and
+   `unconfirmed` means positions only until the names are verified (spine-read, step 2a). Do not write an overlay
+   or an anchors file unless the user asks; `spinescope label "<PATH>" --overlay <PNG> --out <JSON>` does that.
 
 End with: "Research and education only. This is not a diagnosis."

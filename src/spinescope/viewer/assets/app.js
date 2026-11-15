@@ -523,6 +523,7 @@
     bn.className = b.level;
     bn.textContent = b.text;
 
+    $('applic').textContent = model ? L.applicabilityLine(model) : '';
     $('method').textContent = model
       ? 'Method: ' + (model.method || 'not recorded') + (num.method ? '. Numbering: ' + num.method + '.' : '')
       : 'No automatic labels for this study.';

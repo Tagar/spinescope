@@ -37,7 +37,14 @@ print(study["ax_t2"].nearest_slice(xyz))
 
 ```bash
 spinescope inspect path/to/dicom_folder
+spinescope inspect path/to/dicom_folder --label     # plus a one-line labelling summary
+spinescope label path/to/dicom_folder --out anchors.json --overlay qa.png
 ```
+
+`spinescope label` prints the numbering status (`confirmed`, `probable` or `unconfirmed`, with what the reader may do
+with the level names), the applicability verdict, the field-of-view coverage, the levels table and the warnings.
+`--out` writes the anchors JSON (schema `src/spinescope/data/anchors.schema.json`), `--overlay` a QA image of the
+mid-sagittal discs. The conus is experimental.
 
 ## Coordinates
 

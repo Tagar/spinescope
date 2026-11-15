@@ -27,6 +27,8 @@ so treat it as patient data.
 3. Open the file for the user: `open "<OUTDIR>/spinescope_viewer.html"` on macOS, or `xdg-open` on Linux. If that
    fails, give the user the path to open in a browser.
 4. Tell the user what the viewer contains: every series; planes with no native series are computed in the browser
-   and labelled as reformats; disc lines appear only when level labelling ran.
+   and labelled as reformats; disc lines appear only when level labelling ran. The review panel shows the numbering
+   banner (confirmed, probable or unconfirmed), the applicability verdict, whether the sacrum is in view, and the
+   conus line, which is experimental. Say that an unconfirmed banner means the level names must not be used yet.
 
 End with: "Research and education only. This is not a diagnosis."

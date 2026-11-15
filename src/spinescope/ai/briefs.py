@@ -20,6 +20,14 @@ import numpy as np
 
 from ..anatomy.anchors import Anchors
 from ..anatomy.midline import pols_for, select_midline
+from ..anatomy.summary import (
+    ABSTAIN_POLICY,
+    applicability_line,
+    conus_line,
+    fov_line,
+    labelling_summary,
+    status_of,
+)
 from ..config import DEFAULT, Config
 from ..geometry import Stack
 from ..io.dicom import KEEP_TAGS
@@ -109,11 +117,13 @@ CALIBRATION_GUIDANCE = """Calibration: what these findings mean on MRI
 
 #: Tools and images a reader may use, by interface. Names match the MCP server and the CLI.
 _TOOL_LINES = (
-    "Command line (text only; no rendering): spinescope inspect STUDY --json, spinescope brief STUDY, "
-    "spinescope tasks STUDY, spinescope viewer STUDY OUTDIR. STUDY is the DICOM directory or volume file you "
-    "were given; never copy it into the output.",
+    "Command line (text only; no rendering): spinescope inspect STUDY --json, spinescope label STUDY --json, "
+    "spinescope brief STUDY, spinescope tasks STUDY, spinescope verify-labels STUDY --outdir DIR (packet) and "
+    "--answer FILE (apply a reader's answer), spinescope viewer STUDY OUTDIR. STUDY is the DICOM directory or volume "
+    "file you were given; never copy it into the output.",
     "Images and measurements come from the MCP server spinescope-mcp (when connected): open_study, list_series, "
-    "get_anchors, render_slice(key, k, window), zoom(key, k, center_rc, fov_mm), linked_views(xyz), "
+    "get_anchors (levels, status, applicability), verify_labels() and apply_label_verification(answer_json) "
+    "(check the level names before using them), render_slice(key, k, window), zoom(key, k, center_rc, fov_mm), linked_views(xyz), "
     "reference_lines(key, k, ref_keys), measure_distance(key, k, p0_rc, p1_rc), roi_stats(key, k, center_rc, "
     "radius_mm), reformat(plane, at_mm, label), build_viewer(outdir), brief(), tasks(), validate_findings(json), "
     "merge_findings(paths). Without it you cannot look at the images, so do not fill a field from the text alone.",
@@ -277,6 +287,35 @@ def _geometry_lines(facts: dict[str, Any]) -> list[str]:
     return lines
 
 
+def naming_policy(anchors: Anchors | None) -> str | None:
+    """The abstain policy for the level names of this study, as one sentence; None without anchors."""
+    if anchors is None or not anchors.discs:
+        return None
+    status = status_of(anchors)
+    return f"Level names are {status.upper()}: {ABSTAIN_POLICY[status]}."
+
+
+def _status_block(anchors: Anchors) -> list[str]:
+    """Numbering status, abstain policy, applicability, field of view and conus: the labelling facts a reader needs."""
+    s = labelling_summary(anchors)
+    lines = [
+        f"  Numbering status: {s['status'].upper()} (probability {s['confidence']:.2f}, {s['tier']} tier"
+        + ("" if s["calibrated"] else ", uncalibrated")
+        + ").",
+        f"  Abstain policy for the level names: {ABSTAIN_POLICY[s['status']]}.",
+        f"  {applicability_line(anchors)}.",
+    ]
+    if s["applicability"]["unconfirmed_reasons"]:
+        lines.append(
+            "  Why the names are not confirmed: " + "; ".join(s["applicability"]["unconfirmed_reasons"]) + "."
+        )
+    fov = fov_line(anchors)
+    if fov:
+        lines.append(f"  Field of view: {fov}. Levels above the top cut are outside the field, not missing.")
+    lines.append(f"  {conus_line(anchors)}. Do not report the conus as a finding; it is a locator only.")
+    return lines
+
+
 def _anchor_lines(anchors: Anchors | None) -> list[str]:
     if anchors is None:
         return [
@@ -285,31 +324,32 @@ def _anchor_lines(anchors: Anchors | None) -> list[str]:
         ]
     lines = [
         f"  Source stack: {anchors.source_stack or 'none'}. Method: {anchors.method or 'unknown'}.",
-        f"  Numbering: {anchors.numbering.get('method', 'unknown')} "
-        f"(confidence {float(anchors.numbering.get('confidence', 0.0)):.2f}).",
+        *_status_block(anchors),
     ]
     rows = _level_rows(anchors)
     if rows:
-        lines.append("  Disc anchors, superior to inferior (confidence is the automatic label's own):")
-        for r in rows:
+        lines.append("  Discs, superior to inferior (confidence is the automatic label's own):")
+        unconfirmed = status_of(anchors) == "unconfirmed"
+        for pos, r in enumerate(rows, start=1):
             h = "n/a" if r["height_mm"] is None else f"{r['height_mm']:g} mm"
+            tail = f" (automatic name {r['level']}, unconfirmed)" if unconfirmed else ""
+            label = f"position {pos}" if unconfirmed else r["level"]
             lines.append(
-                f"    {r['level']}: z {r['z_mm']:+.1f} mm, height {h}, confidence {r['confidence']:.2f}"
+                f"    {label}: z {r['z_mm']:+.1f} mm, height {h}, confidence {r['confidence']:.2f}{tail}"
             )
     else:
         lines.append("  No disc anchors were found. Label the levels yourself from the sagittal images.")
-    if anchors.conus:
-        c = anchors.conus
-        lines.append(
-            f"  Conus: level {c.get('level') or 'unknown'}, z {float(c['z']):+.1f} mm, "
-            f"confidence {float(c.get('confidence', 0.0)):.2f}."
-        )
     for w in anchors.warnings:
         lines.append(f"  Warning: {w}")
     lines.append(
         "  Treat these as starting points. Confirm each label on the images (count from the sacrum) and "
         "report a disagreement in notes, not silently."
     )
+    if status_of(anchors) == "unconfirmed":
+        lines.append(
+            "  The names are unconfirmed: write no level name into a finding until verify_labels has been applied "
+            "(MCP) or verify-labels --answer has been run (CLI) and the status is confirmed or probable."
+        )
     return lines
 
 
@@ -344,9 +384,11 @@ def _brief_text(
         raise ValueError("reader name must be 1-64 characters from A-Z, a-z, 0-9, '_', '.', '-'")
     info = {k: v for k, v in study.info.items() if k in KEEP_TAGS}
     head = ", ".join(f"{k}={v}" for k, v in info.items()) or "no technical study attributes"
+    naming = naming_policy(anchors)
     parts = [
         "SPINE MRI READING BRIEF",
         "Research and education only. Describe what is visible; do not diagnose. Do not identify anyone.",
+        *([f"LEVEL NAMING: {naming} Details in section 3."] if naming else []),
         "",
         "1. Study (technical attributes only)",
         f"  {head}",
@@ -507,7 +549,9 @@ def _task(
 ) -> ReadingTask:
     name = reader or id.replace("-", "_")
     name = re.sub(r"[^A-Za-z0-9_.-]", "_", name)[:64]
-    scope_text = scope + (f"\nSuggested stacks: {', '.join(series)}." if series else "")
+    naming = naming_policy(anchors) if levels else None
+    scope_text = scope + (f"\nLevel naming: {naming}" if naming else "")
+    scope_text += f"\nSuggested stacks: {', '.join(series)}." if series else ""
     prompt = _brief_text(study, anchors, name, scope_text, facts)
     return ReadingTask(
         id=id,

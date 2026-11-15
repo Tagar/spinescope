@@ -59,6 +59,7 @@ dev = [
   "mypy>=1.10",
   "build>=1.2",
   "twine>=5",
+  "jsonschema>=4.18",
 ]
 docs = ["mkdocs-material>=9.5", "mkdocstrings[python]>=0.25"]
 
