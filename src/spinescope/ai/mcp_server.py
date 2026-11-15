@@ -34,6 +34,7 @@ from PIL import Image as PILImage
 
 from ..anatomy.anchors import Anchors
 from ..anatomy.pipeline import label_spine
+from ..anatomy.verify import AnswerError, apply_answer, build_packet
 from ..config import DEFAULT, Config
 from ..geometry import Stack
 from ..io.dicom import KEEP_TAGS
@@ -59,6 +60,15 @@ REFORMAT_PLANES = ("sag", "cor", "ax", "disc")
 
 class ToolError(Exception):
     """A tool failed for a reason that is safe to show to the model (never contains a file path)."""
+
+
+@dataclass
+class PacketResult:
+    """A label-verification packet: named PNGs (in reading order) and the JSON metadata with the question."""
+
+    images: list[tuple[str, bytes]]
+    meta: dict[str, Any] = field(default_factory=dict)
+    saved_to: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -103,7 +113,8 @@ class SpineTools:
         self._cfg = config
         self._max = max(1, max_studies)
         self._studies: OrderedDict[str, Study] = OrderedDict()
-        self._anchors: dict[str, Anchors] = {}
+        self._anchors: dict[str, Anchors] = {}  # working copy: the labeller output after any verification
+        self._auto: dict[str, Anchors] = {}  # pristine labeller output, what a verification packet shows
         self._out = Path(os.fspath(output_dir)) if output_dir is not None else None
         self._counter = 0
 
@@ -114,9 +125,14 @@ class SpineTools:
         self._studies.move_to_end(study_id)
         return self._studies[study_id]
 
+    def _auto_for(self, study_id: str) -> Anchors:
+        if study_id not in self._auto:
+            self._auto[study_id] = label_spine(self._study(study_id), self._cfg)
+        return self._auto[study_id]
+
     def _anchors_for(self, study_id: str) -> Anchors:
         if study_id not in self._anchors:
-            self._anchors[study_id] = label_spine(self._study(study_id), self._cfg)
+            self._anchors[study_id] = Anchors.from_dict(self._auto_for(study_id).to_dict())
         return self._anchors[study_id]
 
     def _anchors_cached(self, study_id: str) -> Anchors | None:
@@ -156,11 +172,18 @@ class SpineTools:
         return RenderResult(png=png, meta=meta, saved_to=saved)
 
     # ------------------------------------------------------------ study
-    def open_study(self, path: str) -> dict[str, Any]:
+    def open_study(self, path: str, anchors_path: str | None = None) -> dict[str, Any]:
         """Open a DICOM directory (any layout) or a NIfTI / MetaImage / NRRD volume. Returns a study_id, the
-        technical study attributes and the series table. The path is not echoed back."""
+        technical study attributes and the series table. The path is not echoed back. anchors_path: optional
+        anchors JSON already verified by a reader (verify-labels --out); the session then uses those levels."""
         if not isinstance(path, str) or not os.path.exists(path):
             raise ToolError("no study found at the given path")
+        verified: Anchors | None = None
+        if anchors_path is not None:
+            try:
+                verified = Anchors.from_json(anchors_path)
+            except Exception:
+                raise ToolError("could not read the anchors file") from None
         try:
             study = load_study(path)
         except Exception as exc:  # the message may carry the path, so report only the type
@@ -169,14 +192,57 @@ class SpineTools:
             raise ToolError("no image series could be read from the study")
         study_id = secrets.token_hex(6)
         self._studies[study_id] = study
+        if verified is not None:
+            self._anchors[study_id] = verified
+            self._auto[study_id] = Anchors.from_dict(verified.to_dict())
         while len(self._studies) > self._max:
             old, _ = self._studies.popitem(last=False)
             self._anchors.pop(old, None)
+            self._auto.pop(old, None)
         return {
             "study_id": study_id,
             "info": _public_info(study),
             "n_series": len(study),
             "series": series_table(study),
+        }
+
+    def verify_labels(self, study_id: str) -> PacketResult:
+        """Packet for a reader to check the level labels: labelled mid-sagittal T2 and T1, the localizer with the
+        predicted levels when there is one, and a sacrum zoom, plus the question and the JSON answer format.
+        The reader answers with the question; pass the answer to apply_label_verification. Shows the automatic
+        labels (before any correction)."""
+        study = self._study(study_id)
+        packet = build_packet(study, self._auto_for(study_id), cfg=self._cfg)
+        saved: list[str] = []
+        if self._out is not None:
+            d = self._out / study_id / "verify"
+            saved = packet.write(d)
+        meta = {k: v for k, v in packet.to_dict().items() if k != "images"}
+        meta["images"] = [name for name, _ in packet.images.items()]
+        return PacketResult(images=list(packet.images.items()), meta=meta, saved_to=saved)
+
+    def apply_label_verification(
+        self, study_id: str, answer_json: str, who: str = "ai_reader"
+    ) -> dict[str, Any]:
+        """Apply a reader's answer (JSON text: lowest_disc_is, missing, extra, transitional, notes) to the automatic
+        labels of the study, with provenance in numbering.corrections. Re-applying replaces the previous
+        correction, since every answer is applied to the automatic labels. Returns the corrected disc labels,
+        the numbering record and the warnings."""
+        try:
+            new = apply_answer(
+                Anchors.from_dict(self._auto_for(study_id).to_dict()),
+                answer_json,
+                who=who,
+                source="ai_reader",
+                cfg=self._cfg,
+            )
+        except AnswerError as exc:
+            raise ToolError(f"answer rejected: {exc}") from None
+        self._anchors[study_id] = new
+        return {
+            "disc_labels": new.disc_labels(),
+            "numbering": new.numbering,
+            "warnings": list(new.warnings),
         }
 
     def list_series(self, study_id: str) -> list[dict[str, Any]]:
@@ -490,6 +556,8 @@ _TOOL_NAMES = (
     "open_study",
     "list_series",
     "get_anchors",
+    "verify_labels",
+    "apply_label_verification",
     "render_slice",
     "zoom",
     "linked_views",
@@ -509,6 +577,13 @@ def _as_content(result: Any) -> Any:
     """Turn a tool result into MCP content: RenderResult -> [image, metadata JSON]; others -> JSON text."""
     from mcp.server.fastmcp import Image
 
+    if isinstance(result, PacketResult):
+        meta = dict(result.meta)
+        if result.saved_to:
+            meta["saved_to"] = result.saved_to
+        return [Image(data=png, format="png") for _, png in result.images] + [
+            json.dumps(meta, ensure_ascii=False)
+        ]
     if isinstance(result, RenderResult):
         meta = dict(result.meta)
         if result.saved_to:

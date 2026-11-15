@@ -45,10 +45,14 @@ def _cmd_inspect(args: argparse.Namespace) -> int:
     return 0
 
 
-def _load(path: str, *, anchors: bool) -> tuple[Study, Anchors | None]:
+def _load(path: str, *, anchors: bool, anchors_file: str | None = None) -> tuple[Study, Anchors | None]:
     from .study import load_study
 
     study = load_study(path)
+    if anchors_file:  # corrected anchors from `verify-labels --answer --out`: used as they are
+        from .anatomy.anchors import Anchors as _Anchors
+
+        return study, _Anchors.from_json(anchors_file)
     if not anchors:
         return study, None
     from .anatomy import label_spine
@@ -59,7 +63,7 @@ def _load(path: str, *, anchors: bool) -> tuple[Study, Anchors | None]:
 def _cmd_brief(args: argparse.Namespace) -> int:
     from .ai.briefs import brief
 
-    study, anchors = _load(args.path, anchors=not args.no_anchors)
+    study, anchors = _load(args.path, anchors=not args.no_anchors, anchors_file=args.anchors)
     text = brief(study, anchors, reader=args.reader)
     if args.out:
         with open(args.out, "w", encoding="utf-8") as f:
@@ -74,7 +78,7 @@ def _cmd_tasks(args: argparse.Namespace) -> int:
 
     from .ai.briefs import reading_tasks
 
-    study, anchors = _load(args.path, anchors=not args.no_anchors)
+    study, anchors = _load(args.path, anchors=not args.no_anchors, anchors_file=args.anchors)
     tasks = reading_tasks(study, anchors)
     if args.outdir:
         out = Path(args.outdir)
@@ -93,9 +97,49 @@ def _cmd_tasks(args: argparse.Namespace) -> int:
 def _cmd_viewer(args: argparse.Namespace) -> int:
     from .viewer import build_viewer
 
-    study, anchors = _load(args.path, anchors=not args.no_anchors)
+    study, anchors = _load(args.path, anchors=not args.no_anchors, anchors_file=args.anchors)
     path = build_viewer(study, args.outdir, anchors=anchors, title=args.title)
     print(path)
+    return 0
+
+
+def _cmd_verify_labels(args: argparse.Namespace) -> int:
+    from pathlib import Path
+
+    from .anatomy import label_spine
+    from .anatomy.verify import AnswerError, apply_answer, build_packet
+    from .study import load_study
+
+    study = load_study(args.path)
+    auto = label_spine(study)
+    if args.answer is not None:
+        try:
+            text = Path(args.answer).read_text(encoding="utf-8")
+        except OSError:
+            print("cannot read the answer file", file=sys.stderr)
+            return 2
+        try:
+            anchors = apply_answer(auto, text, who=args.who, source=args.source)
+        except AnswerError as exc:
+            print(f"answer rejected: {exc}", file=sys.stderr)
+            return 2
+        out = json.dumps(anchors.to_dict(), indent=1)
+        if args.out:
+            Path(args.out).write_text(out + "\n", encoding="utf-8")
+            print(args.out)
+        else:
+            sys.stdout.write(out + "\n")
+        return 0
+    if not args.outdir:
+        print(
+            "give --outdir to write the reader packet, or --answer to apply a reader's answer",
+            file=sys.stderr,
+        )
+        return 2
+    paths = build_packet(study, auto).write(args.outdir)
+    print(
+        f"{len(paths)} files written to {args.outdir}: packet.json (question, answer format) and PNG images"
+    )
     return 0
 
 
@@ -124,6 +168,9 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("path", help="DICOM directory or volume file")
     s.add_argument("--reader", default="reader_a", help="reader name the findings file must use")
     s.add_argument("--no-anchors", action="store_true", help="skip automatic level labelling (faster)")
+    s.add_argument(
+        "--anchors", help="use this anchors JSON (e.g. corrected by verify-labels) instead of labelling"
+    )
     s.add_argument("--out", help="write the brief to this file instead of stdout")
     s.set_defaults(func=_cmd_brief)
 
@@ -131,6 +178,9 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("path", help="DICOM directory or volume file")
     s.add_argument(
         "--no-anchors", action="store_true", help="skip automatic level labelling (no level tasks)"
+    )
+    s.add_argument(
+        "--anchors", help="use this anchors JSON (e.g. corrected by verify-labels) instead of labelling"
     )
     s.add_argument("--outdir", help="write tasks.json and prompts/<reader>.txt here instead of printing JSON")
     s.set_defaults(func=_cmd_tasks)
@@ -140,7 +190,26 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("outdir", help="output directory for spinescope_viewer.html")
     s.add_argument("--title", help="page title (keep it free of patient information)")
     s.add_argument("--no-anchors", action="store_true", help="skip automatic level labelling")
+    s.add_argument(
+        "--anchors", help="use this anchors JSON (e.g. corrected by verify-labels) instead of labelling"
+    )
     s.set_defaults(func=_cmd_viewer)
+
+    s = sub.add_parser(
+        "verify-labels",
+        help="check the level labels with a reader: write the packet, or apply the reader's answer",
+    )
+    s.add_argument("path", help="DICOM directory or volume file")
+    s.add_argument("--outdir", help="write the reader packet (PNGs and packet.json) here")
+    s.add_argument(
+        "--answer", help="JSON answer file from the reader: apply it and print the corrected anchors"
+    )
+    s.add_argument("--out", help="with --answer: write the corrected anchors JSON to this file")
+    s.add_argument("--who", default="reader", help="who gave the answer, recorded in the provenance")
+    s.add_argument(
+        "--source", choices=("ai_reader", "human"), default="ai_reader", help="kind of reader, for confidence"
+    )
+    s.set_defaults(func=_cmd_verify_labels)
 
     s = sub.add_parser("mcp", help="run the MCP server on stdio (for AI assistants)")
     s.add_argument("--output-dir", help="also save rendered PNGs here")

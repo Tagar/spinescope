@@ -6,7 +6,7 @@ description: Orchestrated AI read of one local spine MRI study - open it, label 
 # spine-read
 
 An orchestrated, multi-reader structured read of one spine MRI study. The orchestrator (you) does not read
-images itself beyond checking reader output. Reader subagents each look at one scope and write a findings file.
+images itself beyond checking reader output and, in step 2a, the level-label packet. Reader subagents each look at one scope and write a findings file.
 The orchestrator validates, merges, verifies the strongest findings, and reports.
 
 ## Guardrails (apply to every step, and to every subagent you launch)
@@ -44,8 +44,37 @@ The orchestrator validates, merges, verifies the strongest findings, and reports
    and their roles. Call `get_anchors`; note the levels and their confidences and any warnings. If there are no
    sagittal series or no anchors, say so: the read then has no level tasks.
 
-3. **Generate the briefs and reader scopes.** Run the CLI so the prompts are files that subagents can read:
-   `spinescope tasks "<STUDY>" --outdir "<OUT>/tasks"`
+## 2a. Verify the level labels before fan-out
+
+The automatic labels are often wrong: the count from the sacrum can be off by one level, and a disc can be missed
+or invented. Readers take their level names from the prompts, so verify the labels first. You are the reader for
+this step.
+
+1. Build the packet: `spinescope verify-labels "<STUDY>" --outdir "<OUT>/verify/packet"`. (MCP: `verify_labels`
+   returns the images and the question inline.) It writes `packet.json` (question, rules, answer format, predicted
+   levels) and PNGs: the mid-sagittal T2 and T1 with the predicted discs, the localizer with the predicted levels
+   when there is one, and a zoom on the sacrum below the lowest disc.
+2. Look at each PNG (Read it). Count from the sacrum upward, as the question in `packet.json` asks. Do not
+   transcribe any text burned into the pixels.
+3. Write `OUT/verify/answer.json` with exactly these keys: `lowest_disc_is` (`"L5-S1"`, `"L4-L5"`, `"L5-L6"` or
+   `"unsure"`), `missing` (true names of discs with no label), `extra` (labels as shown that are not discs),
+   `transitional` (`true`, `false` or `null`) and `notes` (one sentence). `lowest_disc_is` is the true name of the
+   lowest disc shown after you remove the extras: a disc marked L5-S1 that is really L4-L5 gets `"L4-L5"`.
+   Answer `"unsure"` when the sacrum is not visible or the count is doubtful; an unsure answer changes nothing.
+   A body below the lowest label does not prove that the label is a disc. Check that a disc signal lies between
+   the label and the body, and that the label is not on bowel or muscle. When in doubt, answer `"unsure"`.
+4. Apply it: `spinescope verify-labels "<STUDY>" --answer "<OUT>/verify/answer.json" --out "<OUT>/verify/anchors.json"`
+   (MCP: `apply_label_verification(study_id, answer_json)`). A rejected answer says why; fix the file and rerun.
+   Missing discs are placed between their neighbours and marked as not measured, with low confidence.
+5. Every later step uses the verified anchors. Pass `--anchors "<OUT>/verify/anchors.json"` to `spinescope tasks`,
+   `brief` and `viewer`. Subagents open the study with `open_study(STUDY, anchors_path="<OUT>/verify/anchors.json")`.
+6. In the final report, state the label review: the lowest-disc answer, any discs dropped or placed, the resulting
+   numbering confidence and the warnings.
+
+3. **Generate the briefs and reader scopes.** Run the CLI so the prompts are files that subagents can read. Use
+   the verified anchors from step 2a:
+   `spinescope tasks "<STUDY>" --outdir "<OUT>/tasks" --anchors "<OUT>/verify/anchors.json"`
+   Without `--anchors` the CLI labels the study again and the prompts use the automatic labels.
    This writes `OUT/tasks/tasks.json` (one entry per reader: `id`, `kind`, `reader`, `levels`, `groups`,
    `series`, `depends_on`) and `OUT/tasks/prompts/<reader>.txt` (the complete brief plus that reader's scope and
    the findings format). Read `tasks.json`. The kinds are:
@@ -64,7 +93,8 @@ The orchestrator validates, merges, verifies the strongest findings, and reports
    - Include the guardrails above (research only, no upload, PHI rules).
    - Give the path of its prompt file, `OUT/tasks/prompts/<reader>.txt`, and say: read it in full and follow it
      exactly. Its reader name is `<reader>`, and it must write exactly one file, `OUT/findings/<reader>.json`.
-   - Give `STUDY` and say: open it with `open_study` to get its own `study_id` (do not reuse another reader's),
+   - Give `STUDY` and the verified anchors file `OUT/verify/anchors.json`, and say: open it with
+     `open_study(STUDY, anchors_path=...)` to get its own `study_id` (do not reuse another reader's),
      and use the spinescope MCP tools to look at the images it needs. Each image it relies on must be a PNG it
      actually rendered and cites as evidence.
    - Say: validate the file before stopping, using the check in the brief (or `validate_findings`), and fix every
