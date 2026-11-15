@@ -498,5 +498,14 @@ class Config:
     # anchors.quality only and not shown in warnings or summaries unless this is set.
     quality_show_advisory: bool = False
 
+    # ---- analysis: sagittal alignment (spinescope.analysis.alignment; dx04). Measured on the labeller's body endplates.
+    # Meyerding (1932, Surg Gynecol Obstet 54:371) grades a listhesis by the slip as a percentage of the AP depth of
+    # the lower vertebral body: grade I 0-25 %, II 25-50 %, III 50-75 %, IV 75-100 %, V above 100 % (spondyloptosis).
+    alignment_grade_edges_pct: tuple[float, float, float, float] = (25.0, 50.0, 75.0, 100.0)
+    # A listhesis is reported when the translation reaches this many mm, in either direction. 3 mm is the commonly
+    # used cut-off for a clinically relevant (retro- or anterolisthesis) slip; a convention, not validated against
+    # outcomes, and fixed before the SPIDER spondylolisthesis comparison (docs/analysis/alignment.md).
+    alignment_listhesis_min_mm: float = 3.0
+
 
 DEFAULT = Config()
