@@ -590,6 +590,42 @@ class Config:
     # measurement on SPIDER ground-truth masks) and slips are rare, so a flag is a prompt to look, not a finding:
     # PPV stayed below 0.11 at every threshold on SPIDER training (docs/analysis/alignment.md).
     alignment_flag_max_confidence: float = 0.3
+    # ---- neural foramina (analysis/foramina.py). Search windows are conventions, not measurements; the thresholds
+    # are literature values. Every search window is reported with the plane it selected (docs/analysis/foramina.md).
+    # Lateral search window for the parasagittal plane of a foramen, mm from the midline on that side. Lower bound:
+    # clear of the spinal canal (epidural fat is fat-bright too, so a plane inside the canal would score as foramen).
+    # Upper bound: lateral to the lumbar foramina. A convention, checked on SPIDER and Sudirman (edge-plane share).
+    foramen_lateral_mm: tuple[float, float] = (10.0, 25.0)
+    # Foramen centre, mm from the posterior margin of the disc (AP, + = posterior) and along the disc normal (SI, +-).
+    # Search windows: the exiting root lies between the anterior disc margin and the facet, and between the two pedicles
+    # that bracket the disc. The window is searched for the fattest T1 box; it is not a fixed offset.
+    foramen_ap_search_mm: tuple[float, float] = (-2.0, 12.0)
+    foramen_si_search_mm: float = 6.0
+    # Half size of the fat-scoring box around a candidate centre, mm. A convention (about one foramen-sized box).
+    foramen_box_mm: float = 4.0
+    # Half length of the intensity profiles used for the pedicle rims, mm.
+    foramen_profile_half_mm: float = 14.0
+    # A perineural fat ray counts as fat-bright when fat lies at or beyond this fraction of the ray length (the root
+    # itself is dark-grey on T1 and must not count). Convention.
+    foramen_ray_min_frac: float = 0.25
+    # Rays use this length (mm) in a direction whose rim was not found. Convention (about one pedicle-sized half height).
+    foramen_ray_default_mm: float = 5.0
+    # A rim profile needs this relative contrast, (fat - dark) / fat, to place its pedicle borders. Convention.
+    foramen_min_rim_contrast: float = 0.25
+    # Hasegawa et al. 1995 (J Bone Joint Surg Am 77:32-38, cadaver cryomicrotome): foraminal height, mean +- SD of the
+    # normal (no nerve-root compression) group, per level. Used as a normative geometry check only.
+    foramen_normal_height_mm: tuple[tuple[str, float, float], ...] = (
+        ("L1-L2", 20.25, 2.34),
+        ("L2-L3", 21.84, 2.30),
+        ("L3-L4", 22.20, 2.52),
+        ("L4-L5", 20.47, 2.73),
+        ("L5-S1", 21.72, 2.53),
+    )
+    # Hasegawa et al. 1995: a foraminal height at or below 15 mm was associated with nerve-root compression in 4 of 5
+    # foramina. Used as the height operating point (a cadaver threshold; MRI heights are coarser, see the doc).
+    foramen_critical_height_mm: float = 15.0
+    # Upper bound on a foramen flag's confidence, until the foramen operating point is validated (docs/analysis/foramina.md).
+    foramen_flag_max_confidence: float = 0.3
 
     # ---- analysis: disc contour / herniation (spinescope.analysis.herniation; dx05). Nomenclature: Fardon DF et al.,
     # Spine J 2014;14:2525-45 (NASS/ASSR/ASNR Lumbar Disc Nomenclature 2.0). Sagittal posterior excursion is measured
