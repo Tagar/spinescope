@@ -279,12 +279,21 @@ def _vertebrae(res: StackResult, cfg: Config) -> dict[str, Vertebra]:
     return out
 
 
-def label_spine(study: Study, config: Config | None = None) -> Anchors:
+#: Labelling backends accepted by :func:`label_spine`. Only the classical one is implemented here.
+BACKENDS: tuple[str, ...] = ("classical",)
+
+
+def label_spine(study: Study, config: Config | None = None, *, backend: str = "classical") -> Anchors:
     """Detect discs, vertebrae and the conus of a lumbar MRI study and number them from the sacrum.
 
     Uses the best sagittal stack (``study.best('sag')``). Returns :class:`Anchors` in LPS mm with
     confidence and evidence on every anchor. Missing inputs give warnings instead of exceptions.
+
+    ``backend`` selects the labeller; only ``"classical"`` is available. Other names raise
+    :class:`ValueError` (reserved for optional learned backends).
     """
+    if backend not in BACKENDS:
+        raise ValueError(f"unknown labelling backend {backend!r}; available: {', '.join(BACKENDS)}")
     cfg = config or DEFAULT
     anchors = Anchors(method=METHOD)
     stack = study.best("sag")
