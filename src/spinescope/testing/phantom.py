@@ -157,6 +157,7 @@ class SpinePhantom:
                 "anterior": c - a * sp.body_half_depth,
                 "posterior": c + a * sp.body_half_depth,
                 "tilt_deg": tilt,
+                "height_mm": sp.disc_height,
             }
             bottom = p + n * sp.disc_height
             tb = (tilt + nxt) / 2
