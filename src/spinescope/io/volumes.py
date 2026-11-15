@@ -1,22 +1,26 @@
 """Read 3-D volume files (NIfTI, MetaImage .mha/.mhd, NRRD) as a :class:`~spinescope.geometry.Stack`.
 
 Research datasets (e.g. SPIDER) ship volumes instead of DICOM. A volume is converted to a stack
-by slicing along its through-plane axis (the axis with the largest voxel spacing, i.e. the
-acquisition's slice direction). Geometry is kept in DICOM LPS.
+by slicing along its through-plane axis, chosen by :func:`choose_slice_axis`: the thickest index axis,
+unless voxels are near-isotropic, in which case the axis closest to a canonical (L/P/S) normal wins.
+The decision is recorded in ``stack.meta['volume']``. Geometry is kept in DICOM LPS.
 
 Backends: SimpleITK (MetaImage/NRRD/NIfTI, already LPS) if installed, else nibabel for NIfTI
-(RAS converted to LPS), else a built-in MetaImage reader.
+(RAS converted to LPS), else a built-in MetaImage reader. Both readers give the same array,
+spacing, origin and direction for the same file (checked on SPIDER; tests/test_io_volumes_orientation.py).
 """
 
 from __future__ import annotations
 
 import os
 import zlib
+from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
 
-from ..geometry import Stack
+from ..config import DEFAULT, Config
+from ..geometry import Stack, obliquity_deg, unit
 
 _MET_TYPES = {
     "MET_UCHAR": np.uint8,
@@ -30,6 +34,55 @@ _MET_TYPES = {
     "MET_ULONG_LONG": np.uint64,
     "MET_LONG_LONG": np.int64,
 }
+
+
+@dataclass(frozen=True)
+class SliceAxis:
+    """The through-plane index axis of a volume and the evidence for choosing it (see :func:`choose_slice_axis`)."""
+
+    axis: int  # index axis: 0 = i (x), 1 = j (y), 2 = k (z)
+    rule: str  # "largest_spacing" (spacing decided) or "isotropic_aligned" (near-isotropic voxels)
+    spacing_mm: float
+    deviation_deg: float  # angle between the chosen index axis and its nearest canonical axis
+    aligned: bool  # deviation_deg within config.volume_axis_align_deg
+    ambiguous: bool  # spacing did not decide; the choice rests on alignment and the tie-break
+
+
+def choose_slice_axis(spacing: Any, direction: Any, *, config: Config | None = None) -> SliceAxis:
+    """Choose the through-plane index axis of a volume.
+
+    ``spacing`` is the voxel size (i, j, k) in mm and ``direction`` the 3x3 matrix whose columns are the
+    LPS directions of the index axes (ITK convention). An index axis is a candidate when its spacing is
+    within ``volume_isotropic_ratio`` of the thickest one. If only the thickest qualifies, it is the slice
+    axis even when it is oblique (a tilted slab is still sliced across its thick axis); its deviation is
+    recorded. If several qualify (near-isotropic voxels), spacing does not decide: the candidate whose
+    direction is closest to a canonical axis wins, ties going to the sagittal (L) normal, then P, then S.
+    """
+    cfg = config or DEFAULT
+    s = np.asarray(spacing, dtype=np.float64).reshape(-1)[:3]
+    d = np.asarray(direction, dtype=np.float64).reshape(3, 3)
+    dev = np.empty(3)
+    canon = np.empty(3, dtype=int)
+    for a in range(3):
+        n = np.abs(unit(d[:, a]))
+        canon[a] = int(np.argmax(n))  # 0 = L, 1 = P, 2 = S (LPS order)
+        dev[a] = float(np.degrees(np.arccos(np.clip(n[canon[a]], 0.0, 1.0))))
+    top = float(s.max())
+    near = [a for a in range(3) if s[a] * cfg.volume_isotropic_ratio >= top]
+    if len(near) == 1:
+        a = near[0]
+        rule, ambiguous = "largest_spacing", False
+    else:
+        a = min(near, key=lambda x: (round(float(dev[x]), 3), int(canon[x]), x))
+        rule, ambiguous = "isotropic_aligned", True
+    return SliceAxis(
+        axis=a,
+        rule=rule,
+        spacing_mm=float(s[a]),
+        deviation_deg=round(float(dev[a]), 3),
+        aligned=bool(dev[a] <= cfg.volume_axis_align_deg),
+        ambiguous=ambiguous,
+    )
 
 
 def _read_metaimage(path: str) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
@@ -113,13 +166,16 @@ def _read_any(path: str) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray
     raise ImportError(f"reading {path} needs SimpleITK (pip install 'spinescope[volumes]')")
 
 
-def _stack_layout(spacing: np.ndarray) -> tuple[int, int, int, list[int]]:
-    """(slice axis, row axis, column axis, transpose permutation) for array indices [k, j, i]."""
+def _stack_layout(
+    spacing: np.ndarray, direction: np.ndarray, config: Config | None = None
+) -> tuple[SliceAxis, int, int, list[int]]:
+    """(slice choice, row axis, column axis, transpose permutation) for array indices [k, j, i]."""
     # index axes: i (x), j (y), k (z) -> array axes 2, 1, 0
-    slice_axis = int(np.argmax(spacing))  # 0=i, 1=j, 2=k
+    choice = choose_slice_axis(spacing, direction, config=config)
+    slice_axis = choice.axis
     inplane = [a for a in (0, 1, 2) if a != slice_axis]
     a_r, a_c = inplane[1], inplane[0]  # rows follow the slower in-plane axis
-    return slice_axis, a_r, a_c, [2 - slice_axis, 2 - a_r, 2 - a_c]
+    return choice, a_r, a_c, [2 - slice_axis, 2 - a_r, 2 - a_c]
 
 
 def read_label_volume(path: str) -> np.ndarray:
@@ -128,16 +184,23 @@ def read_label_volume(path: str) -> np.ndarray:
     Integer dtypes are kept (e.g. segmentation masks), so the array can be indexed with the same
     voxel coordinates as the stack read from the matching image file.
     """
-    arr, spacing, _origin, _direction = _read_any(path)
-    _sa, _ar, _ac, perm = _stack_layout(spacing)
+    arr, spacing, _origin, direction = _read_any(path)
+    _choice, _ar, _ac, perm = _stack_layout(spacing, direction)
     return np.ascontiguousarray(np.transpose(np.asarray(arr), perm))
 
 
 def read_volume(path: str, *, key: str = "", meta: dict[str, Any] | None = None) -> Stack:
-    """Read a volume file as a stack sliced along its through-plane (largest-spacing) axis."""
+    """Read a volume file as a stack sliced along its through-plane axis (see :func:`choose_slice_axis`).
+
+    ``meta['volume']`` records the slice-axis decision (axis, rule, spacing, deviation from canonical,
+    ambiguity) and the obliquity of the resulting slice normal in degrees.
+    """
     arr, spacing, origin, direction = _read_any(path)
+    if np.ndim(arr) != 3:
+        raise ValueError(f"{os.path.basename(path)}: expected a 3-D volume, got {np.ndim(arr)}-D")
     arr = np.asarray(arr, dtype=np.float32)  # [k, j, i]
-    slice_axis, a_r, a_c, perm = _stack_layout(spacing)
+    choice, a_r, a_c, perm = _stack_layout(spacing, direction)
+    slice_axis = choice.axis
     vol = np.transpose(arr, perm)
     d = np.asarray(direction, dtype=np.float64)
     row_dir, col_dir, slice_dir = d[:, a_c], d[:, a_r], d[:, slice_axis]
@@ -145,7 +208,19 @@ def read_volume(path: str, *, key: str = "", meta: dict[str, Any] | None = None)
     # Volume files carry no DICOM header; the file name is the only hint about the contrast
     # (e.g. SPIDER's "12_t2.mha"), so expose it as a description for classification.
     hint = os.path.basename(path).split(".")[0].replace("_", " ").replace("-", " ")
-    m: dict[str, Any] = {"source": "volume", "dicom": {"SeriesDescription": hint}}
+    m: dict[str, Any] = {
+        "source": "volume",
+        "dicom": {"SeriesDescription": hint},
+        "volume": {
+            "slice_axis": choice.axis,
+            "slice_rule": choice.rule,
+            "slice_spacing_mm": round(choice.spacing_mm, 4),
+            "slice_deviation_deg": choice.deviation_deg,
+            "slice_aligned": choice.aligned,
+            "slice_ambiguous": choice.ambiguous,
+            "obliquity_deg": round(obliquity_deg(np.cross(row_dir, col_dir)), 3),
+        },
+    }
     m.update(meta or {})
     return Stack(
         key=key,

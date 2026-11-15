@@ -102,9 +102,14 @@ def test_study_volume_and_mask_are_on_one_grid(spider_tree):
 
 
 def test_mask_reader_matches_image_orientation(spider_tree):
+    """The mask gets the same display transform as its image, so voxels line up with the volume."""
+    from spinescope.series import apply_display_ops
+
     study = load_spider_study("1", spider_tree)
     raw = read_label_volume(os.fspath(spider_tree / "masks" / "1_t2.mha"))
-    assert np.array_equal(raw, study.mask("t2"))
+    ops = study.volume("t2").meta.get("display_transform", [])
+    assert np.array_equal(apply_display_ops(raw, ops), study.mask("t2"))
+    assert study.mask("t2").shape == study.volume("t2").shape
 
 
 def test_privacy_no_identifying_columns_leak(spider_tree):

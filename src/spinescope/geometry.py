@@ -44,6 +44,16 @@ def obliquity_deg(normal: Any) -> float:
     return float(np.degrees(np.arccos(np.clip(np.max(np.abs(n)), -1.0, 1.0))))
 
 
+def plane_margin_deg(normal: Any) -> float:
+    """Angular gap in degrees between the nearest and the second-nearest canonical axis of a slice normal.
+
+    About 0 when the normal is equidistant from two canonical axes (an oblique stack at ~45 deg between
+    sagittal and coronal, where :func:`plane_of` is a coin toss); 90 when it is exactly canonical.
+    """
+    angles = np.sort(np.degrees(np.arccos(np.clip(np.abs(unit(normal)), 0.0, 1.0))))
+    return float(angles[1] - angles[0])
+
+
 @dataclass(eq=False)
 class Stack:
     """Parallel slices sharing one orientation, with exact patient-space geometry."""
