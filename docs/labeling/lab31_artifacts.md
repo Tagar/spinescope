@@ -176,8 +176,8 @@ Visual review of hits (precision on the reviewed sample):
 - motion ghosting: 0 hits on every real suite, so precision is not measurable. The prominence on SPIDER is about 0
   (max 0.018), far below the 0.15 threshold.
 
-Golden check (`tools/benchmark.py --check benchmarks/golden.json`): see the run recorded in the final report; the
-capping policy leaves real-data labels and statuses unchanged. An earlier version that let metal, wrap and low SNR
+Golden check (`tools/benchmark.py --check benchmarks/golden.json`, final code): PASS, no regressions, 127 metrics within
+tolerance; the capping policy leaves real-data labels and statuses unchanged. An earlier version that let metal, wrap and low SNR
 cap failed the golden check (SPIDER announced coverage 67.8 % -> 2.3 %, Sudirman 60.2 % -> 1.6 %): that
 is the evidence for the advisory policy. Do not re-enable a hardware or wrap cap without a real-data review that
 clears the false-positive rate.
