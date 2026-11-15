@@ -539,7 +539,7 @@
         "lee_grade": {
           "type": "object",
           "title": "Foramen Lee grade",
-          "description": "Lee 1980: 0 normal, 1 mild, 2 moderate, 3 severe.",
+          "description": "Lee et al. 2010 (AJR 194:1095) foraminal stenosis grade: 0 normal, 1 mild, 2 moderate, 3 severe.",
           "required": [
             "value",
             "confidence",
