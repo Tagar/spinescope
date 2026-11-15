@@ -37,7 +37,7 @@ def _no_phi(text: str, root: str) -> None:
 
 @pytest.fixture(scope="session")
 def anchors(phantom_study):
-    return label_spine(phantom_study)
+    return label_spine(phantom_study, backend="classical")
 
 
 def test_brief_has_sections_and_is_phi_free(phantom_dir, phantom_study, anchors):
@@ -192,7 +192,7 @@ def _study_from(phantom: SpinePhantom, root) -> tuple[Study, dict]:
 def test_lordosis_and_noise_variant(tmp_path):
     ph = SpinePhantom(PhantomSpec(segment_lordosis=(2.0, 2.0, 3.0, 4.0, 6.0, 10.0), noise=0.06, seed=3))
     st, info = _study_from(ph, tmp_path / "lord")
-    an = label_spine(st)
+    an = label_spine(st, backend="classical")
     text = brief(st, an)
     _no_phi(text, str(info["root"]))
     tasks = reading_tasks(st, an)
@@ -201,7 +201,7 @@ def test_lordosis_and_noise_variant(tmp_path):
 
 def test_missing_sequences_single_sagittal(phantom_study, anchors):
     only_sag = Study(stacks={"sag_t2": phantom_study["sag_t2"]}, info=dict(phantom_study.info))
-    an = label_spine(only_sag)
+    an = label_spine(only_sag, backend="classical")
     text = brief(only_sag, an)
     assert not [line for line in text.splitlines() if line.startswith("  ax_")]
     tasks = reading_tasks(only_sag, an)
@@ -212,7 +212,7 @@ def test_cropped_field_of_view_variant(tmp_path):
     ph = SpinePhantom(PhantomSpec(degenerated={"L5-S1": 0.5}))
     info = write_standard_study(ph, tmp_path / "crop", rows=96, cols=96, px=1.2)
     st = load_study(info["root"])
-    text = brief(st, label_spine(st))
+    text = brief(st, label_spine(st, backend="classical"))
     assert "96x96 px" in text
     _no_phi(text, str(info["root"]))
 

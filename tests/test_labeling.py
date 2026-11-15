@@ -36,7 +36,7 @@ def _dist(a: list[float], b: list[float]) -> float:
 
 
 def test_midline_and_conus_on_phantom(study, ph):
-    anc = label_spine(study)
+    anc = label_spine(study, backend="classical")
     assert anc.midline_x is not None
     assert abs(anc.midline_x - ph.truth["midline_x"]) <= 1.5
     assert anc.conus is not None
@@ -45,11 +45,11 @@ def test_midline_and_conus_on_phantom(study, ph):
 
 @pytest.mark.xfail(strict=False, reason="conus level inherits the shifted labels on the phantom")
 def test_conus_level_on_phantom(study, ph):
-    assert label_spine(study).conus["level"] == ph.truth["conus_level"]
+    assert label_spine(study, backend="classical").conus["level"] == ph.truth["conus_level"]
 
 
 def test_bottom_disc_is_l5_s1_and_discs_are_sorted(study, ph):
-    anc = label_spine(study)
+    anc = label_spine(study, backend="classical")
     labels = anc.disc_labels()
     assert labels[-1] == "L5-S1"
     assert anc.numbering["confidence"] > 0.5
@@ -60,14 +60,14 @@ def test_bottom_disc_is_l5_s1_and_discs_are_sorted(study, ph):
 
 @pytest.mark.parametrize("lab", ["L5-S1", "L4-L5", "L3-L4"])
 def test_disc_centres_within_3mm_for_lower_discs(study, ph, lab):
-    anc = label_spine(study)
+    anc = label_spine(study, backend="classical")
     assert lab in anc.discs
     assert _dist(anc.discs[lab].center, ph.truth["discs"][lab]["center"]) <= 3.0
 
 
 @pytest.mark.xfail(strict=False, reason="chain misses the L2-L3 endplates on the phantom; labels above shift")
 def test_all_discs_in_fov_labelled_and_within_3mm(study, ph):
-    anc = label_spine(study)
+    anc = label_spine(study, backend="classical")
     truth = ph.truth["discs"]
     for lab in ("L1-L2", "L2-L3", "L3-L4", "L4-L5", "L5-S1"):
         assert lab in anc.discs, lab
@@ -77,21 +77,21 @@ def test_all_discs_in_fov_labelled_and_within_3mm(study, ph):
 def test_t1_only_study_runs(ph):
     st = ph.render("sag", "t1", n=13, spacing=5.0, thickness=4.0, rows=192, cols=192, px=1.2)
     study = from_stacks([st])
-    anc = label_spine(study)
+    anc = label_spine(study, backend="classical")
     assert anc.source_stack == "sag_t1"
     assert anc.midline_x is not None
 
 
 def test_no_sagittal_gives_warning_not_exception(ph):
     st = ph.render("ax", "t2", n=20, spacing=5.0, thickness=4.0, rows=96, cols=96, px=1.4)
-    anc = label_spine(from_stacks([st]))
+    anc = label_spine(from_stacks([st]), backend="classical")
     assert anc.discs == {}
     assert any("no sagittal" in w for w in anc.warnings)
 
 
 def test_single_sagittal_slice_does_not_crash(ph):
     st = ph.render("sag", "t2", n=1, spacing=5.0, thickness=4.0, rows=192, cols=192, px=1.2)
-    anc = label_spine(from_stacks([st]))
+    anc = label_spine(from_stacks([st]), backend="classical")
     assert isinstance(anc.warnings, list)
 
 
@@ -104,5 +104,15 @@ def test_cli_hook_returns_dict_without_paths(ph, tmp_path):
 
 def test_unknown_backend_is_rejected(study):
     with pytest.raises(ValueError, match="labelling backend"):
-        label_spine(study, backend="ml")
+        label_spine(study, backend="no-such-backend")
     assert label_spine(study, backend="classical").method
+
+
+def test_auto_backend_prefers_the_learned_labeller(study):
+    from spinescope.anatomy.pipeline import _ml_available
+
+    anc = label_spine(study)  # backend="auto"
+    if _ml_available():
+        assert "ml" in anc.method.lower() or "onnx" in anc.method.lower()
+    else:
+        assert anc.method

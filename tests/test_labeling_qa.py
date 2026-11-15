@@ -60,7 +60,7 @@ def test_canal_centreline_is_found_on_phantom(phantom_study):
 
 def test_overlay_with_truth_and_prediction(phantom_study, phantom: SpinePhantom, truth_list):
     truth, mx = truth_list
-    anc = label_spine(phantom_study)
+    anc = label_spine(phantom_study, backend="classical")
     img = overlay(phantom_study, anc, truth, midline_truth=mx)
     assert _is_rgb(img)
     # the overlay draws colour (confidence, truth and canal colours), not just the grey slice
@@ -84,7 +84,7 @@ def test_overlay_without_sagittal_or_discs_does_not_fail(phantom: SpinePhantom):
 
 def test_case_report_writes_one_png_page(tmp_path, phantom_study, phantom: SpinePhantom, truth_list):
     truth, mx = truth_list
-    anc = label_spine(phantom_study)
+    anc = label_spine(phantom_study, backend="classical")
     out = tmp_path / "report" / "case.png"
     path = case_report(phantom_study, anc, truth, out_path=str(out), title="phantom", midline_truth=mx)
     assert Path(path) == out and out.is_file()
@@ -94,7 +94,9 @@ def test_case_report_writes_one_png_page(tmp_path, phantom_study, phantom: Spine
 
 
 def test_case_report_without_truth_or_discs(tmp_path, phantom_study):
-    p1 = case_report(phantom_study, label_spine(phantom_study), None, out_path=str(tmp_path / "a.png"))
+    p1 = case_report(
+        phantom_study, label_spine(phantom_study, backend="classical"), None, out_path=str(tmp_path / "a.png")
+    )
     p2 = case_report(phantom_study, Anchors(), None, out_path=str(tmp_path / "b.png"))
     assert Path(p1).is_file() and Path(p2).is_file()
 
@@ -103,7 +105,7 @@ def test_qa_overlay_on_a_fresh_study(tmp_path, phantom: SpinePhantom):
     """A study loaded from DICOM (the path the CLI uses) gives the same kind of overlay."""
     study = load_study(write_standard_study(phantom, tmp_path / "dcm")["root"])
     truth, mx = truth_from_phantom(phantom.truth)
-    assert _is_rgb(overlay(study, label_spine(study), truth, midline_truth=mx))
+    assert _is_rgb(overlay(study, label_spine(study, backend="classical"), truth, midline_truth=mx))
 
 
 def _load_tool():

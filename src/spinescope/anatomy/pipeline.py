@@ -279,21 +279,42 @@ def _vertebrae(res: StackResult, cfg: Config) -> dict[str, Vertebra]:
     return out
 
 
-#: Labelling backends accepted by :func:`label_spine`. Only the classical one is implemented here.
-BACKENDS: tuple[str, ...] = ("classical",)
+#: Labelling backends accepted by :func:`label_spine`. ``auto`` uses the learned (ONNX) labeller when
+#: ONNX Runtime and the packaged model are available, otherwise the classical one.
+BACKENDS = ("auto", "ml", "classical")
 
 
-def label_spine(study: Study, config: Config | None = None, *, backend: str = "classical") -> Anchors:
+def _ml_available() -> bool:
+    try:
+        import onnxruntime  # noqa: F401
+
+        from .ml import model_path
+
+        return model_path().exists()
+    except Exception:  # pragma: no cover - import failures of optional runtime
+        return False
+
+
+def label_spine(study: Study, config: Config | None = None, *, backend: str = "auto") -> Anchors:
     """Detect discs, vertebrae and the conus of a lumbar MRI study and number them from the sacrum.
 
     Uses the best sagittal stack (``study.best('sag')``). Returns :class:`Anchors` in LPS mm with
     confidence and evidence on every anchor. Missing inputs give warnings instead of exceptions.
 
-    ``backend`` selects the labeller; only ``"classical"`` is available. Other names raise
-    :class:`ValueError` (reserved for optional learned backends).
+    ``backend``: ``"auto"`` (default: the learned labeller if available, else classical), ``"ml"``
+    (learned; validated on public data, see docs/model_card.md) or ``"classical"`` (no model;
+    much less accurate). Unknown names raise :class:`ValueError`.
     """
     if backend not in BACKENDS:
         raise ValueError(f"unknown labelling backend {backend!r}; available: {', '.join(BACKENDS)}")
+    if backend == "auto":
+        backend = "ml" if _ml_available() else "classical"
+        if backend == "classical":
+            log.warning("learned labeller unavailable (pip install onnxruntime); using the classical backend")
+    if backend == "ml":
+        from .ml import label_spine_ml
+
+        return label_spine_ml(study, config)
     cfg = config or DEFAULT
     anchors = Anchors(method=METHOD)
     stack = study.best("sag")
