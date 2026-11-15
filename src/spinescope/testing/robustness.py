@@ -27,7 +27,7 @@ from typing import Any
 
 import numpy as np
 
-from ..anatomy._validate import TruthDisc, aggregate, score_anchors
+from ..anatomy._validate import TruthDisc, aggregate, score_anchors, truth_from_phantom
 from ..anatomy.anchors import Anchors
 from ..anatomy.pipeline import label_spine
 from ..study import Study, from_stacks
@@ -243,18 +243,10 @@ def _fov_rows_and_centre(ph: SpinePhantom, proto: Protocol) -> tuple[np.ndarray,
 def _truth_in_view(ph: SpinePhantom, stack: Any) -> list[TruthDisc]:
     """Truth discs whose projection onto the sagittal stack lies inside its field of view."""
     out: list[TruthDisc] = []
-    for i, (name, d) in enumerate(ph.truth["discs"].items()):
-        c = np.asarray(d["center"], dtype=np.float64)
-        proj = c - ((c - stack.ipp[0]) @ stack.normal) * stack.normal
+    for t in truth_from_phantom(ph.truth)[0]:
+        proj = t.center - ((t.center - stack.ipp[0]) @ stack.normal) * stack.normal
         if stack.contains(proj):
-            out.append(
-                TruthDisc(
-                    label=i,
-                    name=name,
-                    center=proj,
-                    normal=np.asarray(d["normal"], dtype=np.float64),
-                )
-            )
+            out.append(TruthDisc(label=t.label, name=t.name, center=proj, normal=t.normal))
     return out
 
 
