@@ -549,5 +549,34 @@ class Config:
     # PPV stayed below 0.11 at every threshold on SPIDER training (docs/analysis/alignment.md).
     alignment_flag_max_confidence: float = 0.3
 
+    # ---- analysis: disc contour / herniation (spinescope.analysis.herniation; dx05). Nomenclature: Fardon DF et al.,
+    # Spine J 2014;14:2525-45 (NASS/ASSR/ASNR Lumbar Disc Nomenclature 2.0). Sagittal posterior excursion is measured
+    # beyond the line joining the posterior corners of the bodies above and below the disc (docs/analysis/herniation.md).
+    # Excursion below this is not called (measurement tolerance): endplate and posterior-edge positions carry about
+    # 1 mm of error (the dark-line endplate trace in discs.py is documented to sit about a millimetre off when placed
+    # on the strongest gradient). Engineering tolerance, fixed before any herniation validation number.
+    herniation_tolerance_mm: float = 1.0
+    # Fardon 2014: a bulge extends less than 3 mm beyond the ring apophyses; larger displacement is a protrusion or an
+    # extrusion. The body corners stand in for the apophyseal margin (the ring is not segmented), so this is approximate.
+    herniation_beyond_apophysis_mm: float = 3.0
+    # The posterior edge is searched from this far anterior to the posterior line, so the search starts inside the
+    # posterior annulus (its thickness in the mid-sagittal plane is a few millimetres). Engineering constant.
+    herniation_search_start_mm: float = 3.0
+    # Posterior edge level: the disc-to-thecal-sac boundary is where the signal reaches this fraction of the way from the
+    # annulus level to the CSF level. Half-way (0.5) puts the edge on the CSF side of the posterior ligament and dura.
+    # Chosen on SPIDER training by AUC of the excursion: 0.35 is highest on both fields (bulging 0.764, herniation 0.754);
+    # 0.25 to 0.5 gives bulging 0.76 and herniation 0.72 to 0.75. Never chosen on validation. docs/analysis/herniation.md.
+    herniation_edge_fraction: float = 0.35
+    # Systematic posterior offset of the body-corner line (labeller corners and the posterior ligament and dura sit
+    # between the annulus and the sac): the median mid-sagittal excursion of SPIDER TRAINING discs graded with neither
+    # bulging nor herniation (n = 542, edge fraction 0.35). Excursions are reported minus this offset. Fitted on training
+    # only; pre-registered in docs/analysis/herniation.md before any validation number.
+    herniation_baseline_mm: float = 2.77
+    # Disc-to-body corner consistency: the posterior corners of the two bodies must lie within this AP distance of the
+    # disc's own posterior margin, else the line is treated as unreliable (labeller corner measurement, see anatomy).
+    herniation_corner_max_ap_mm: float = 8.0
+    # The boundary between disc and thecal sac needs contrast above this many noise sigmas to be located. Engineering.
+    herniation_min_contrast_sigma: float = 3.0
+
 
 DEFAULT = Config()

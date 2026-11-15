@@ -190,6 +190,9 @@ class PhantomSpec:
     herniation: dict[str, tuple[str, float]] = field(
         default_factory=dict
     )  # disc -> ('central'|'L'|'R', depth mm)
+    # Draw herniated disc tissue over the thecal sac (the sac is pushed back), instead of letting the sac overwrite it.
+    # Off by default; the default phantom is unchanged.
+    herniation_displaces_sac: bool = False
     noise: float = 0.02  # Rician noise sigma as a fraction of the brightest tissue
     seed: int = 0
     # ---- robustness options. All off by default: the default phantom is unchanged.
@@ -555,6 +558,7 @@ class SpinePhantom:
             lab[shell] = CORTEX
             if name in sp.fracture:  # STIR/T2 bright oedema fills the fractured body
                 lab[inside & ~shell] = OEDEMA
+        displaced: list[np.ndarray] = []
         for d, v in self.discs.items():
             q = pts - v["center"]
             lr, ap, up = q @ v["lat"], q @ v["ap"], q @ v["normal"]
@@ -573,7 +577,10 @@ class SpinePhantom:
                 hside, depth = h
                 cx = {"central": 0.0, "L": 8.0, "R": -8.0}[hside]
                 hern = ((lr - cx) / 7.0) ** 2 + ((ap - sp.body_half_depth) / depth) ** 2 <= 1.0
-                disc |= hern & (ap > 0) & (np.abs(up) <= half.clip(min=dh * 0.3))
+                hern_full = hern & (ap > 0) & (np.abs(up) <= half.clip(min=dh * 0.3))
+                disc |= hern_full
+                if sp.herniation_displaces_sac:
+                    displaced.append(hern_full)
             lab[disc] = ANNULUS
             nuc = disc & (r2 <= 0.35) & (np.abs(up) <= half * 0.7)
             lab[nuc] = NUCLEUS
@@ -623,6 +630,9 @@ class SpinePhantom:
         # thecal sac and cord (drawn last: nothing else lives in the canal)
         csf = dist <= sp.canal_radius
         lab[csf] = CSF
+        # herniated disc in the canal is drawn over the sac (option, see PhantomSpec)
+        for hern_full in displaced:
+            lab[hern_full] = ANNULUS
         cord = (dist <= sp.cord_radius) & (pts[:, 2] > self.conus_z)
         lab[cord] = CORD
         return lab
