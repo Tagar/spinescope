@@ -244,6 +244,52 @@ VCF_MRI_HCFMRP = DatasetSpec(
     ),
 )
 
+
+def _manifest_files(name: str) -> tuple[FileSpec, ...]:
+    """File list (path, size, md5, sha256, URL) shipped as package data under ``datasets/manifests``."""
+    import json
+    from importlib import resources
+
+    raw = json.loads((resources.files(__package__) / "manifests" / name).read_text(encoding="utf-8"))
+    return tuple(
+        FileSpec(name=f["path"], url=f["url"], size=int(f["size"]), md5=f["md5"], sha256=f["sha256"])
+        for f in raw["files"]
+    )
+
+
+LUMBAR_MULTISCANNER_QX5RT = DatasetSpec(
+    key="lumbar_multiscanner_qx5rt",
+    title="Multi-scanner and multi-modal lumbar vertebral body and intervertebral disc segmentation database",
+    modality=(
+        "MRI NIfTI (.nii.gz), lumbar T1 / T2 / Dixon / STIR, manual binary masks of vertebral bodies "
+        "L1-L5 and discs L1/2-L4/5 per session; 34 patients, 55 sessions"
+    ),
+    licence="CC-BY-NC-4.0",
+    licence_url="https://creativecommons.org/licenses/by-nc/4.0/",
+    doi="10.17605/OSF.IO/QX5RT",
+    source_url="https://osf.io/qx5rt/",
+    citation=(
+        "Al Khalil Y, et al. Multi-scanner and multi-modal lumbar vertebral body and intervertebral disc "
+        "segmentation database. Scientific Data 9, 97 (2022). doi:10.1038/s41597-022-01222-8. Dataset: "
+        "doi:10.17605/OSF.IO/QX5RT"
+    ),
+    description=(
+        "Manually segmented lumbar MRI from several scanners: Siemens (Espree, Verio, Avanto, Aera, "
+        "Magnetom, Symphony, Amira), Philips (Achieva, Ingenia, Elition) and one GE Signa session "
+        "(ID38, first scan). Masks are drawn on the T1 image; other sequences are registered to it."
+    ),
+    subdir="lumbar_multiscanner_qx5rt",
+    extra={"osf_node": "bj69m", "field_strength": "not stated in the release"},
+    files=_manifest_files("osf_qx5rt_data.json"),
+    notes=(
+        "Licence read from the project's license.txt (Attribution-NonCommercial 4.0); the OSF licence field "
+        "is empty and some aggregators list CC BY 4.0, so NC is used. Research use only; do not "
+        "redistribute the data. 700 files, 4.27 GB, each below the 2 GiB cap. Files keep their OSF folder "
+        "layout under raw/: ID<nn>/<Vendor_Model>/{Images,Labels}/<file>.nii.gz. Disc label names are "
+        "BS_L<a>_<b> (disc between L<a> and L<b>). The L5-S1 disc is not labelled."
+    ),
+)
+
 #: Public spine MRI datasets, keyed by ``DatasetSpec.key``. Licences were checked at the source.
 REGISTRY: dict[str, DatasetSpec] = {
     d.key: d
@@ -253,6 +299,7 @@ REGISTRY: dict[str, DatasetSpec] = {
         SUDIRMAN_LUMBAR_LABELS,
         SUDIRMAN_RADIOLOGIST_NOTES,
         VCF_MRI_HCFMRP,
+        LUMBAR_MULTISCANNER_QX5RT,
     )
 }
 

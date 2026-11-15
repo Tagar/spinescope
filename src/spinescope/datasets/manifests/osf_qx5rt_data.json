@@ -1,0 +1,4906 @@
+{
+ "description": "OSF project qx5rt, component bj69m ('Data'): per-file path, size, md5, sha256 and download URL.",
+ "source": "https://osf.io/qx5rt/",
+ "files": [
+  {
+   "path": "ID02/Philips_Achieva/Images/Dixon_Fat.nii.gz",
+   "size": 46464352,
+   "md5": "d6f4b2859223807a3fbcbdc69b0f060d",
+   "sha256": "36c98c7527d88b0f49119f27602f7990ea327489f923aac7ab7356688b7b5548",
+   "url": "https://osf.io/download/z73ax/"
+  },
+  {
+   "path": "ID02/Philips_Achieva/Images/Dixon_T2.nii.gz",
+   "size": 46464352,
+   "md5": "464afea795024ccb6d5236110edad64c",
+   "sha256": "1b58c3e745caff2138cf697a7a20b0c81dcb3d3f5fe5a00c1714a14aa7b977e7",
+   "url": "https://osf.io/download/5uvsh/"
+  },
+  {
+   "path": "ID02/Philips_Achieva/Images/Dixon_Water.nii.gz",
+   "size": 46464352,
+   "md5": "cba60b6bd8dbf536c8b4d6d8e47bbff0",
+   "sha256": "ef0fb012e3a00cbb4dd2b603082764d75a47e2d45c36ade901b9acc3b25f8aaf",
+   "url": "https://osf.io/download/9gjte/"
+  },
+  {
+   "path": "ID02/Philips_Achieva/Images/T1_contrast.nii.gz",
+   "size": 9207016,
+   "md5": "a86c8424005be1dbfa93841e7379621a",
+   "sha256": "b393d887766b7af9b0ecb90994b040f1ace6776692f7b0b59eb42fac4c993887",
+   "url": "https://osf.io/download/8cj2u/"
+  },
+  {
+   "path": "ID02/Philips_Achieva/Images/T1_non_contrast.nii.gz",
+   "size": 9441568,
+   "md5": "4d777c4132d47f4e33017c10a2920dc3",
+   "sha256": "7d31c130d18ae8fcb1e7e15b8667e117e407d9d14e3a901eaef88b5fb6b263e1",
+   "url": "https://osf.io/download/bcmsh/"
+  },
+  {
+   "path": "ID02/Philips_Achieva/Labels/BS_L1_2.nii.gz",
+   "size": 73644,
+   "md5": "158c98e9560efaeae4af28ab3f09308d",
+   "sha256": "60953337e34bf91a12eb4bb3d2e8801005131a3792073b754b7ca516d1a88e62",
+   "url": "https://osf.io/download/rmdbg/"
+  },
+  {
+   "path": "ID02/Philips_Achieva/Labels/BS_L2_3.nii.gz",
+   "size": 72935,
+   "md5": "ed7d68286aa56e64a9afbc28e55c183e",
+   "sha256": "43a234e1947a4cfa2c5f93204791fba033437a4123b92b4925ded5cd2dfc9369",
+   "url": "https://osf.io/download/543pr/"
+  },
+  {
+   "path": "ID02/Philips_Achieva/Labels/BS_L3_4.nii.gz",
+   "size": 68985,
+   "md5": "75c31e6b9586344881991c87633bbe27",
+   "sha256": "4b436eb379c89471c692170e72cc4da9d9d32faa6ab113d9ac275458c089a2dc",
+   "url": "https://osf.io/download/nvrhe/"
+  },
+  {
+   "path": "ID02/Philips_Achieva/Labels/BS_L4_5.nii.gz",
+   "size": 71529,
+   "md5": "be5e60ca146aa73568350dda153a3b4c",
+   "sha256": "d0552bbcd25fdb417b7a7eb13cc9c344e42e6f9c1d8f79e41c7159a889d1519d",
+   "url": "https://osf.io/download/6p7uy/"
+  },
+  {
+   "path": "ID02/Philips_Achieva/Labels/L1.nii.gz",
+   "size": 89836,
+   "md5": "0f19d39a871b97f630e604ee4cdcabbb",
+   "sha256": "777d70af1de5a5c92698e23c1f435501d6929efe2ec42664968af49ff95a95fa",
+   "url": "https://osf.io/download/pjw9f/"
+  },
+  {
+   "path": "ID02/Philips_Achieva/Labels/L2.nii.gz",
+   "size": 93078,
+   "md5": "736498a507842fcca5c1e151a9ad9d70",
+   "sha256": "7d4140948c9116e65b1a58e907533df82411a44d76c562b1fd37a1cac6cd18d1",
+   "url": "https://osf.io/download/a8pg5/"
+  },
+  {
+   "path": "ID02/Philips_Achieva/Labels/L3.nii.gz",
+   "size": 79888,
+   "md5": "69a99d5275d5f6bc2b38bcda7e9fcae9",
+   "sha256": "322435828cc7a0ed474685848f6a6658c282c112c7d46e95a016d82ec50e7d78",
+   "url": "https://osf.io/download/4z9xh/"
+  },
+  {
+   "path": "ID02/Philips_Achieva/Labels/L4.nii.gz",
+   "size": 94825,
+   "md5": "742d83f8a083f7f5d2da4f06babc35cd",
+   "sha256": "9d4a1cb132c3fee855a34779216303bccc2b8ee03c7d4ff1610844f392136e99",
+   "url": "https://osf.io/download/42d6v/"
+  },
+  {
+   "path": "ID02/Philips_Achieva/Labels/L5.nii.gz",
+   "size": 90999,
+   "md5": "0ba9619476fc660799dd9fa3fc62d3d2",
+   "sha256": "b36274274c29cd2ae476c94f334792178c07d4bb946bbb03308e3d8cdc921e92",
+   "url": "https://osf.io/download/sjqz7/"
+  },
+  {
+   "path": "ID04/Philips_Achieva/Images/Dixon_Fat.nii.gz",
+   "size": 6043562,
+   "md5": "361e49c4d5d178e2706851191d623c21",
+   "sha256": "04b858f44d9f9077bede8b5486efb664bbf105966db13df2cba4bdb48a6d2a45",
+   "url": "https://osf.io/download/w8xmk/"
+  },
+  {
+   "path": "ID04/Philips_Achieva/Images/Dixon_T2.nii.gz",
+   "size": 6599412,
+   "md5": "29b00de2e3ea5235deca666d13fd98f3",
+   "sha256": "050fadc70d2d3d69a15a5cfa3820245d46d9ec40d424062a6dd74e2fdb32591f",
+   "url": "https://osf.io/download/4upbv/"
+  },
+  {
+   "path": "ID04/Philips_Achieva/Images/Dixon_Water.nii.gz",
+   "size": 5662887,
+   "md5": "716306d9fb487ea110af78cc000aea27",
+   "sha256": "616cc965583e768fdc79017b93f29f52f859a817642a264118e1c22857a25aed",
+   "url": "https://osf.io/download/46fph/"
+  },
+  {
+   "path": "ID04/Philips_Achieva/Images/T1_contrast.nii.gz",
+   "size": 7406627,
+   "md5": "051666c8ee67e338f220bf14e84aac3f",
+   "sha256": "468a1681b9352aec29573cf3da6d7c68543e075390d519ba3e4cbcda05e2a107",
+   "url": "https://osf.io/download/djh63/"
+  },
+  {
+   "path": "ID04/Philips_Achieva/Images/T1_non_contrast.nii.gz",
+   "size": 7161654,
+   "md5": "4b897e3d39537168bded598f87b02724",
+   "sha256": "0a0a2ea586a33c3450ab561fcb1a33a74ad2f423ea5811b416b36d84dd869497",
+   "url": "https://osf.io/download/g9qrc/"
+  },
+  {
+   "path": "ID04/Philips_Achieva/Labels/BS_L1_2.nii.gz",
+   "size": 50251,
+   "md5": "84ce4a7af72f674b28139d83daf3cf9b",
+   "sha256": "6fe6b2f15f1c59f0a50e87eb267b3a2361347777cda893ef80854ff5c181abab",
+   "url": "https://osf.io/download/e356u/"
+  },
+  {
+   "path": "ID04/Philips_Achieva/Labels/BS_L2_3.nii.gz",
+   "size": 51863,
+   "md5": "efab5d967936b1ea293ea0a3ed2b13e0",
+   "sha256": "9afa6b8421f0656ed0375d1ebeacc852e4e7d27a961d2c3caefdaf795a5151cf",
+   "url": "https://osf.io/download/bfwsm/"
+  },
+  {
+   "path": "ID04/Philips_Achieva/Labels/BS_L3_4.nii.gz",
+   "size": 54608,
+   "md5": "61da321d5b5e50f721ca1f8d43a2fcaa",
+   "sha256": "ee6c77ba7d281dde7111ef21d909b9e7cb4bc4215e3d92839fd7509c7a05d847",
+   "url": "https://osf.io/download/4kv85/"
+  },
+  {
+   "path": "ID04/Philips_Achieva/Labels/BS_L4_5.nii.gz",
+   "size": 59809,
+   "md5": "f796dc999ef46cccd83856512176adc4",
+   "sha256": "84e038a871c8835678b42087a7508da90b318ca4c3625b57b6724d992cd873b3",
+   "url": "https://osf.io/download/6x7k5/"
+  },
+  {
+   "path": "ID04/Philips_Achieva/Labels/L1.nii.gz",
+   "size": 62706,
+   "md5": "a448a3c9af640922be82bb055879b692",
+   "sha256": "b9bf7cbb896113f563e1f2424de8867fadcbef37d11bae45b53babc96e7f61f4",
+   "url": "https://osf.io/download/qxs95/"
+  },
+  {
+   "path": "ID04/Philips_Achieva/Labels/L2.nii.gz",
+   "size": 63216,
+   "md5": "ef1cfa62bf524b02e1eb289f988a03a8",
+   "sha256": "4bd23d28ec20423dc76d4d837ade3c87bbdfa3a9e7e8200d2b4afc01584a29f6",
+   "url": "https://osf.io/download/2jkda/"
+  },
+  {
+   "path": "ID04/Philips_Achieva/Labels/L3.nii.gz",
+   "size": 62858,
+   "md5": "198e414aecf16772b98b598f09a52c1c",
+   "sha256": "9ffc6079b708bd68b094b12fa6396847da9cf665a9ec95e4c484030485c9a623",
+   "url": "https://osf.io/download/efw9z/"
+  },
+  {
+   "path": "ID04/Philips_Achieva/Labels/L4.nii.gz",
+   "size": 66587,
+   "md5": "0da8a1cf05e42bd1258296b1006e3265",
+   "sha256": "e655350429076f5a88922b1051386651710944110b9d832161d73113872f47d8",
+   "url": "https://osf.io/download/yt8vu/"
+  },
+  {
+   "path": "ID04/Philips_Achieva/Labels/L5.nii.gz",
+   "size": 86754,
+   "md5": "003b24103a5a2d0b05a230005c2efd44",
+   "sha256": "935f5557a6f9ca701d5e5806dcf7dadb81b8ff221f4b73d593c56952b3c2b1b3",
+   "url": "https://osf.io/download/3qgzm/"
+  },
+  {
+   "path": "ID04/Siemens_Espree/Images/STIR.nii.gz",
+   "size": 3193727,
+   "md5": "3c32ad3768869858727c78557d61467f",
+   "sha256": "2afe1697d2da8d555c878074e82984e1be46a45176d40e1f49ab3b41c4843411",
+   "url": "https://osf.io/download/zydbh/"
+  },
+  {
+   "path": "ID04/Siemens_Espree/Images/T1_contrast.nii.gz",
+   "size": 3302721,
+   "md5": "4d290e189510642f14be2fe971666d58",
+   "sha256": "f15a0f836607622fcc4195f24186ba24da080464dd1f418cd14a5742ecd24970",
+   "url": "https://osf.io/download/ax3ew/"
+  },
+  {
+   "path": "ID04/Siemens_Espree/Images/T1_non_contrast.nii.gz",
+   "size": 3507826,
+   "md5": "acbd1372d63f3f8e2fde20111cc80c0f",
+   "sha256": "74020d9c1aaafa7f21ec4a996dbf8acfd0bee74884a0027e2b93550be401eb97",
+   "url": "https://osf.io/download/u2j7g/"
+  },
+  {
+   "path": "ID04/Siemens_Espree/Labels/BS_L1_2.nii.gz",
+   "size": 18981,
+   "md5": "8b4b5f5129fbe77bf8daf1f8a144f43c",
+   "sha256": "be4116a876d40c51da687c6c7bccbffe23e6ed7d8700e5284dc322bab36d795d",
+   "url": "https://osf.io/download/3k2z5/"
+  },
+  {
+   "path": "ID04/Siemens_Espree/Labels/BS_L2_3.nii.gz",
+   "size": 20673,
+   "md5": "4b99239d23bf99ccf43413a2650df2b0",
+   "sha256": "67a1e4e733a3d0554da20c0655a705b5fb91410ae92ee680cb3fc288da5054d0",
+   "url": "https://osf.io/download/cqyzs/"
+  },
+  {
+   "path": "ID04/Siemens_Espree/Labels/BS_L3_4.nii.gz",
+   "size": 21504,
+   "md5": "baf27ed728d2f7493e4fb55a0877aff0",
+   "sha256": "c64e60965c1c689d15f0b48f4fae14ad5566eb27415a650a65d607e26b5b33d3",
+   "url": "https://osf.io/download/uz2pk/"
+  },
+  {
+   "path": "ID04/Siemens_Espree/Labels/BS_L4_5.nii.gz",
+   "size": 22547,
+   "md5": "fa776e75e3cbc3f260c033e96d136b94",
+   "sha256": "fbccd5031907b5a5de6e080066f988f4d1f328af2395687bb2e28a2420b690b7",
+   "url": "https://osf.io/download/zaypd/"
+  },
+  {
+   "path": "ID04/Siemens_Espree/Labels/L1.nii.gz",
+   "size": 28149,
+   "md5": "052f8efe616ca1cf017bbefc61c7b786",
+   "sha256": "35e17daa51c54cea1d5bb709d2b39a580632cc10244fc0d000dfd5b7cc19597e",
+   "url": "https://osf.io/download/cr5z8/"
+  },
+  {
+   "path": "ID04/Siemens_Espree/Labels/L2.nii.gz",
+   "size": 28532,
+   "md5": "1da250d0b8fda725c0e0d6899d30adad",
+   "sha256": "c846756af032daa8964c7d3e3f418c5a43616d21be77047a6502bf391255b4c4",
+   "url": "https://osf.io/download/43ptg/"
+  },
+  {
+   "path": "ID04/Siemens_Espree/Labels/L3.nii.gz",
+   "size": 29217,
+   "md5": "9db46a6355e918da939938d058fe711c",
+   "sha256": "a04caa4e7872335cab44458378f69678d71d6661e8060f4ca13762ef77364635",
+   "url": "https://osf.io/download/p64he/"
+  },
+  {
+   "path": "ID04/Siemens_Espree/Labels/L4.nii.gz",
+   "size": 29316,
+   "md5": "938c3c1e0f004c657e653944175bf592",
+   "sha256": "723fb25321a0e2c2f73d351d0055c7ca9a29ceeb2c54a47b0c77ababd41ce406",
+   "url": "https://osf.io/download/8f29v/"
+  },
+  {
+   "path": "ID04/Siemens_Espree/Labels/L5.nii.gz",
+   "size": 30003,
+   "md5": "f8dcb2f4e39b90f766e17b73edbe6d76",
+   "sha256": "c0b5fdad21e7e2f8c37d1bd4cf49fbed4a3bbbb28700e28918ebb27a014a52ca",
+   "url": "https://osf.io/download/ean9m/"
+  },
+  {
+   "path": "ID05/Philips_Achieva/Images/T1_contrast.nii.gz",
+   "size": 9322213,
+   "md5": "d7fa6091fe7aacec8bdeae0bd44bacb7",
+   "sha256": "1f80ec09881cf56c1b0dca5d329f1cf836f9e2a2c4904f80ebc79cc1c0a0b08d",
+   "url": "https://osf.io/download/94e8g/"
+  },
+  {
+   "path": "ID05/Philips_Achieva/Images/T1_non_contrast.nii.gz",
+   "size": 9237458,
+   "md5": "f69673c345f1ec7dd566428d03d63b0a",
+   "sha256": "f93eb55224eaf17c8023d30bc09c6e0b16680e95e4f2f5f76cb0f57605686257",
+   "url": "https://osf.io/download/rxwzb/"
+  },
+  {
+   "path": "ID05/Philips_Achieva/Labels/BS_L1_2.nii.gz",
+   "size": 66431,
+   "md5": "a7490b074450f48f03787bf1a2b2cb67",
+   "sha256": "4ed95f8ef4bcb1df3eb6d291d9bb471106d9f72c920634719d50fa04bf212da2",
+   "url": "https://osf.io/download/vhmzu/"
+  },
+  {
+   "path": "ID05/Philips_Achieva/Labels/BS_L2_3.nii.gz",
+   "size": 69915,
+   "md5": "64c2bdfa05d1496777f2d48b9f50f1b0",
+   "sha256": "88248c6d87fabc3a1b0a51754ef74470ddb1402906e68650bee1cb8c9e3a829a",
+   "url": "https://osf.io/download/vbq7m/"
+  },
+  {
+   "path": "ID05/Philips_Achieva/Labels/BS_L3_4.nii.gz",
+   "size": 72958,
+   "md5": "1a5c52e92811d26d75209e33b76c7577",
+   "sha256": "86ff3e4b3b9c0c9d3abb2b3797d37b39343ca8cfb1a788004c3257a5837d8b38",
+   "url": "https://osf.io/download/tdj9a/"
+  },
+  {
+   "path": "ID05/Philips_Achieva/Labels/BS_L4_5.nii.gz",
+   "size": 75889,
+   "md5": "342a688d522661e9e81097302bc0ae88",
+   "sha256": "eb1bdca7f5899cea109df44bef5a8a31a939e42f7841fb34ac488a0128ded8e3",
+   "url": "https://osf.io/download/vnpkf/"
+  },
+  {
+   "path": "ID05/Philips_Achieva/Labels/L1.nii.gz",
+   "size": 99648,
+   "md5": "bb8a66715ffcc73926a525a513758a23",
+   "sha256": "7d57126623e8f4464bc39aa97f16fc85527daaa222c7afa870de647b01656d2a",
+   "url": "https://osf.io/download/y7mfp/"
+  },
+  {
+   "path": "ID05/Philips_Achieva/Labels/L2.nii.gz",
+   "size": 98202,
+   "md5": "a9b2a0136fd815fe292c9257b978b246",
+   "sha256": "de0a99ebee9546d2abbec0110f1abb1288aa18b8b1a9c64c2ac859e1e66e44fe",
+   "url": "https://osf.io/download/fwkj3/"
+  },
+  {
+   "path": "ID05/Philips_Achieva/Labels/L3.nii.gz",
+   "size": 102681,
+   "md5": "9059695fdaff55301fb8dc1656a3834e",
+   "sha256": "74d2523663ce21289950f4065067bcb1d9439ff9ea8958c605334394cfaabfab",
+   "url": "https://osf.io/download/7y4hd/"
+  },
+  {
+   "path": "ID05/Philips_Achieva/Labels/L4.nii.gz",
+   "size": 101242,
+   "md5": "aa5767ecf8d837905e4c4d0f723d843b",
+   "sha256": "22a214f151b6ff951b9b4cb128462666f2f5a6e9e3af5b102b90075e55f49fd0",
+   "url": "https://osf.io/download/b4cqk/"
+  },
+  {
+   "path": "ID05/Philips_Achieva/Labels/L5.nii.gz",
+   "size": 112411,
+   "md5": "6d687d2fc6720bdd5e2d1ff928a29ee0",
+   "sha256": "7a373cb3a486afef5f7e08eff086d71ff462adb924001600a947f73df8a62a3a",
+   "url": "https://osf.io/download/23m5q/"
+  },
+  {
+   "path": "ID05/Siemens_Verio/Images/STIR.nii.gz",
+   "size": 15728992,
+   "md5": "2d68633102784f488495ecc171159286",
+   "sha256": "842b65b0eed2f2810ea4baa590eca8581f26532a29fe2f0d1782af90afed9f11",
+   "url": "https://osf.io/download/dbh94/"
+  },
+  {
+   "path": "ID05/Siemens_Verio/Images/T1_contrast.nii.gz",
+   "size": 15728992,
+   "md5": "e081b4e669f6fcbba69e7fbe17b4f440",
+   "sha256": "a9ee2fa17b50c41f8828fc6a8fd97141195cc8fc10f46da8056fde5ceca50239",
+   "url": "https://osf.io/download/9ng2v/"
+  },
+  {
+   "path": "ID05/Siemens_Verio/Images/T1_non_contrast.nii.gz",
+   "size": 4781390,
+   "md5": "9edf85f502dd24bf4a381db92ee1e893",
+   "sha256": "8c1ce3ae1ef3bc536d40eb127ce95272ad0155d9e3320e8ff79c34f18e2ac0d4",
+   "url": "https://osf.io/download/vumrg/"
+  },
+  {
+   "path": "ID05/Siemens_Verio/Images/T2.nii.gz",
+   "size": 15728992,
+   "md5": "700c318b0088d103c1c8b5630003bcff",
+   "sha256": "3113309a7bae8003a544a0d4f9ee21ed61bf1a3e69996f7732ba8cab603c3d65",
+   "url": "https://osf.io/download/txvz7/"
+  },
+  {
+   "path": "ID05/Siemens_Verio/Labels/BS_L1_2.nii.gz",
+   "size": 23915,
+   "md5": "7edb6b56051fbb32b192f115ce06535d",
+   "sha256": "ffe521baef61e22099169e176947b125d8cc3bf5a89a05d6d71490d6a9ed8108",
+   "url": "https://osf.io/download/pzjxf/"
+  },
+  {
+   "path": "ID05/Siemens_Verio/Labels/BS_L2_3.nii.gz",
+   "size": 25362,
+   "md5": "b4fbcd8804e5fcbdc6056277b16d555d",
+   "sha256": "220fa5b9722709031b84a01a7db7978480aa13b5cbec8613e3353a4190a77266",
+   "url": "https://osf.io/download/qx2r7/"
+  },
+  {
+   "path": "ID05/Siemens_Verio/Labels/BS_L3_4.nii.gz",
+   "size": 26438,
+   "md5": "67c188c224ee6821538c0f77fbc36100",
+   "sha256": "a66bcc5d196503836441c379f4bfd128c34fcb253871767cfc6e9be6def69fe2",
+   "url": "https://osf.io/download/jwvcu/"
+  },
+  {
+   "path": "ID05/Siemens_Verio/Labels/BS_L4_5.nii.gz",
+   "size": 26925,
+   "md5": "ca39ff74126ff363074a5344556532c0",
+   "sha256": "af277ea09851b39eb0ce9fe84fd6d732a42ffffec9417de95b08ee74a2d94102",
+   "url": "https://osf.io/download/cp95t/"
+  },
+  {
+   "path": "ID05/Siemens_Verio/Labels/L1.nii.gz",
+   "size": 35883,
+   "md5": "787ba87fa24c330db7b344775cf1ba5c",
+   "sha256": "8cd855dc348660c81282e70be5619386e63d54fa4a8822e4b3ca59209522e677",
+   "url": "https://osf.io/download/cv84a/"
+  },
+  {
+   "path": "ID05/Siemens_Verio/Labels/L2.nii.gz",
+   "size": 36518,
+   "md5": "b76801754de38c1102872c25a9f8a4fa",
+   "sha256": "372272375be81033fc7488362231ba91f14098afd95b2f5fee26bd50b9b629d8",
+   "url": "https://osf.io/download/pqwr6/"
+  },
+  {
+   "path": "ID05/Siemens_Verio/Labels/L3.nii.gz",
+   "size": 37583,
+   "md5": "e2e84a85ba8d10b7756776462d4d1848",
+   "sha256": "8cdc08023b584bd6d298094e755726444019485522c8e473cf32a5b424694f5b",
+   "url": "https://osf.io/download/rmbs7/"
+  },
+  {
+   "path": "ID05/Siemens_Verio/Labels/L4.nii.gz",
+   "size": 36933,
+   "md5": "693bfd60e754806df86a905fbf7a7aeb",
+   "sha256": "c532b7c2e0a50645e76da0f089de9a3d754872625f21219f308311ccff8e6f5a",
+   "url": "https://osf.io/download/rxc47/"
+  },
+  {
+   "path": "ID05/Siemens_Verio/Labels/L5.nii.gz",
+   "size": 37189,
+   "md5": "5491021662ad7923e8d898a292191c11",
+   "sha256": "93891263f3c30fa4ede1d0b6f9fe8577f2035311d887b540a2f82a95a2d7a21e",
+   "url": "https://osf.io/download/d2u79/"
+  },
+  {
+   "path": "ID07/Philips_Achieva/Images/Dixon_Fat.nii.gz",
+   "size": 95334752,
+   "md5": "6138746ca4519e45759fab05c360b08d",
+   "sha256": "44977c47b38e57a2e754b865f808871e7287ecdaf0c3a4d00fdeb0175cbe17d0",
+   "url": "https://osf.io/download/jp8h5/"
+  },
+  {
+   "path": "ID07/Philips_Achieva/Images/Dixon_T2.nii.gz",
+   "size": 95334752,
+   "md5": "e60c566f1b7ed13d53e0443b600d00d8",
+   "sha256": "0c3a6fa52616571b49289ac39fd1ee05ebf9249693ab18413e3296bb501f2949",
+   "url": "https://osf.io/download/jhsvt/"
+  },
+  {
+   "path": "ID07/Philips_Achieva/Images/Dixon_Water.nii.gz",
+   "size": 95334752,
+   "md5": "9a5e94e9f7fc1a8db464d84e5c4e7e48",
+   "sha256": "dfc4c9f23ccebdb94881563f1567a6a0cce045b9e61016217c6e47b39896bd3b",
+   "url": "https://osf.io/download/4exf6/"
+  },
+  {
+   "path": "ID07/Philips_Achieva/Images/T1_non_contrast.nii.gz",
+   "size": 18297892,
+   "md5": "36a37fcbe776f2da6b95f93ed8e8c2be",
+   "sha256": "9e7e7ea876c9e661313c9ac50882d6d242ea97a4e7989346f931a11584319617",
+   "url": "https://osf.io/download/p4fr3/"
+  },
+  {
+   "path": "ID07/Philips_Achieva/Labels/BS_L1_2.nii.gz",
+   "size": 154104,
+   "md5": "79ca8bc844fef5fbd2d0746a83a9d7b9",
+   "sha256": "106528a22b9fe180905f5db54fc7816f3d3776717e6af307acd0eced8dff32db",
+   "url": "https://osf.io/download/fuya7/"
+  },
+  {
+   "path": "ID07/Philips_Achieva/Labels/BS_L2_3.nii.gz",
+   "size": 165331,
+   "md5": "6a8f21370da82dac51dc99caf2d9291b",
+   "sha256": "cae3d18b53ba2d3b1309312861399e3a4daf9edfd671f83100d24f4053490384",
+   "url": "https://osf.io/download/6s9k3/"
+  },
+  {
+   "path": "ID07/Philips_Achieva/Labels/BS_L3_4.nii.gz",
+   "size": 159047,
+   "md5": "b296abb087345535bc51788631e13fff",
+   "sha256": "118a7f24b56c6b3db95297b4519d35c737e700b3859dd09385041ebf4d1151f3",
+   "url": "https://osf.io/download/gkdsz/"
+  },
+  {
+   "path": "ID07/Philips_Achieva/Labels/BS_L4_5.nii.gz",
+   "size": 167282,
+   "md5": "d8eaca2f856d8babf1c8e30e350dc6f0",
+   "sha256": "f8b4554b49018b295cd4663c76bdea54d9a64080596105bfd84572ce72eead0c",
+   "url": "https://osf.io/download/6h9xz/"
+  },
+  {
+   "path": "ID07/Philips_Achieva/Labels/L1.nii.gz",
+   "size": 175847,
+   "md5": "060b254f3d9ed713cd932a5d2c2038b9",
+   "sha256": "639007dba705b6188801b2926dceffedea7da61b40b1265feeaebc9703bfbef5",
+   "url": "https://osf.io/download/ds95a/"
+  },
+  {
+   "path": "ID07/Philips_Achieva/Labels/L2.nii.gz",
+   "size": 201027,
+   "md5": "4fdb28133a207270057df8293996e8b4",
+   "sha256": "ba8cf333b37eaf9b5785a54edaca3dcf03dafb654d46421c8158f717c14b9df4",
+   "url": "https://osf.io/download/5nkx7/"
+  },
+  {
+   "path": "ID07/Philips_Achieva/Labels/L3.nii.gz",
+   "size": 222975,
+   "md5": "380811dc378ae8ea6d87cbde4070733c",
+   "sha256": "bd3286b912cd2f6a535034da219f20628b869ec5e407c65efde36ccb3e19a973",
+   "url": "https://osf.io/download/5uyvq/"
+  },
+  {
+   "path": "ID07/Philips_Achieva/Labels/L4.nii.gz",
+   "size": 229737,
+   "md5": "fa3a4fc4e40d3e26fc753b6c87418a65",
+   "sha256": "157a66e2b980a802ea96d365623e6e63f1538010e99cf8bfc0781b17b0c6989b",
+   "url": "https://osf.io/download/gme25/"
+  },
+  {
+   "path": "ID07/Philips_Achieva/Labels/L5.nii.gz",
+   "size": 226795,
+   "md5": "f6a3e3a1a8d8eec7ecf1c3c3022cd0fe",
+   "sha256": "15b6a48b0118a52f7928c5dc93857e40bb11000eb9db83480b7d67013cbe46fe",
+   "url": "https://osf.io/download/p9dxf/"
+  },
+  {
+   "path": "ID07/Siemens_Avanto/Images/STIR.nii.gz",
+   "size": 6963552,
+   "md5": "e34157d361845b6a94051178a7f6a89d",
+   "sha256": "d2241ffcf90714b292f3ec97aeb38d33552548dd37dabcffe3ca5410040b92d2",
+   "url": "https://osf.io/download/htxsy/"
+  },
+  {
+   "path": "ID07/Siemens_Avanto/Images/T1_non_contrast.nii.gz",
+   "size": 1999938,
+   "md5": "4d48c1f50c13bfe91baba43129c14bbf",
+   "sha256": "a17cbceedbb62cf57a002341d537cd5c57a832c8a5bc3b992b273912cdf703f2",
+   "url": "https://osf.io/download/nas4c/"
+  },
+  {
+   "path": "ID07/Siemens_Avanto/Images/T2.nii.gz",
+   "size": 6963552,
+   "md5": "e5bba5aea73af9885fa9b2f89824d106",
+   "sha256": "eee284797afd8d49acf8af3aa8186ac95e124f3afbf833e368abc1fadb3373b0",
+   "url": "https://osf.io/download/ens4t/"
+  },
+  {
+   "path": "ID07/Siemens_Avanto/Labels/BS_L1_2.nii.gz",
+   "size": 17450,
+   "md5": "6f6eb48bc4a4c657b7e3b1d15772bdde",
+   "sha256": "59d6e7e4c7e6bb8208d063ee5abdee67d8dd19adc541196c80b571a512cfa7b7",
+   "url": "https://osf.io/download/67qku/"
+  },
+  {
+   "path": "ID07/Siemens_Avanto/Labels/BS_L2_3.nii.gz",
+   "size": 18002,
+   "md5": "4b70cbcd5df77281d6681bc402ed6ce6",
+   "sha256": "2a10b608dd9e10ae3cc12042dbc17ad98500e85527792d8f2c1f45dea0671125",
+   "url": "https://osf.io/download/emn6w/"
+  },
+  {
+   "path": "ID07/Siemens_Avanto/Labels/BS_L3_4.nii.gz",
+   "size": 15215,
+   "md5": "a29faefc4447bea775714c7ad72ddfeb",
+   "sha256": "4a86c0f06f14f296a76919771d36642e6d353827f7f46999a9e8a4de28d35519",
+   "url": "https://osf.io/download/brfg6/"
+  },
+  {
+   "path": "ID07/Siemens_Avanto/Labels/BS_L4_5.nii.gz",
+   "size": 19191,
+   "md5": "fded40569755d485f047bcd8732f845f",
+   "sha256": "9327d8b557f887f3073cefe1706cbdef82bcc060004cdfb9c02df948a507d1b8",
+   "url": "https://osf.io/download/p952v/"
+  },
+  {
+   "path": "ID07/Siemens_Avanto/Labels/L1.nii.gz",
+   "size": 24036,
+   "md5": "74a8f8215e919ae2b1fdd992564a4227",
+   "sha256": "837e42b21ed96a83b49f120a934d1ec0ddbedf73b5d839eb1314f17d2764adb7",
+   "url": "https://osf.io/download/hsmxv/"
+  },
+  {
+   "path": "ID07/Siemens_Avanto/Labels/L2.nii.gz",
+   "size": 25436,
+   "md5": "6659a2996a60399b6eba79d870a203eb",
+   "sha256": "732ef1cf3c21b73623365b6c97e91a9e070494e60e1afbbfa86b7abd7299a193",
+   "url": "https://osf.io/download/xgqzr/"
+  },
+  {
+   "path": "ID07/Siemens_Avanto/Labels/L3.nii.gz",
+   "size": 23626,
+   "md5": "b853288a9044ac664c17b0faef6fec08",
+   "sha256": "18f2085e1a1d7eaa1533ac3572e0c16c7cdb3818ab2346064754491caf05e5d6",
+   "url": "https://osf.io/download/k726h/"
+  },
+  {
+   "path": "ID07/Siemens_Avanto/Labels/L4.nii.gz",
+   "size": 24633,
+   "md5": "96f735a6a52dd743fc10305cfebb8f0d",
+   "sha256": "db73bde23ea2db15cb9b6b54e185fcff23e5490eccc38cec915fc604a885a7df",
+   "url": "https://osf.io/download/dqfwn/"
+  },
+  {
+   "path": "ID07/Siemens_Avanto/Labels/L5.nii.gz",
+   "size": 28467,
+   "md5": "6a8cd6711d9d2b86e4476710e44d5aec",
+   "sha256": "6c8ff2aeedc0f044c48bbd33bc179e281d17a331f0890f4af2991be962d2e384",
+   "url": "https://osf.io/download/4agt5/"
+  },
+  {
+   "path": "ID10/Philips_Ingenia/Images/Dixon_Fat.nii.gz",
+   "size": 6543196,
+   "md5": "0a594e99eebba0b6d651b4f7809d7e8e",
+   "sha256": "02db32872a8bdcada4998ca95006c030d3b0b532d69e5b381dbe08be5dfc7549",
+   "url": "https://osf.io/download/7hjuq/"
+  },
+  {
+   "path": "ID10/Philips_Ingenia/Images/Dixon_T2.nii.gz",
+   "size": 6838079,
+   "md5": "011c194f04e94a5498ac3632327736a0",
+   "sha256": "632938c2a2a72708f04612a28ad5c29b4eed4de7b3b51d0ec042861a063c9ea0",
+   "url": "https://osf.io/download/at9u7/"
+  },
+  {
+   "path": "ID10/Philips_Ingenia/Images/Dixon_Water.nii.gz",
+   "size": 5592966,
+   "md5": "b117f64b9fe0daf7de528fb453016d9b",
+   "sha256": "a0ba70f6c489d90f8a61fb5a6ab14529adf1abad375c1f2d50b7c2326f10d5fa",
+   "url": "https://osf.io/download/mg2sy/"
+  },
+  {
+   "path": "ID10/Philips_Ingenia/Images/T1_contrast.nii.gz",
+   "size": 7457975,
+   "md5": "df96c9f0031d7bdc217909cf39238b9c",
+   "sha256": "973a2081377aba1dd7b36a1f35b26a32c6f50cceb0487c024b2564b0aa9e4430",
+   "url": "https://osf.io/download/p25x4/"
+  },
+  {
+   "path": "ID10/Philips_Ingenia/Images/T1_non_contrast.nii.gz",
+   "size": 7316005,
+   "md5": "bef6313850f562e0fdbc2dc6f7200599",
+   "sha256": "051ccaee669ff6a8f57e21ce15ef0c1b87cb2d64a79d3a20195996f142b99484",
+   "url": "https://osf.io/download/sntem/"
+  },
+  {
+   "path": "ID10/Philips_Ingenia/Labels/BS_L1_2.nii.gz",
+   "size": 56435,
+   "md5": "17f6108afc4b97ed74f879a21610884a",
+   "sha256": "75d86e2df33d74b421617438b1f9efbc6d28322d753e801f70c1178c6bb66312",
+   "url": "https://osf.io/download/rnb53/"
+  },
+  {
+   "path": "ID10/Philips_Ingenia/Labels/BS_L2_3.nii.gz",
+   "size": 55368,
+   "md5": "1289bfd8e5e43ffdcb110a33c0edf770",
+   "sha256": "d08e0901fd11f52c8421a281fec25c13ffaf59845c9a8181aa8c88e0fdc38884",
+   "url": "https://osf.io/download/mzkuf/"
+  },
+  {
+   "path": "ID10/Philips_Ingenia/Labels/BS_L3_4.nii.gz",
+   "size": 58205,
+   "md5": "bae9010a66fced36761fd530837ef060",
+   "sha256": "7fea774b9b37e109d7859e0703f432c3e15cbf7ce6f3da4d517c81c5566a9270",
+   "url": "https://osf.io/download/t3nzx/"
+  },
+  {
+   "path": "ID10/Philips_Ingenia/Labels/BS_L4_5.nii.gz",
+   "size": 57646,
+   "md5": "d6a0de01b877d93619db1b5cca890675",
+   "sha256": "9eb85bad7b47cb016ffece35a01609e7d75946edf4f59a561c3d90b178385763",
+   "url": "https://osf.io/download/zg8vf/"
+  },
+  {
+   "path": "ID10/Philips_Ingenia/Labels/L1.nii.gz",
+   "size": 77652,
+   "md5": "f475742f59cc312ed9741d76da9af478",
+   "sha256": "038ba67ff4ec4422c7f98fb771923b42b7bd0a184bf195f489a66a6dcf0e653c",
+   "url": "https://osf.io/download/hmqvy/"
+  },
+  {
+   "path": "ID10/Philips_Ingenia/Labels/L2.nii.gz",
+   "size": 73945,
+   "md5": "e4c91e2f5c49677bcd15a290a09b2654",
+   "sha256": "a617148a396628cbbf671bbee78067caafbdf7406fe2d5ebcb8de2de46a9b581",
+   "url": "https://osf.io/download/8zcpf/"
+  },
+  {
+   "path": "ID10/Philips_Ingenia/Labels/L3.nii.gz",
+   "size": 74639,
+   "md5": "0f517db65726b906401e0f704ecbc396",
+   "sha256": "94ccce697635578fe06d244f85bfde0346c4fd001ff03159bb4b5f8db0135477",
+   "url": "https://osf.io/download/v7r25/"
+  },
+  {
+   "path": "ID10/Philips_Ingenia/Labels/L4.nii.gz",
+   "size": 74346,
+   "md5": "29238293e770f882e89a2667d15d59b4",
+   "sha256": "4d145064b1c7e5b6a611bd67755844c6970695036ada6f8eeabafc347b6023a9",
+   "url": "https://osf.io/download/m3sf8/"
+  },
+  {
+   "path": "ID10/Philips_Ingenia/Labels/L5.nii.gz",
+   "size": 74725,
+   "md5": "e7389ac2eb3ba6dd54451b6da72a1e17",
+   "sha256": "524a1983c16e0516b0c024abbad805744df7ffcfd0ec65d5a5d493c4298c3a05",
+   "url": "https://osf.io/download/bcsxr/"
+  },
+  {
+   "path": "ID10/Siemens_Verio/Images/T1_fs_contrast.nii.gz",
+   "size": 7026634,
+   "md5": "a0d628d060f80bd1355fec8eace80075",
+   "sha256": "bf2eccf8a9789d4c021f7b433a08288fcc73ad2e9ab1f1c36c43bf609c7851f1",
+   "url": "https://osf.io/download/hzg4u/"
+  },
+  {
+   "path": "ID10/Siemens_Verio/Images/T1_non_contrast.nii.gz",
+   "size": 2380920,
+   "md5": "dc9aa76a0ee858187fd8ad3409a2ac24",
+   "sha256": "4ec19117f41ac5d625ab06d7acaf653eb0c10664fee719f486fd7796b370ec44",
+   "url": "https://osf.io/download/dg9u4/"
+  },
+  {
+   "path": "ID10/Siemens_Verio/Images/T2.nii.gz",
+   "size": 3969639,
+   "md5": "a5a209b6bfdd998fd13569e4ce0d6cbe",
+   "sha256": "29466368727ff508aba3f41fd11f40af9699af50a0d5975cf07b673f3851b531",
+   "url": "https://osf.io/download/6gkmh/"
+  },
+  {
+   "path": "ID10/Siemens_Verio/Labels/BS_L1_2.nii.gz",
+   "size": 15440,
+   "md5": "533fff1a18317eff71fac86417ef6563",
+   "sha256": "4c15cdd67d8ad6b016fba15b4fd464722734c798b6f710c923e931a8fa781faf",
+   "url": "https://osf.io/download/k8jnd/"
+  },
+  {
+   "path": "ID10/Siemens_Verio/Labels/BS_L2_3.nii.gz",
+   "size": 14334,
+   "md5": "253ebd61954ac12f2eb8d4b557c72790",
+   "sha256": "35395558180a1ed1ad9516e7e9d32d3708f28ab8238688d157d5b2ab8dfade37",
+   "url": "https://osf.io/download/qcgdy/"
+  },
+  {
+   "path": "ID10/Siemens_Verio/Labels/BS_L3_4.nii.gz",
+   "size": 15121,
+   "md5": "8923b7bed9ef00d1fe16da0652606a36",
+   "sha256": "d4c02f34689ce22313129f7bde82f1378c75aede56bf993505231717ec2a02a5",
+   "url": "https://osf.io/download/ybr4t/"
+  },
+  {
+   "path": "ID10/Siemens_Verio/Labels/BS_L4_5.nii.gz",
+   "size": 14695,
+   "md5": "a4630d993eda2a62d84b0aba73b0f882",
+   "sha256": "e4a6df3110ee4a1455194b183ec617f442133115a450bb70d7c5fc253120c896",
+   "url": "https://osf.io/download/84bta/"
+  },
+  {
+   "path": "ID10/Siemens_Verio/Labels/L1.nii.gz",
+   "size": 20068,
+   "md5": "076f9f05b9688a706a15ec0f869c4e2b",
+   "sha256": "8ac11d770a686e4f627e396cb7fedcdab96721cad9d8cf9687dc4800e757bc56",
+   "url": "https://osf.io/download/mz5y3/"
+  },
+  {
+   "path": "ID10/Siemens_Verio/Labels/L2.nii.gz",
+   "size": 20635,
+   "md5": "2dd23115547caade3614ce4f52efc2ae",
+   "sha256": "20b0b937ebd7cc6e7191486a1c196046c438cee7e32d4ca78e09f7a319bf276b",
+   "url": "https://osf.io/download/g75zp/"
+  },
+  {
+   "path": "ID10/Siemens_Verio/Labels/L3.nii.gz",
+   "size": 21064,
+   "md5": "f708d508fcfc2567e47d012be3174a91",
+   "sha256": "c333b6267c67e72763af367584c353f9d6c4db51870265a8e4aa027b74e4b76e",
+   "url": "https://osf.io/download/7hy38/"
+  },
+  {
+   "path": "ID10/Siemens_Verio/Labels/L4.nii.gz",
+   "size": 20585,
+   "md5": "eb01ead46c684fd274b7edf5eaebcd22",
+   "sha256": "4b97f5396072488e2c27bc5fcf515047247671eacb262fcc9cb9f32a76862c7f",
+   "url": "https://osf.io/download/syt4p/"
+  },
+  {
+   "path": "ID10/Siemens_Verio/Labels/L5.nii.gz",
+   "size": 21312,
+   "md5": "1bb9c51c0ab28080b7c7a9b252c5a844",
+   "sha256": "564197de6fb95d64c5fc96d291c9c90e219719504ed032ae1df487b15294ce67",
+   "url": "https://osf.io/download/2y3wc/"
+  },
+  {
+   "path": "ID11/Philips_Achieva/Images/Dixon_Fat.nii.gz",
+   "size": 86400352,
+   "md5": "e91303dba6a0df83d5ba67bd6c3c4365",
+   "sha256": "9f75cc48c8b368f837771975dbc8331c467d4f8c1aca8a8fca53c239eb90aa03",
+   "url": "https://osf.io/download/ncmx4/"
+  },
+  {
+   "path": "ID11/Philips_Achieva/Images/Dixon_T2.nii.gz",
+   "size": 86400352,
+   "md5": "67e7413c403371ad87f0c5100908fd0f",
+   "sha256": "f824e68abf8385273191bb5a0700fa24629468a7430bd10d02bd0d43af3d2ad0",
+   "url": "https://osf.io/download/jk6fd/"
+  },
+  {
+   "path": "ID11/Philips_Achieva/Images/Dixon_Water.nii.gz",
+   "size": 86400352,
+   "md5": "6aea5deba17d495860e31787b460011f",
+   "sha256": "078899609a10e52a27bde6d13c2f3424eee9db99d31c1d3efbbd7da408e3c4ce",
+   "url": "https://osf.io/download/q5gmk/"
+  },
+  {
+   "path": "ID11/Philips_Achieva/Images/T1_contrast.nii.gz",
+   "size": 15820190,
+   "md5": "bc1ba14a365e777b0635c34b1da6986f",
+   "sha256": "41e43488ed443b4838464331ff2f53f1de108498af57672dc50bb70efe6ab491",
+   "url": "https://osf.io/download/3a9wm/"
+  },
+  {
+   "path": "ID11/Philips_Achieva/Images/T1_non_contrast.nii.gz",
+   "size": 15116602,
+   "md5": "b064696a9aa4b8de2fd1878105a37c32",
+   "sha256": "c61aaa68293400d13ce2c84de6a4f47b7a22675b3c089854ad3eaa9943eb1734",
+   "url": "https://osf.io/download/32r9z/"
+  },
+  {
+   "path": "ID11/Philips_Achieva/Labels/BS_L1_2.nii.gz",
+   "size": 115802,
+   "md5": "07287d24c22d3efa2766127ca910eeeb",
+   "sha256": "c4fc5ed2e42d637766247b6a8f5cf62ca45102f7c36f85a43f4344d6bfd25d73",
+   "url": "https://osf.io/download/hmwbx/"
+  },
+  {
+   "path": "ID11/Philips_Achieva/Labels/BS_L2_3.nii.gz",
+   "size": 119843,
+   "md5": "7f1021956d717e0445b30cc6c848592c",
+   "sha256": "f5aec13add2f8fe43e8453559a5fd2d14498802eab160f5b8fef806979ef6f14",
+   "url": "https://osf.io/download/tk3mv/"
+  },
+  {
+   "path": "ID11/Philips_Achieva/Labels/BS_L3_4.nii.gz",
+   "size": 114400,
+   "md5": "b0faff26b495736a1956ceacee44faa6",
+   "sha256": "0a23b74380b5f1e0d4d4b425f72652c5e5ade60f5606b4cf7dfe37f73c0359c0",
+   "url": "https://osf.io/download/7az5s/"
+  },
+  {
+   "path": "ID11/Philips_Achieva/Labels/BS_L4_5.nii.gz",
+   "size": 116430,
+   "md5": "e9afe7e48a648a098ffaadf2bdf9a7fa",
+   "sha256": "eb2c2bf83aa6c3e015a7d1e9efed377091efa6a15446ec00028c8fa4eeafe77e",
+   "url": "https://osf.io/download/42dc5/"
+  },
+  {
+   "path": "ID11/Philips_Achieva/Labels/L1.nii.gz",
+   "size": 153455,
+   "md5": "07feb482795e49260b7125a78bd33317",
+   "sha256": "e6c6a41c3cf214314e865542ba3a86ee48a9524baf373be32dc52a21111568cb",
+   "url": "https://osf.io/download/8exn7/"
+  },
+  {
+   "path": "ID11/Philips_Achieva/Labels/L2.nii.gz",
+   "size": 163411,
+   "md5": "df01dd6b54a1f0fed6dd90304e8e5721",
+   "sha256": "41eecb2127ee199c9195d4d7c100f88753ced659f8f28a6dcd6f14b07136d031",
+   "url": "https://osf.io/download/jpu87/"
+  },
+  {
+   "path": "ID11/Philips_Achieva/Labels/L3.nii.gz",
+   "size": 159259,
+   "md5": "00a22d3a86562b05138a186656221787",
+   "sha256": "20b7ee9699058a07c5ee52f416a4dce02657c56a59523be0c73487baf72cf6e5",
+   "url": "https://osf.io/download/u2ng4/"
+  },
+  {
+   "path": "ID11/Philips_Achieva/Labels/L4.nii.gz",
+   "size": 158123,
+   "md5": "0ed12da1d1f0e003648602eae284c74b",
+   "sha256": "ad918270844cedc0313adb3166dc2ccd89518d9fecb210ef9a89749ae13f923d",
+   "url": "https://osf.io/download/nh249/"
+  },
+  {
+   "path": "ID11/Philips_Achieva/Labels/L5.nii.gz",
+   "size": 157746,
+   "md5": "ef11808395f7aa9dec8ce29b52d21137",
+   "sha256": "28a1d0474f635b6668b5e1ddbe6ea1908528bc2f39c53bbdf0afe911e8020aa9",
+   "url": "https://osf.io/download/j8ktp/"
+  },
+  {
+   "path": "ID12/Philips_Achieva/Images/Dixon_Fat.nii.gz",
+   "size": 75264352,
+   "md5": "5a0fb234b856b1dff431022c56a4b6d4",
+   "sha256": "1096be98e0c8b8879281896fd3ed6bef08283e4fe82170b6bf13f4d776819a9b",
+   "url": "https://osf.io/download/uea9k/"
+  },
+  {
+   "path": "ID12/Philips_Achieva/Images/Dixon_T2.nii.gz",
+   "size": 75264352,
+   "md5": "257fb86093c748150bfeeadef2d26703",
+   "sha256": "941dd1e69c9ac9238040c42faabe3251bf5d88077f5dd695b974c57a3c474572",
+   "url": "https://osf.io/download/248qw/"
+  },
+  {
+   "path": "ID12/Philips_Achieva/Images/Dixon_Water.nii.gz",
+   "size": 75264352,
+   "md5": "39242edd3abf54e0de942dd232dfcc79",
+   "sha256": "179860f07484de90efc0d46e0101a4ef79674b50d0c104686b9970adef52dfc0",
+   "url": "https://osf.io/download/4zksu/"
+  },
+  {
+   "path": "ID12/Philips_Achieva/Images/T1_contrast.nii.gz",
+   "size": 13925843,
+   "md5": "74478cf4b596cf09ccc163198aa1d2d8",
+   "sha256": "a6a7a98c4e3d195a9360c755c803388797112cbc53e4e1a7ef1dec6251859645",
+   "url": "https://osf.io/download/fzsxn/"
+  },
+  {
+   "path": "ID12/Philips_Achieva/Images/T1_non_contrast.nii.gz",
+   "size": 13601428,
+   "md5": "d7af6c18aec8e7854c3aa866c281362b",
+   "sha256": "cd12b56c849429ecbe174a3fb96a3f0311c1cf49de96a95a272e1539f0c865d5",
+   "url": "https://osf.io/download/psjn9/"
+  },
+  {
+   "path": "ID12/Philips_Achieva/Labels/BS_L1_2.nii.gz",
+   "size": 110115,
+   "md5": "ae78b5e4b4c44f2f98bf16ef2ee69dad",
+   "sha256": "a252a51199b563c44b1ff1cbe031402ab5d2b27b238be45501f20663fa132ca0",
+   "url": "https://osf.io/download/4pzjq/"
+  },
+  {
+   "path": "ID12/Philips_Achieva/Labels/BS_L2_3.nii.gz",
+   "size": 122520,
+   "md5": "202a7fb7fd67e7a5097c134208a94c1f",
+   "sha256": "a9440a5ededb07b8ded0805a1bb3700540273490951a014ad142e404f0551992",
+   "url": "https://osf.io/download/gm4f5/"
+  },
+  {
+   "path": "ID12/Philips_Achieva/Labels/BS_L3_4.nii.gz",
+   "size": 122197,
+   "md5": "8d0cb8f2c15ff8912640091b09775832",
+   "sha256": "8367eb245d10ab1b5047a8e3a7a211884a0617aa9efc6dcc4cdb1aae650ea152",
+   "url": "https://osf.io/download/gn9vx/"
+  },
+  {
+   "path": "ID12/Philips_Achieva/Labels/BS_L4_5.nii.gz",
+   "size": 181691,
+   "md5": "f829913068320f5d03c23006cce4f03f",
+   "sha256": "d6bd2d8153d0bf7697f38cfbf73d1dba9a46948d2c862511ace3241f7e399904",
+   "url": "https://osf.io/download/7npty/"
+  },
+  {
+   "path": "ID12/Philips_Achieva/Labels/L1.nii.gz",
+   "size": 176775,
+   "md5": "bb11e2feecbfb65deab503b18e80d69b",
+   "sha256": "b4480f5c8b71f053fdd5f8092389a7b5dfa29770dd22346d91cdda50f1193ab0",
+   "url": "https://osf.io/download/ekhba/"
+  },
+  {
+   "path": "ID12/Philips_Achieva/Labels/L2.nii.gz",
+   "size": 169561,
+   "md5": "c1ff38b725b86f4658e8416481abd9c5",
+   "sha256": "07e9c983dd53908e76d99d78db70fe778292a6d42abedb29adf15c9a15d019f8",
+   "url": "https://osf.io/download/w4rfu/"
+  },
+  {
+   "path": "ID12/Philips_Achieva/Labels/L3.nii.gz",
+   "size": 173052,
+   "md5": "d76f271683c7a3e3a154843a67216fef",
+   "sha256": "a75621a4a381de9db3c3accd2db967846fc89521ab52f02ac7751a44c668511e",
+   "url": "https://osf.io/download/93qz4/"
+  },
+  {
+   "path": "ID12/Philips_Achieva/Labels/L4.nii.gz",
+   "size": 186189,
+   "md5": "5bceab66b03851a70d896e872dfc7d8f",
+   "sha256": "eab4201cc8d25cc2a42b372489f7ebf3797d9a44970e79e40856bd8cf669ad50",
+   "url": "https://osf.io/download/pkxeu/"
+  },
+  {
+   "path": "ID12/Philips_Achieva/Labels/L5.nii.gz",
+   "size": 178640,
+   "md5": "6fae63c80944dd42fa4e0fe68a1f3ff4",
+   "sha256": "ba1052707c30def3469fcb7b8337946302dd50477edcb0007e308195f43a7384",
+   "url": "https://osf.io/download/jxv29/"
+  },
+  {
+   "path": "ID12/Philips_Ingenia/Images/T1_contrast.nii.gz",
+   "size": 6793430,
+   "md5": "d6a9decca7f9102e5da2d27b6d73474a",
+   "sha256": "1c6ae6b6ee6282c577999e9cf366f00ab5eef19bbb623f31c086ca051087cf06",
+   "url": "https://osf.io/download/dqhpx/"
+  },
+  {
+   "path": "ID12/Philips_Ingenia/Images/T1_non_contrast.nii.gz",
+   "size": 6587998,
+   "md5": "11db03d45ee36e32a5b07a6db99e095e",
+   "sha256": "ca8dde4a415c137fb5016aee7d6f1f68a63ce7887e9ea52630d3040673831633",
+   "url": "https://osf.io/download/zua7p/"
+  },
+  {
+   "path": "ID12/Philips_Ingenia/Labels/BS_L1_2.nii.gz",
+   "size": 54466,
+   "md5": "5a19214936038bd088cb3d0f6e65b31c",
+   "sha256": "99ecd5a8ba68f3c3cbc6486302b61bccc239b9bde2f01bcc5a6646b67b37981e",
+   "url": "https://osf.io/download/nj8q6/"
+  },
+  {
+   "path": "ID12/Philips_Ingenia/Labels/BS_L2_3.nii.gz",
+   "size": 53973,
+   "md5": "cc9b27e5beb78395cf3114253fb8ecb7",
+   "sha256": "f4635128c0e1d4630b1882da44641551850d6609bb32b389d7390434ead753b2",
+   "url": "https://osf.io/download/xhkv5/"
+  },
+  {
+   "path": "ID12/Philips_Ingenia/Labels/BS_L3_4.nii.gz",
+   "size": 54346,
+   "md5": "9aee58b65da3e951ba4ad372bb148dbb",
+   "sha256": "c991a68db9ac57bec8465637ad3085078d78eae481b0e5f17a4c859a48033292",
+   "url": "https://osf.io/download/yh68p/"
+  },
+  {
+   "path": "ID12/Philips_Ingenia/Labels/BS_L4_5.nii.gz",
+   "size": 53084,
+   "md5": "162f671e8dbfee2081216a2464d65462",
+   "sha256": "0db294706fe5aa60fb43454692c7ef4052014ce17487639fa7ec3f94f01cafd3",
+   "url": "https://osf.io/download/fxsb3/"
+  },
+  {
+   "path": "ID12/Philips_Ingenia/Labels/L1.nii.gz",
+   "size": 83925,
+   "md5": "5f3ad60fb1ec2724188b156717105e99",
+   "sha256": "78f061318dfde032aadee7af06ee7d85a65e98c16cd35dd89da56d83e4933083",
+   "url": "https://osf.io/download/y6gjz/"
+  },
+  {
+   "path": "ID12/Philips_Ingenia/Labels/L2.nii.gz",
+   "size": 87462,
+   "md5": "805902365eb8217b6a3b384eb81979f3",
+   "sha256": "b9095f65fa33b228fb855b5cb60a4509572d042c3e8004186b3715aa815a09dc",
+   "url": "https://osf.io/download/dpq9v/"
+  },
+  {
+   "path": "ID12/Philips_Ingenia/Labels/L3.nii.gz",
+   "size": 85560,
+   "md5": "a25f17958bc612e698b571f7d54bc936",
+   "sha256": "217ee662428e1c7fb32991f6786d5acb4f22a54960407aa602e4180aecfd81f8",
+   "url": "https://osf.io/download/83s9c/"
+  },
+  {
+   "path": "ID12/Philips_Ingenia/Labels/L4.nii.gz",
+   "size": 63522,
+   "md5": "d0ada53a355f9d518bd29ddd3fccf909",
+   "sha256": "eddb884b05a6a056e6b67fb76de447fb9c40544f2b676a316392f15c8b4634da",
+   "url": "https://osf.io/download/8unhb/"
+  },
+  {
+   "path": "ID12/Philips_Ingenia/Labels/L5.nii.gz",
+   "size": 60803,
+   "md5": "250ff43a7ad0c5c5b2275bea126733f2",
+   "sha256": "7f9bfc37f8421554e459c5d839e7c2f436a6c10a081aaf5ceb9b6c14ad5dbf23",
+   "url": "https://osf.io/download/g5rz6/"
+  },
+  {
+   "path": "ID13/Philips_Achieva/Images/Dixon_Fat.nii.gz",
+   "size": 97920352,
+   "md5": "849e2aa3ad9637d01ea182b3245c43ba",
+   "sha256": "67714e6ddcad4600128056f8db7600ed90428898f1c1a1dab212ce0663ac0d94",
+   "url": "https://osf.io/download/b8h34/"
+  },
+  {
+   "path": "ID13/Philips_Achieva/Images/Dixon_T2.nii.gz",
+   "size": 97920352,
+   "md5": "7db4c256ebc26260830226eb3343fb02",
+   "sha256": "bc3c5c2daa173dbffc83cf34065b849056776970c84d8dc6ce446be0ddb9c1fd",
+   "url": "https://osf.io/download/ky8t3/"
+  },
+  {
+   "path": "ID13/Philips_Achieva/Images/Dixon_Water.nii.gz",
+   "size": 50155535,
+   "md5": "265c732cf04bbf282c36a0f164b49a2a",
+   "sha256": "3acfadcba0f941c616753568f3ee34acd393f143d59623c50c0d04dfe21c3343",
+   "url": "https://osf.io/download/fpxnq/"
+  },
+  {
+   "path": "ID13/Philips_Achieva/Images/T1_contrast.nii.gz",
+   "size": 22862302,
+   "md5": "e76fa2637aef3dae6958516687314b88",
+   "sha256": "4909e47c3b6256802c3c779707b8441b68a49f3635ca248353fd42b142c9f50a",
+   "url": "https://osf.io/download/edasq/"
+  },
+  {
+   "path": "ID13/Philips_Achieva/Images/T1_non_contrast.nii.gz",
+   "size": 17091215,
+   "md5": "180fe473378a2cf402489d30ee9a038a",
+   "sha256": "8219f75b16aab54b36bc343d601f001f842df3be82a3dbee9bb85636ade64b43",
+   "url": "https://osf.io/download/t2efx/"
+  },
+  {
+   "path": "ID13/Philips_Achieva/Labels/BS_L1_2.nii.gz",
+   "size": 119429,
+   "md5": "24b95079f41a1ef3160aff6611b96a2e",
+   "sha256": "4b70c35bd33973279be4271475dada81171196561eaae6103d247ce3b4e16ff9",
+   "url": "https://osf.io/download/8nxjd/"
+  },
+  {
+   "path": "ID13/Philips_Achieva/Labels/BS_L2_3.nii.gz",
+   "size": 127323,
+   "md5": "3adc86a1d7622263ce93974e9396337b",
+   "sha256": "2b305372e6c3e115cea3b109f48cee15b5c4cff8e0dfef1074b8d456856912cd",
+   "url": "https://osf.io/download/v4scr/"
+  },
+  {
+   "path": "ID13/Philips_Achieva/Labels/BS_L3_4.nii.gz",
+   "size": 139114,
+   "md5": "06d3e91c2a10af9c39cc3c072bd65aa3",
+   "sha256": "9aa7ee7868e1c4176e3fe7734b687106d18172b861373fd1af1a641e365c6b3c",
+   "url": "https://osf.io/download/prfqx/"
+  },
+  {
+   "path": "ID13/Philips_Achieva/Labels/BS_L4_5.nii.gz",
+   "size": 143836,
+   "md5": "03915eaa208108f346629e82c345bada",
+   "sha256": "a595403cc7a3095100d2e681e920c11cfc1ca1788361b896ab4db389fca363e3",
+   "url": "https://osf.io/download/vfk7c/"
+  },
+  {
+   "path": "ID13/Philips_Achieva/Labels/L1.nii.gz",
+   "size": 165855,
+   "md5": "601565bee763b2ce6d4393cd59f22910",
+   "sha256": "a71fd0020bd0218b5431070d5afa25f27edfbf3af707faabd3b59f010a3492c4",
+   "url": "https://osf.io/download/fjkn2/"
+  },
+  {
+   "path": "ID13/Philips_Achieva/Labels/L2.nii.gz",
+   "size": 170550,
+   "md5": "1ade3470f1c3596c7176eac4cba4406d",
+   "sha256": "9049459bae456b2d8eafe289c41bd1630e3ddb1ac5bac8d09ceafdf07b799c8d",
+   "url": "https://osf.io/download/yw35m/"
+  },
+  {
+   "path": "ID13/Philips_Achieva/Labels/L3.nii.gz",
+   "size": 175103,
+   "md5": "e284612fa0eb0754f752a9fc44e9ef1e",
+   "sha256": "7c93f71ba78face4d19e767f13496ca0473e1dfec51e08917a5f2766520ec8ef",
+   "url": "https://osf.io/download/pvxnc/"
+  },
+  {
+   "path": "ID13/Philips_Achieva/Labels/L4.nii.gz",
+   "size": 182570,
+   "md5": "999a8a783a393526db3dff8ca8a488b0",
+   "sha256": "d1be0c8c908799a16ae27cdbaa9aea0c16803c78c736c29acf7d5ce8b8fdf0eb",
+   "url": "https://osf.io/download/yfvm8/"
+  },
+  {
+   "path": "ID13/Philips_Achieva/Labels/L5.nii.gz",
+   "size": 179661,
+   "md5": "9429967a41a5411cb4d0abaecbba63b0",
+   "sha256": "f985a6cf5fa8d882fb5113e154efbad275386bf5b483fd30333f94f427d6a15c",
+   "url": "https://osf.io/download/h4xzg/"
+  },
+  {
+   "path": "ID14/Philips_Achieva/Images/Dixon1_Water.nii.gz",
+   "size": 31104352,
+   "md5": "86a51a1b5f8dc0335a19538704540b13",
+   "sha256": "991a29be29bb114222caf584c73566c81f84404a04c07b94b49b987b66cd7797",
+   "url": "https://osf.io/download/xqt26/"
+  },
+  {
+   "path": "ID14/Philips_Achieva/Images/Dixon_Fat.nii.gz",
+   "size": 31104352,
+   "md5": "5f30d4055245441d571511589ca531de",
+   "sha256": "70f142389186682c5a2a80e2170bb3c9f3cfcbfea6694932ff9f9cfb07eb560a",
+   "url": "https://osf.io/download/aumwe/"
+  },
+  {
+   "path": "ID14/Philips_Achieva/Images/Dixon_T2.nii.gz",
+   "size": 31104352,
+   "md5": "d92ccf2621da4a907495690475d14453",
+   "sha256": "25211d1f5b57064846e8024dc8a3a5c6e79bfc4ab47d74ff1d3335434fcdd79d",
+   "url": "https://osf.io/download/8rq5s/"
+  },
+  {
+   "path": "ID14/Philips_Achieva/Images/T1_contrast.nii.gz",
+   "size": 7061926,
+   "md5": "4a70393023fc88b85fb819c34143a5de",
+   "sha256": "45fb005dfce65f1a56e6e50cce7a12fde77ee3c748f2de8b5b45dcd2f944d631",
+   "url": "https://osf.io/download/rcmkf/"
+  },
+  {
+   "path": "ID14/Philips_Achieva/Images/T1_non_contrast.nii.gz",
+   "size": 6986168,
+   "md5": "4f2071a9fd03f12d45e9c93138ee4b31",
+   "sha256": "033a4156768a5aa7ec16aafd4eaca5788068541bfd9d1915cd45c042f1e4e74a",
+   "url": "https://osf.io/download/xmqga/"
+  },
+  {
+   "path": "ID14/Philips_Achieva/Labels/BS_L1_2.nii.gz",
+   "size": 51321,
+   "md5": "0cd0a4e51f252caf794f714dd98b9fe0",
+   "sha256": "ca630102ccdb5ce31a94b8c3ab82cddf4fa17fe196fe51679a0b2bc8550e9862",
+   "url": "https://osf.io/download/pm6fh/"
+  },
+  {
+   "path": "ID14/Philips_Achieva/Labels/BS_L2_3.nii.gz",
+   "size": 56753,
+   "md5": "83197395d9aa506a9a1f91c08d3a2506",
+   "sha256": "66230849a9669e850e0872d7f20646d981bb0229c1b14729ae62020c88643d0e",
+   "url": "https://osf.io/download/md5nj/"
+  },
+  {
+   "path": "ID14/Philips_Achieva/Labels/BS_L3_4.nii.gz",
+   "size": 56364,
+   "md5": "cc94f2a36263b1bcd6a55974ecc9fa24",
+   "sha256": "fed80760b65bda6e61abf7ce552d1ec7322cef8d15ee9232a3accd6c52a518d5",
+   "url": "https://osf.io/download/vbmf2/"
+  },
+  {
+   "path": "ID14/Philips_Achieva/Labels/BS_L4_5.nii.gz",
+   "size": 62045,
+   "md5": "597aadfc43184a95fe84dac268702463",
+   "sha256": "82ce5b267ff45b082bd5da4f3104ebe35388bf98d04ba24a6afda4af1eb0593d",
+   "url": "https://osf.io/download/uvcdp/"
+  },
+  {
+   "path": "ID14/Philips_Achieva/Labels/L2.nii.gz",
+   "size": 75044,
+   "md5": "8f0894f4d1a07f348324a71b9f0972b1",
+   "sha256": "659df83bf1de0348de4a707576c4b771cf938b1c7de8808168b282744e672b9c",
+   "url": "https://osf.io/download/g6exv/"
+  },
+  {
+   "path": "ID14/Philips_Achieva/Labels/L3.nii.gz",
+   "size": 80902,
+   "md5": "8443f5d093adadf09d4ef00c7e2c2c5e",
+   "sha256": "2745d37bde6aa0256501bc6757fbf7f35313b0704f68cffff07dcc07d46cfdcd",
+   "url": "https://osf.io/download/ef9dc/"
+  },
+  {
+   "path": "ID14/Philips_Achieva/Labels/L4.nii.gz",
+   "size": 73039,
+   "md5": "f68fedd2aa2959c06b4e2aef0434126f",
+   "sha256": "ac0ea6c21c82accce8a7a965e417121e83ac3c449f5ca13363abeb33e9c59d43",
+   "url": "https://osf.io/download/sze4r/"
+  },
+  {
+   "path": "ID14/Philips_Achieva/Labels/L5.nii.gz",
+   "size": 77534,
+   "md5": "4247ae687d548376f2f26b902d2e71a2",
+   "sha256": "de50e858c657396ea926c9035bf6e0fb4fde932c5a5d214528338172f1af95f2",
+   "url": "https://osf.io/download/u3tcb/"
+  },
+  {
+   "path": "ID15/Philips_Achieva/Images/Dixon1_Water.nii.gz",
+   "size": 19548372,
+   "md5": "2910ef323b33210afba085f8ae53b773",
+   "sha256": "6544476e884e78eb357a70bdc7e6145672720070c18d0ae1caa2ea511d8dac81",
+   "url": "https://osf.io/download/z72r3/"
+  },
+  {
+   "path": "ID15/Philips_Achieva/Images/Dixon_Fat.nii.gz",
+   "size": 33702240,
+   "md5": "9e57f90a6c9ec8b9ab1c14d2f05c6780",
+   "sha256": "60eb3a3973bf79373e90ac1ad358099a079da6e9111c0933ef11d2a6c68e0136",
+   "url": "https://osf.io/download/zrpft/"
+  },
+  {
+   "path": "ID15/Philips_Achieva/Images/Dixon_T2.nii.gz",
+   "size": 19371167,
+   "md5": "d36f980700a5ecdefa6c46e860ae0a0f",
+   "sha256": "ec15ff228180d2bf5f909db3896b6732a077137f1060219e04c1694e4186b869",
+   "url": "https://osf.io/download/sza5c/"
+  },
+  {
+   "path": "ID15/Philips_Achieva/Images/T1_contrast.nii.gz",
+   "size": 17567932,
+   "md5": "1deb19ee32cc86f47404a7194dca5dd8",
+   "sha256": "074b63f497525ab055a7f19da6a231291eeeb3d84ef1245f7f9202050f48e3ec",
+   "url": "https://osf.io/download/vj6n8/"
+  },
+  {
+   "path": "ID15/Philips_Achieva/Images/T1_non_contrast.nii.gz",
+   "size": 7575870,
+   "md5": "c49de5cfcabbb45bbcca3db14acf793e",
+   "sha256": "432c510aea0865813f95bb9c763dd06950480d370c148da7744093e053d7fab7",
+   "url": "https://osf.io/download/ejmv8/"
+  },
+  {
+   "path": "ID15/Philips_Achieva/Labels/BS_L1_2.nii.gz",
+   "size": 60770,
+   "md5": "c169093e5c638d96a415bf0f001c9f13",
+   "sha256": "c775d8d00f08e7b93077bed9763dc7779358fddbfe4d064aff4e5190089a4a89",
+   "url": "https://osf.io/download/egwsq/"
+  },
+  {
+   "path": "ID15/Philips_Achieva/Labels/BS_L2_3.nii.gz",
+   "size": 57989,
+   "md5": "cd8359a340cd29f4a569b4d78a0852dc",
+   "sha256": "373ca6a63a97794778667a4a4d18cf6530e59fe277a0eec2108e40cb515473e4",
+   "url": "https://osf.io/download/m4dbs/"
+  },
+  {
+   "path": "ID15/Philips_Achieva/Labels/BS_L3_4.nii.gz",
+   "size": 55734,
+   "md5": "134cb7d8fcc4f2a1de424fec971a3ec0",
+   "sha256": "53ed35fe14c5c45233c6b37c5b06c328e4c7afe3161faebbb48567f898b07a0d",
+   "url": "https://osf.io/download/e2ty9/"
+  },
+  {
+   "path": "ID15/Philips_Achieva/Labels/BS_L4_5.nii.gz",
+   "size": 52750,
+   "md5": "48c1ea21fbdb30393ac099aa2b4e1a8c",
+   "sha256": "0a4b1dfb1cbfd3e4027e55b2f74e1bf7e0b467803d4a525150fc7b5ccc317e7d",
+   "url": "https://osf.io/download/96c4j/"
+  },
+  {
+   "path": "ID15/Philips_Achieva/Labels/L1.nii.gz",
+   "size": 68718,
+   "md5": "040b6819c3ac5f55f47edc2c912e641d",
+   "sha256": "0dcc2885dc7c47db61305d188cf6aaf2447adf4908807be7fadb1586d3339717",
+   "url": "https://osf.io/download/9aneh/"
+  },
+  {
+   "path": "ID15/Philips_Achieva/Labels/L2.nii.gz",
+   "size": 72466,
+   "md5": "55005280ee2269949c24441bdc990a45",
+   "sha256": "cd124921a33f4da02f221adde63d6905871baf71deea698d9ab4da81dd3bcd93",
+   "url": "https://osf.io/download/u2hk8/"
+  },
+  {
+   "path": "ID15/Philips_Achieva/Labels/L3.nii.gz",
+   "size": 74628,
+   "md5": "ffdcf95c73bae65f2a0c21fa92533d82",
+   "sha256": "956e35de03269f1977612b2fefd19a7cff2005d288bcdf6217c97c7609452fd3",
+   "url": "https://osf.io/download/sq3ra/"
+  },
+  {
+   "path": "ID15/Philips_Achieva/Labels/L4.nii.gz",
+   "size": 74266,
+   "md5": "117af79f4864c6adcc74a12cb7a89aad",
+   "sha256": "a491361fd486541162ad4e6400ca05eeb169591551327e9f4968b9e318e01f01",
+   "url": "https://osf.io/download/wg4vr/"
+  },
+  {
+   "path": "ID15/Philips_Achieva/Labels/L5.nii.gz",
+   "size": 70908,
+   "md5": "28543dc76d04fb417dd663da0503dda6",
+   "sha256": "85dd5d4df48e93d97b0ee88b705724cb48ca8a2fcf1b31da25f76a734eb915e4",
+   "url": "https://osf.io/download/tuhvx/"
+  },
+  {
+   "path": "ID15/Siemens_Symphony/Images/T1_non_contrast.nii.gz",
+   "size": 1757557,
+   "md5": "7685e078870ce49976b8f20ff9b58ee4",
+   "sha256": "1e78e43cb3d869b38a2161877807ac1e44df153d1d9b3f4dd6c526eb2fd671e6",
+   "url": "https://osf.io/download/hqwrs/"
+  },
+  {
+   "path": "ID15/Siemens_Symphony/Images/T2.nii.gz",
+   "size": 6488416,
+   "md5": "e92e92f18722b46f768ba44b2aa53fe4",
+   "sha256": "3266bee8a87938c7ae1b773472ffab1660b00cad448e71db6ac5494e53f0fe8d",
+   "url": "https://osf.io/download/u7mfy/"
+  },
+  {
+   "path": "ID15/Siemens_Symphony/Labels/BS_L1_2.nii.gz",
+   "size": 11407,
+   "md5": "785c995acc14c23fb5c689a6ba70e342",
+   "sha256": "a61643697714eefabc2cdcfdca0830684c6e741f5b2c5a9096d93d2eecee1224",
+   "url": "https://osf.io/download/49ukq/"
+  },
+  {
+   "path": "ID15/Siemens_Symphony/Labels/BS_L2_3.nii.gz",
+   "size": 11331,
+   "md5": "eeb7481a764ac8fdfb26676e6c1fdf78",
+   "sha256": "67ce1228f22e5cbb2c8ac5e84dfc663874fd49a32ecb4c62dabdb147c7720deb",
+   "url": "https://osf.io/download/2zp6a/"
+  },
+  {
+   "path": "ID15/Siemens_Symphony/Labels/BS_L3_4.nii.gz",
+   "size": 12265,
+   "md5": "cac6695383314fc105e3be8d77f519ce",
+   "sha256": "728852f24a297e6e36471661b6837fefe617ff7a1d3621697fbd81fb63705d89",
+   "url": "https://osf.io/download/yb5uk/"
+  },
+  {
+   "path": "ID15/Siemens_Symphony/Labels/BS_L4_5.nii.gz",
+   "size": 12187,
+   "md5": "64ef2cc6ce526db34db10e9304615549",
+   "sha256": "b225dca1ea9edb4f29309f8c4de694b000fb5248cc70762ab98c72383351cc52",
+   "url": "https://osf.io/download/497dc/"
+  },
+  {
+   "path": "ID15/Siemens_Symphony/Labels/L1.nii.gz",
+   "size": 13016,
+   "md5": "d169fcc1f54c084d555a5bc05d0de6cb",
+   "sha256": "fe1de9b7d7bb0e1ed230875016a154c52e70bca34e17570f05d74f162b95202a",
+   "url": "https://osf.io/download/wy4u9/"
+  },
+  {
+   "path": "ID15/Siemens_Symphony/Labels/L2.nii.gz",
+   "size": 13515,
+   "md5": "9c20d2d9afe97070b7f9b0f091055283",
+   "sha256": "e2ef6f5180472803abbf32baaad0b49059100d322c4eda96fa8537c511a3d367",
+   "url": "https://osf.io/download/v7nfb/"
+  },
+  {
+   "path": "ID15/Siemens_Symphony/Labels/L3.nii.gz",
+   "size": 14403,
+   "md5": "de6cd36386424874d53066ac0e07e309",
+   "sha256": "122b7e35a96a214750f73fad6ef2aae9c83c9fec4248455d0fe10b9e5effa436",
+   "url": "https://osf.io/download/84qch/"
+  },
+  {
+   "path": "ID15/Siemens_Symphony/Labels/L4.nii.gz",
+   "size": 15113,
+   "md5": "2a28e55223213112cd5dba198ef98af0",
+   "sha256": "c57707ece472290fe9ffe0ca857fb8883da7dd0ade25c7a0808f67084bb57365",
+   "url": "https://osf.io/download/9b7y2/"
+  },
+  {
+   "path": "ID15/Siemens_Symphony/Labels/L5.nii.gz",
+   "size": 15595,
+   "md5": "ef8ccde5175a94fae4fa8b979941236a",
+   "sha256": "b2f8bff70c5827b991283389d44ac59961a96635ec999bfc3d1ab8c0c2ef9d18",
+   "url": "https://osf.io/download/5tz86/"
+  },
+  {
+   "path": "ID16/Philips_Achieva/Images/Dixon_Fat.nii.gz",
+   "size": 30708064,
+   "md5": "febe5ca8982f31c36967904c08b96dce",
+   "sha256": "7c773d8a021891ae62ad82b3723277bb9064c5ccd8693ec893d89b18179bbe32",
+   "url": "https://osf.io/download/60552c2a90bb4e01411542d2/"
+  },
+  {
+   "path": "ID16/Philips_Achieva/Images/Dixon_T2.nii.gz",
+   "size": 30708064,
+   "md5": "a6fa912f91d1f4b80d04a64f1bf4ceb5",
+   "sha256": "9e15dfaeafbd554609ae64a6e99db061c2dea3ac9ef68e8b7b9cc8569fd68084",
+   "url": "https://osf.io/download/60552c2ae8afef01395f54c0/"
+  },
+  {
+   "path": "ID16/Philips_Achieva/Images/Dixon_Water.nii.gz",
+   "size": 30708064,
+   "md5": "a7cb3ea452bdb75d77a0704c3da4f560",
+   "sha256": "70dd3a41ba82ad192007e26fd7406a18e909e99af45d704275e348b36e3e7beb",
+   "url": "https://osf.io/download/60552c2ae8afef01325f1d38/"
+  },
+  {
+   "path": "ID16/Philips_Achieva/Images/T1_contrast.nii.gz",
+   "size": 7556326,
+   "md5": "c628905371e9f6fd95a807bcbe9c06bd",
+   "sha256": "028261d3142815e8036ab523b8ac00d12734a0014b53072adf0f39ff26b145c7",
+   "url": "https://osf.io/download/60552c22c402cc0117978a20/"
+  },
+  {
+   "path": "ID16/Philips_Achieva/Images/T1_non_contrast.nii.gz",
+   "size": 7344570,
+   "md5": "da05926b12238427d3f1f728e92d11ef",
+   "sha256": "7073e940a7a0bac109962d55e38cd34b3100f9d2bf30daffeebd83e907026c03",
+   "url": "https://osf.io/download/htd9c/"
+  },
+  {
+   "path": "ID16/Philips_Achieva/Labels/BS_L1_2.nii.gz",
+   "size": 58529,
+   "md5": "72c15c4558ade2da9aef9b0f2d2b0a92",
+   "sha256": "1c8f9752b5b146770268b929d26fad6572ae110b0424b68f4c0fb20dee28771f",
+   "url": "https://osf.io/download/60552c40c402cc011897b1ab/"
+  },
+  {
+   "path": "ID16/Philips_Achieva/Labels/BS_L2_3.nii.gz",
+   "size": 61679,
+   "md5": "72d70cd29667b45da738e5bbe879bd64",
+   "sha256": "9746fcb955030f8126bc5055dac8fac0a81f57baafc892778d5a44990354c390",
+   "url": "https://osf.io/download/60552c40c402cc0117978a5d/"
+  },
+  {
+   "path": "ID16/Philips_Achieva/Labels/BS_L3_4.nii.gz",
+   "size": 57838,
+   "md5": "b337df55f8c34d3ca83d966235280b7d",
+   "sha256": "d06c8e6acf3affeb98bdf864b6db88276ab65ee0ea71d6e84c42f13a4c054abe",
+   "url": "https://osf.io/download/60552c3ce8afef01385f3026/"
+  },
+  {
+   "path": "ID16/Philips_Achieva/Labels/BS_L4_5.nii.gz",
+   "size": 58032,
+   "md5": "2ee239380b47501b95f126a3a71c4b98",
+   "sha256": "f79a00844875479f9c6a21b7cf08bdabf29ad3f2bcb64c5f04619a87583ce44e",
+   "url": "https://osf.io/download/60552c3de8afef01385f302a/"
+  },
+  {
+   "path": "ID16/Philips_Achieva/Labels/L1.nii.gz",
+   "size": 88571,
+   "md5": "4582a0895e5f655476d54e3833cd83d8",
+   "sha256": "096c18c2d5619325eb6e0b7f72a2630f660359db3d27d60bde86dd156a2d7ab1",
+   "url": "https://osf.io/download/60552c3de8afef01395f54fc/"
+  },
+  {
+   "path": "ID16/Philips_Achieva/Labels/L2.nii.gz",
+   "size": 89522,
+   "md5": "58d46ab8af1b1f0348ae25fb0a2a36f7",
+   "sha256": "8618c085337ec213e4ea55caccb7a2b1949932c7b0f45792c8993b7c47198ca2",
+   "url": "https://osf.io/download/60552c3ce8afef01395f54f6/"
+  },
+  {
+   "path": "ID16/Philips_Achieva/Labels/L3.nii.gz",
+   "size": 91872,
+   "md5": "f57b939bd94c608a52d68e03dba3f877",
+   "sha256": "67f5e8020b2df68f11f6a30be42cebaa1c25a7cf7f49daca78388b8f79abc3fe",
+   "url": "https://osf.io/download/60552c3ce8afef01395f54ee/"
+  },
+  {
+   "path": "ID16/Philips_Achieva/Labels/L4.nii.gz",
+   "size": 90098,
+   "md5": "5fce8590d05659ba9bd41542e3295bb1",
+   "sha256": "dc61ae1836b25a61537a12215efc5e0cc023f4ae502b0f2d3b5eebb6075f6f6d",
+   "url": "https://osf.io/download/60552c3e90bb4e01411542f8/"
+  },
+  {
+   "path": "ID16/Philips_Achieva/Labels/L5.nii.gz",
+   "size": 90825,
+   "md5": "4f9ab553306d8a4632848ed9b7c6d275",
+   "sha256": "7a7a7bf9dd30809370a69d86520493e41e06afad3c0f88d35e33c92afccb09bb",
+   "url": "https://osf.io/download/60552c4090bb4e01411542ff/"
+  },
+  {
+   "path": "ID16/Siemens_Avanto/Images/STIR.nii.gz",
+   "size": 6488416,
+   "md5": "d30d23e2f95925afe0a0a7b30f8079ba",
+   "sha256": "52d7a559f848d2c08888fd6269a7aa438fe18fc0bb5453e40adcc4a32f74ae28",
+   "url": "https://osf.io/download/60552cb6e8afef01385f30e8/"
+  },
+  {
+   "path": "ID16/Siemens_Avanto/Images/T1_non_contrast.nii.gz",
+   "size": 1757557,
+   "md5": "7685e078870ce49976b8f20ff9b58ee4",
+   "sha256": "1e78e43cb3d869b38a2161877807ac1e44df153d1d9b3f4dd6c526eb2fd671e6",
+   "url": "https://osf.io/download/nqfsw/"
+  },
+  {
+   "path": "ID16/Siemens_Avanto/Images/T2.nii.gz",
+   "size": 6488416,
+   "md5": "e92e92f18722b46f768ba44b2aa53fe4",
+   "sha256": "3266bee8a87938c7ae1b773472ffab1660b00cad448e71db6ac5494e53f0fe8d",
+   "url": "https://osf.io/download/fnq6j/"
+  },
+  {
+   "path": "ID16/Siemens_Avanto/Labels/BS_L1_2.nii.gz",
+   "size": 11407,
+   "md5": "785c995acc14c23fb5c689a6ba70e342",
+   "sha256": "a61643697714eefabc2cdcfdca0830684c6e741f5b2c5a9096d93d2eecee1224",
+   "url": "https://osf.io/download/ufscw/"
+  },
+  {
+   "path": "ID16/Siemens_Avanto/Labels/BS_L2_3.nii.gz",
+   "size": 11331,
+   "md5": "eeb7481a764ac8fdfb26676e6c1fdf78",
+   "sha256": "67ce1228f22e5cbb2c8ac5e84dfc663874fd49a32ecb4c62dabdb147c7720deb",
+   "url": "https://osf.io/download/da8z2/"
+  },
+  {
+   "path": "ID16/Siemens_Avanto/Labels/BS_L3_4.nii.gz",
+   "size": 12265,
+   "md5": "cac6695383314fc105e3be8d77f519ce",
+   "sha256": "728852f24a297e6e36471661b6837fefe617ff7a1d3621697fbd81fb63705d89",
+   "url": "https://osf.io/download/erpab/"
+  },
+  {
+   "path": "ID16/Siemens_Avanto/Labels/BS_L4_5.nii.gz",
+   "size": 12187,
+   "md5": "64ef2cc6ce526db34db10e9304615549",
+   "sha256": "b225dca1ea9edb4f29309f8c4de694b000fb5248cc70762ab98c72383351cc52",
+   "url": "https://osf.io/download/atn3v/"
+  },
+  {
+   "path": "ID16/Siemens_Avanto/Labels/L1.nii.gz",
+   "size": 13016,
+   "md5": "d169fcc1f54c084d555a5bc05d0de6cb",
+   "sha256": "fe1de9b7d7bb0e1ed230875016a154c52e70bca34e17570f05d74f162b95202a",
+   "url": "https://osf.io/download/s2b8x/"
+  },
+  {
+   "path": "ID16/Siemens_Avanto/Labels/L2.nii.gz",
+   "size": 13515,
+   "md5": "9c20d2d9afe97070b7f9b0f091055283",
+   "sha256": "e2ef6f5180472803abbf32baaad0b49059100d322c4eda96fa8537c511a3d367",
+   "url": "https://osf.io/download/63zbu/"
+  },
+  {
+   "path": "ID16/Siemens_Avanto/Labels/L3.nii.gz",
+   "size": 14403,
+   "md5": "de6cd36386424874d53066ac0e07e309",
+   "sha256": "122b7e35a96a214750f73fad6ef2aae9c83c9fec4248455d0fe10b9e5effa436",
+   "url": "https://osf.io/download/du4ah/"
+  },
+  {
+   "path": "ID16/Siemens_Avanto/Labels/L4.nii.gz",
+   "size": 15113,
+   "md5": "2a28e55223213112cd5dba198ef98af0",
+   "sha256": "c57707ece472290fe9ffe0ca857fb8883da7dd0ade25c7a0808f67084bb57365",
+   "url": "https://osf.io/download/2vceg/"
+  },
+  {
+   "path": "ID16/Siemens_Avanto/Labels/L5.nii.gz",
+   "size": 15595,
+   "md5": "ef8ccde5175a94fae4fa8b979941236a",
+   "sha256": "b2f8bff70c5827b991283389d44ac59961a96635ec999bfc3d1ab8c0c2ef9d18",
+   "url": "https://osf.io/download/k93v5/"
+  },
+  {
+   "path": "ID17/Philips_Achieva/Images/Dixon_Fat.nii.gz",
+   "size": 41796960,
+   "md5": "8851675711b814fd27faebfc722bf1ad",
+   "sha256": "53f86f1a25dd07c519e4e191f9d7e316289b3a05482197771a4497cf4a14b889",
+   "url": "https://osf.io/download/te5dj/"
+  },
+  {
+   "path": "ID17/Philips_Achieva/Images/Dixon_T2.nii.gz",
+   "size": 41796960,
+   "md5": "eb5a413af766416dfad9be62b6175ed8",
+   "sha256": "4b25678598237422a9b3dddf5b61299a0ad1fabdc0a2a9dbad9725ab2a5f6b79",
+   "url": "https://osf.io/download/60552d50c402cc0117978beb/"
+  },
+  {
+   "path": "ID17/Philips_Achieva/Images/Dixon_Water.nii.gz",
+   "size": 41796960,
+   "md5": "e98439e3b7006e672f801cb13dd9c9fb",
+   "sha256": "c8767b9bfe484fd39c5b81ad7e7fc43761b2426197de4d9c94dc3bc6ef7e0766",
+   "url": "https://osf.io/download/60552d51e8afef01395f579e/"
+  },
+  {
+   "path": "ID17/Philips_Achieva/Images/T1_contrast.nii.gz",
+   "size": 8236100,
+   "md5": "8ce1ab6b159314cb58ad9b2b47fe348b",
+   "sha256": "13219cc1a54a18693d9b596d5d2f5f19a7fb9b8cb5f6275e8310c41383f41e68",
+   "url": "https://osf.io/download/60552d46c402cc0114977c06/"
+  },
+  {
+   "path": "ID17/Philips_Achieva/Images/T1_non_contrast.nii.gz",
+   "size": 8168126,
+   "md5": "6cccbdb782f183481bef571ffd0f89e9",
+   "sha256": "1005891d3e6bd4d2a9340cb71ebd487aaf05db604634f9d059f818c6601889d7",
+   "url": "https://osf.io/download/wc9s4/"
+  },
+  {
+   "path": "ID17/Philips_Achieva/Labels/BS_L1_2.nii.gz",
+   "size": 58438,
+   "md5": "29a7f2cbeac0c8e15d3ff91e5d08b12b",
+   "sha256": "082001c360ec4a7f63273f4fc2900ce2cd0f58ba193cf93247faa8188b59ccaa",
+   "url": "https://osf.io/download/60552d76c402cc011897b4ed/"
+  },
+  {
+   "path": "ID17/Philips_Achieva/Labels/BS_L2_3.nii.gz",
+   "size": 59078,
+   "md5": "2ffb41190f650197383cf9be48f7a8ea",
+   "sha256": "819e07c5f2a1f6b0ae63735cc8bcc45b9b738028d6c75925c709207513cdd1de",
+   "url": "https://osf.io/download/60552d74e8afef01385f3211/"
+  },
+  {
+   "path": "ID17/Philips_Achieva/Labels/BS_L3_4.nii.gz",
+   "size": 60999,
+   "md5": "8909b3b0541d8692892f22570e163c25",
+   "sha256": "fb9f803105023bde6e2ad439b471399728403b9df25eaa6dd8a0c926fab27d63",
+   "url": "https://osf.io/download/60552d7390bb4e01411545b8/"
+  },
+  {
+   "path": "ID17/Philips_Achieva/Labels/BS_L4_5.nii.gz",
+   "size": 63983,
+   "md5": "0314cdc82becb4ca5e86922dbf3bac08",
+   "sha256": "e8438324b1952757db64366ba0dd38ded80812ed0877f9e3be95a7b0f836cd90",
+   "url": "https://osf.io/download/60552d71c402cc01139769ac/"
+  },
+  {
+   "path": "ID17/Philips_Achieva/Labels/L1.nii.gz",
+   "size": 81281,
+   "md5": "3fb6a132a3fef704e095d52ef9ae1853",
+   "sha256": "9de31938586f60928e29f222f91dcaad97a1f7361f77c75d83cb9b9142234287",
+   "url": "https://osf.io/download/60552d72c402cc0114977c30/"
+  },
+  {
+   "path": "ID17/Philips_Achieva/Labels/L2.nii.gz",
+   "size": 81714,
+   "md5": "ef5d1e53ea8d34fb53ad18753a56a7ad",
+   "sha256": "dd85c5dff4b8aa991b2558e6b84ffd3eaf67a877f467d765cf00b3c8ce867b47",
+   "url": "https://osf.io/download/60552d72e8afef01385f320a/"
+  },
+  {
+   "path": "ID17/Philips_Achieva/Labels/L3.nii.gz",
+   "size": 84582,
+   "md5": "3cab552c49da34bfffdb250c3789a2c6",
+   "sha256": "5331c30e342d418b3d59d4d9d63079ccca07ac481ac65becb19b71c4ac1b0b44",
+   "url": "https://osf.io/download/60552d70e8afef01325f1e2e/"
+  },
+  {
+   "path": "ID17/Philips_Achieva/Labels/L4.nii.gz",
+   "size": 83581,
+   "md5": "83e555fe6a9fb33de1a169020bff2f1c",
+   "sha256": "6e37f4d0ea3f2cbd492dc1b23b8b1c6516afe5d3e1f7edc0ef601391b3ee9d50",
+   "url": "https://osf.io/download/60552d73e8afef01325f1e37/"
+  },
+  {
+   "path": "ID17/Philips_Achieva/Labels/L5.nii.gz",
+   "size": 85831,
+   "md5": "c04c0ae45e9e7b967d94d9d6a0ed8928",
+   "sha256": "e3d9dca9b6563ddbf781f4b80e93fc64499c8700e362222c92e6e94ec4884e4a",
+   "url": "https://osf.io/download/60552d76c402cc0117978c33/"
+  },
+  {
+   "path": "ID18/Philips_Achieva/Images/Dixon_Fat.nii.gz",
+   "size": 5253303,
+   "md5": "0e201be2428f787ef943f5559ad34b7c",
+   "sha256": "68fef8f0c6fcee48a470f95f37eb2224fa14013b95cfed97757b6a93b4bbbe9e",
+   "url": "https://osf.io/download/60552dfac402cc0117978cfd/"
+  },
+  {
+   "path": "ID18/Philips_Achieva/Images/Dixon_T2.nii.gz",
+   "size": 5419968,
+   "md5": "8001870335475692210887c17e20a96a",
+   "sha256": "30dff8a598311b1910cebb092e2adc1448578df737dac4e7df74d5009b1c10d6",
+   "url": "https://osf.io/download/60552dfac402cc0114977c89/"
+  },
+  {
+   "path": "ID18/Philips_Achieva/Images/Dixon_Water.nii.gz",
+   "size": 4373526,
+   "md5": "9a55b27bf71eeff68c49ebeebcda0956",
+   "sha256": "4d8c7eb9d76de5c27188cd17fd118cbf5121644775bea9d33ef72774b2bbc615",
+   "url": "https://osf.io/download/60552dfa90bb4e01411546b4/"
+  },
+  {
+   "path": "ID18/Philips_Achieva/Images/T1_non_contrast.nii.gz",
+   "size": 5793559,
+   "md5": "2616929879b7eb2b065e685572ffb879",
+   "sha256": "9d29695d2928bd5a13358d918c7be83ac6f004d931599386bcd070a5eac8e0b3",
+   "url": "https://osf.io/download/60552dfae8afef01395f591a/"
+  },
+  {
+   "path": "ID18/Philips_Achieva/Labels/BS_L1_2.nii.gz",
+   "size": 44770,
+   "md5": "d52a51cf79d431c5d07011b828b4e023",
+   "sha256": "0d500da51a14d0d599fabe3484490c82bd896115f16206dd131c47c540eb1d22",
+   "url": "https://osf.io/download/60552e0ec402cc0117978d17/"
+  },
+  {
+   "path": "ID18/Philips_Achieva/Labels/BS_L2_3.nii.gz",
+   "size": 50802,
+   "md5": "abd98f591a1aabf8a363df4f3be80cc5",
+   "sha256": "ba0bc30dd8fbbc7d3d6502f872369f046b1f5a6829cc1623839086478bcbffc5",
+   "url": "https://osf.io/download/60552e0f90bb4e01411546db/"
+  },
+  {
+   "path": "ID18/Philips_Achieva/Labels/BS_L3_4.nii.gz",
+   "size": 51488,
+   "md5": "4ea7d07643847da515a749ab06f86c1d",
+   "sha256": "9ba3e58aca9dc57d8e56380be3647953f1019fa73462a8b0fb088e2bc0f8471f",
+   "url": "https://osf.io/download/60552e0be8afef01395f5944/"
+  },
+  {
+   "path": "ID18/Philips_Achieva/Labels/BS_L4_5.nii.gz",
+   "size": 49070,
+   "md5": "fc902f31af5edd6ad05d1cbc7e76f20e",
+   "sha256": "923d2d9c3503c3e5421808314fa96fa862a90d21068389bcd394c3621958ce29",
+   "url": "https://osf.io/download/60552e0bc402cc0117978d11/"
+  },
+  {
+   "path": "ID18/Philips_Achieva/Labels/L1.nii.gz",
+   "size": 60342,
+   "md5": "fb7c31c09ce7a9dff7634f6ad078bd8a",
+   "sha256": "f3652200cbaa4a8f4c86754fa1ecbf1ffca5ffc92a6fb46780fc176808cbb665",
+   "url": "https://osf.io/download/60552e0bc402cc011897b640/"
+  },
+  {
+   "path": "ID18/Philips_Achieva/Labels/L2.nii.gz",
+   "size": 63567,
+   "md5": "30f319d613eb67872a9b9e97a5b0e719",
+   "sha256": "2d33bf2f5f19cb2191a1ae9a86b11563b7e42b19279c69ac2054b55a5fb9bb7a",
+   "url": "https://osf.io/download/60552e0a90bb4e01411546d1/"
+  },
+  {
+   "path": "ID18/Philips_Achieva/Labels/L3.nii.gz",
+   "size": 67793,
+   "md5": "73c18828e97e910c3c35411c55139cdb",
+   "sha256": "d5e2b787e6c08d7067aafaba012f1a2d8297c11a82d0cae24262657a16060915",
+   "url": "https://osf.io/download/60552e0bc402cc011897b63c/"
+  },
+  {
+   "path": "ID18/Philips_Achieva/Labels/L4.nii.gz",
+   "size": 62358,
+   "md5": "c313a6cc161ff9e7d106e7215367727d",
+   "sha256": "75c339ba040fa8f6408e08aa1afc58784a03f02fc604952a451870101b3949e1",
+   "url": "https://osf.io/download/60552e0ee8afef01395f5951/"
+  },
+  {
+   "path": "ID18/Philips_Achieva/Labels/L5.nii.gz",
+   "size": 64564,
+   "md5": "525515bc127a53d586e07c62da27f757",
+   "sha256": "0443993138450aed96aa7f2558f555a502791f5e605e420cc530c82bfc35cad6",
+   "url": "https://osf.io/download/60552e0fe8afef01395f5955/"
+  },
+  {
+   "path": "ID19/Philips_Achieva/Images/Dixon_Fat.nii.gz",
+   "size": 46464352,
+   "md5": "97df867bafef2b6923a0e160ee7d108f",
+   "sha256": "5c072c3ac2c8c9611f8309ee8b790d61600c622341bcc319ec901b02bd9edcb4",
+   "url": "https://osf.io/download/60552eb090bb4e01371534a6/"
+  },
+  {
+   "path": "ID19/Philips_Achieva/Images/Dixon_T2.nii.gz",
+   "size": 46464352,
+   "md5": "7ef37570157aabd5e56332511f2b1cc2",
+   "sha256": "7426081a4ada6f3bf991c31a4bf398293215a6649399814b21bb048324246eb3",
+   "url": "https://osf.io/download/60552eb0c402cc0117978e21/"
+  },
+  {
+   "path": "ID19/Philips_Achieva/Images/Dixon_Water.nii.gz",
+   "size": 46464352,
+   "md5": "518c1fe7a1fc05847e9f7a9f0564c734",
+   "sha256": "71af4327c04d45d8a55890a0f093ba42fb58082dcff26f9f0cd6640b829e6153",
+   "url": "https://osf.io/download/60552eb090bb4e0141154831/"
+  },
+  {
+   "path": "ID19/Philips_Achieva/Images/T1_contrast.nii.gz",
+   "size": 9505255,
+   "md5": "5f56217251012ca97f187efcdb946efe",
+   "sha256": "2ba06d124f1c12c54fbb3842a348dfddc0d4fa0a4ce86a47a0c1adf015c97a8b",
+   "url": "https://osf.io/download/60552ea490bb4e0140152c90/"
+  },
+  {
+   "path": "ID19/Philips_Achieva/Images/T1_non_contrast.nii.gz",
+   "size": 9400725,
+   "md5": "4253cb122ec8409012b0d057bc671eae",
+   "sha256": "65af7c97250e00ba7cd85b953ebe840bfa53627ca8d67e864c4a57fe693c299a",
+   "url": "https://osf.io/download/60552ea3c402cc0114977d0c/"
+  },
+  {
+   "path": "ID19/Philips_Achieva/Labels/BS_L1_2.nii.gz",
+   "size": 83355,
+   "md5": "1bca089db23cd5664e8a8e33c0e0523c",
+   "sha256": "a3adb8f50d96cc8e288011e88f2c282ce997ff0ec7b98372b163a4cd47740d89",
+   "url": "https://osf.io/download/60552ebf90bb4e013d151d8e/"
+  },
+  {
+   "path": "ID19/Philips_Achieva/Labels/BS_L2_3.nii.gz",
+   "size": 78643,
+   "md5": "35001ad1494fe78af18c194d0cbac339",
+   "sha256": "5e39b0b6a8ee75e9f656c211998c26d404ac4f69db11b96503ccfa0144692ad5",
+   "url": "https://osf.io/download/60552ebac402cc011897b7fc/"
+  },
+  {
+   "path": "ID19/Philips_Achieva/Labels/BS_L3_4.nii.gz",
+   "size": 82257,
+   "md5": "5a9fbdcc4fa563a3c9a1b2b5f01f31e9",
+   "sha256": "a50912b69a4d35703e6e75c52738aedfbc148f2a7c6c995be4cf53d25cd5b77f",
+   "url": "https://osf.io/download/60552ebae8afef01395f5ae5/"
+  },
+  {
+   "path": "ID19/Philips_Achieva/Labels/BS_L4_5.nii.gz",
+   "size": 67226,
+   "md5": "1550ea5c5ae8cbef3d86123bb84608fc",
+   "sha256": "e91bf136bc1ef478e29975fea6adb68b482df56d779f2cfff8178e327d73569c",
+   "url": "https://osf.io/download/60552ebac402cc0117978e40/"
+  },
+  {
+   "path": "ID19/Philips_Achieva/Labels/L1.nii.gz",
+   "size": 95081,
+   "md5": "5b52bf22681e30247b7bc164c57463fb",
+   "sha256": "14f1ceccdfb247a71f49cf2d49f0aef78c8a8a7da2231c91e3d6920950589c32",
+   "url": "https://osf.io/download/60552eb990bb4e0140152cbb/"
+  },
+  {
+   "path": "ID19/Philips_Achieva/Labels/L2.nii.gz",
+   "size": 94257,
+   "md5": "a40efa92fc840ffc775a6094b939b913",
+   "sha256": "292ade3fa700b879de526b65c400156885961ae3142ecf0a678b0b68d9e0c422",
+   "url": "https://osf.io/download/60552ebb90bb4e01371534b2/"
+  },
+  {
+   "path": "ID19/Philips_Achieva/Labels/L3.nii.gz",
+   "size": 97120,
+   "md5": "2e9300558b538f06486f30025a6c7450",
+   "sha256": "1d08fca272ab2b4f24ec183027f7b80fa43e09f4751e165cccf30bb238b8e698",
+   "url": "https://osf.io/download/60552ebd90bb4e014115485b/"
+  },
+  {
+   "path": "ID19/Philips_Achieva/Labels/L4.nii.gz",
+   "size": 89714,
+   "md5": "f7ae90bfddbac999916d085382fca372",
+   "sha256": "2bb95be910504cb89ccc8fc6e2c3b791ab67a72faf6a8fb754cfa64c28219f39",
+   "url": "https://osf.io/download/60552ebec402cc011897b80c/"
+  },
+  {
+   "path": "ID19/Philips_Achieva/Labels/L5.nii.gz",
+   "size": 72686,
+   "md5": "abdbb7b73757c8b988d6e2a6b864c792",
+   "sha256": "3f0f331bb8c31b6715cd3367a3b399dd2f72f1a939b9c28270124b7a3d57e927",
+   "url": "https://osf.io/download/60552ebee8afef01385f33eb/"
+  },
+  {
+   "path": "ID19/Siemens_Avanto/Images/T1_non_contrast.nii.gz",
+   "size": 2658415,
+   "md5": "f615641888f8add85996725d28d9a67c",
+   "sha256": "ded20637f21b276d462b4d3e6936d2fcbbddfcaea3b51c6c769349bd44cd4396",
+   "url": "https://osf.io/download/60552ecde8afef01395f5b20/"
+  },
+  {
+   "path": "ID19/Siemens_Avanto/Images/T2.nii.gz",
+   "size": 8847712,
+   "md5": "d022b8a5df038aeb04fd0b5f6cec407e",
+   "sha256": "294a645cc33626a2809a10ed9c56e02f4d89379a70cd2d308cec9b3103ab4926",
+   "url": "https://osf.io/download/60552ecd90bb4e0140152ce1/"
+  },
+  {
+   "path": "ID19/Siemens_Avanto/Labels/BS_L1_2.nii.gz",
+   "size": 18739,
+   "md5": "f705b506ab7aa677a6a3db7bac827a3e",
+   "sha256": "a5f15b1d48d481e4f48fa047eeb8a004f1d134b5d771c20f4b2f7484ec229881",
+   "url": "https://osf.io/download/60552efe90bb4e013d151dcf/"
+  },
+  {
+   "path": "ID19/Siemens_Avanto/Labels/BS_L2_3.nii.gz",
+   "size": 19966,
+   "md5": "bffbd188230bb2276e4a6e29ce1f1b64",
+   "sha256": "089d166d1593a782eea7d84ba3c082b54423ecbca8b1e543fa650442b1bf1212",
+   "url": "https://osf.io/download/60552efdc402cc0114977d4c/"
+  },
+  {
+   "path": "ID19/Siemens_Avanto/Labels/BS_L3_4.nii.gz",
+   "size": 19544,
+   "md5": "b73ceb0e30d2f69541956887d441c0e5",
+   "sha256": "877768a16ea556507582a729266672e87e9a3aea787dba8d14c2e5ae3fd6701b",
+   "url": "https://osf.io/download/60552eff90bb4e01411548f0/"
+  },
+  {
+   "path": "ID19/Siemens_Avanto/Labels/BS_L4_5.nii.gz",
+   "size": 18831,
+   "md5": "0d519daa745621e86fa973f65be919e8",
+   "sha256": "3bb357800abbf3d30304d49a8f8a976483306dd8621142e2939a6739a3ca33fa",
+   "url": "https://osf.io/download/60552efac402cc0114977d42/"
+  },
+  {
+   "path": "ID19/Siemens_Avanto/Labels/L1.nii.gz",
+   "size": 22053,
+   "md5": "5e0820c7a7deaf06e3eba8c7f1f301cb",
+   "sha256": "14c621107d9a0cee96f49d94f3cb03e03d488df6d2c6a019948bac1eef7c2bbb",
+   "url": "https://osf.io/download/60552ef9c402cc011897b891/"
+  },
+  {
+   "path": "ID19/Siemens_Avanto/Labels/L2.nii.gz",
+   "size": 21774,
+   "md5": "791866fcce7251cf7fe22b5e6ef43a24",
+   "sha256": "5b1b28d10cf225cfc95b562977dafb1c80644f6fa8d9e41dd2f6cf9db340171f",
+   "url": "https://osf.io/download/60552efac402cc011897b898/"
+  },
+  {
+   "path": "ID19/Siemens_Avanto/Labels/L3.nii.gz",
+   "size": 22387,
+   "md5": "7c99528a83a0340880ac90b4f0662888",
+   "sha256": "ef6217860d878a5e7e1a58138377fdd382b2c4838d2a7cac18a9519be8ea332a",
+   "url": "https://osf.io/download/60552efb90bb4e01411548e1/"
+  },
+  {
+   "path": "ID19/Siemens_Avanto/Labels/L4.nii.gz",
+   "size": 21777,
+   "md5": "7cfe8ad4adc0032edada7e8ed55fea5a",
+   "sha256": "f00aca84bb927b11d760968fca8da07f0ca5a1979d15ee08f6af5a8190c51192",
+   "url": "https://osf.io/download/60552efbc402cc011897b89f/"
+  },
+  {
+   "path": "ID19/Siemens_Avanto/Labels/L5.nii.gz",
+   "size": 22637,
+   "md5": "395a6ca531f74f4badc1e737663575b4",
+   "sha256": "d616debddb28190333316519f2eebe78b019f951215f029a708a01dcd1b4f157",
+   "url": "https://osf.io/download/60552efcc402cc0113976a38/"
+  },
+  {
+   "path": "ID20/Philips_Achieva/Images/Dixon_Fat.nii.gz",
+   "size": 5361401,
+   "md5": "b2bd460093e60af91682186c8f5fa80c",
+   "sha256": "a22f631b2fc2e290699b271888fb2a4f6f7579d150f7958d3902eaf956497e91",
+   "url": "https://osf.io/download/ur9pb/"
+  },
+  {
+   "path": "ID20/Philips_Achieva/Images/Dixon_T2.nii.gz",
+   "size": 5558870,
+   "md5": "6d1ef0947b80287d92deed66d4a3b9a9",
+   "sha256": "5cc130985336bc51e8e9e84099a2cc9f42842be75884cf32a90d7185585d41e5",
+   "url": "https://osf.io/download/60552f5c90bb4e013d151e29/"
+  },
+  {
+   "path": "ID20/Philips_Achieva/Images/Dixon_Water.nii.gz",
+   "size": 4359674,
+   "md5": "033d35ccbb5513fed4b6804928de29ae",
+   "sha256": "0793b9c9b4767eb8024124de9c4ee8cf78c23b414926ca0dcfd4ad3a8abc3260",
+   "url": "https://osf.io/download/60552f5ac402cc0117978f02/"
+  },
+  {
+   "path": "ID20/Philips_Achieva/Images/T1_non_contrast.nii.gz",
+   "size": 6025686,
+   "md5": "154f15c2557bcd0e91473f95e512683c",
+   "sha256": "7257b7a0b1729d7764bd0b6148a363fe5d397b5a3ce8d7846fd88b4303be5a07",
+   "url": "https://osf.io/download/60552f5c90bb4e01411549af/"
+  },
+  {
+   "path": "ID20/Philips_Achieva/Labels/BS_L1_2.nii.gz",
+   "size": 50345,
+   "md5": "b353906e5734249aaf7f1acbdc014a3d",
+   "sha256": "a3785c0b1acd784b490e242476e7ee5758592fd1baecbb28064fd4901b1573b2",
+   "url": "https://osf.io/download/60552f7ce8afef01385f34ef/"
+  },
+  {
+   "path": "ID20/Philips_Achieva/Labels/BS_L2_3.nii.gz",
+   "size": 53812,
+   "md5": "bed70a146713c74ae5ac78cfb94f1884",
+   "sha256": "f0265b0609b4514f13fcd81cacecf235bf6f408b64b2fbce57ead4ace5e2ee45",
+   "url": "https://osf.io/download/60552f7de8afef01325f1fcc/"
+  },
+  {
+   "path": "ID20/Philips_Achieva/Labels/BS_L3_4.nii.gz",
+   "size": 56641,
+   "md5": "14c352d4ffc3471482c48e9fb7c6ee41",
+   "sha256": "5789782e4bfbdae39046971f7fddf6a8fb6a3b16b3337f83d4f545e10ad6c85c",
+   "url": "https://osf.io/download/60552f7fe8afef01325f1fd5/"
+  },
+  {
+   "path": "ID20/Philips_Achieva/Labels/BS_L4_5.nii.gz",
+   "size": 54881,
+   "md5": "0b694b70080f9f6e9b086e4d58ca1505",
+   "sha256": "f1f2cd92965883888d2ff6676ca292b4b466bbafe30ec36d07068c6f087c2066",
+   "url": "https://osf.io/download/60552f7ae8afef01335f0cc3/"
+  },
+  {
+   "path": "ID20/Philips_Achieva/Labels/L1.nii.gz",
+   "size": 65161,
+   "md5": "b1688bcf443546be239a3a2b5b702871",
+   "sha256": "2708bd76ba07d76ba61b013248c8f101047efb8b243b2597211115091ca6ccb0",
+   "url": "https://osf.io/download/60552f79c402cc011897b9ce/"
+  },
+  {
+   "path": "ID20/Philips_Achieva/Labels/L2.nii.gz",
+   "size": 66497,
+   "md5": "9059d0c344b38dc429977a8a8a856be7",
+   "sha256": "5963e98258fe780f62b8d5f10eaea5ad01b7534e15ad94e8bb306246f6bf5c05",
+   "url": "https://osf.io/download/60552f79e8afef01385f34e6/"
+  },
+  {
+   "path": "ID20/Philips_Achieva/Labels/L3.nii.gz",
+   "size": 68899,
+   "md5": "b9d71daf6528d6d38792780cf37ec337",
+   "sha256": "aa1598afbdeafb19cac5b5c3e94fc72caf2f09ef04cf5151582cba4acd5739cb",
+   "url": "https://osf.io/download/60552f7ac402cc011897b9d6/"
+  },
+  {
+   "path": "ID20/Philips_Achieva/Labels/L4.nii.gz",
+   "size": 72187,
+   "md5": "cb84225a7f777eb3714f7f7caba358dd",
+   "sha256": "e55006176f80ce9f9906ef95e9a18d341381b7df90d6d117f3fff024e196b70d",
+   "url": "https://osf.io/download/60552f79e8afef01395f5ca5/"
+  },
+  {
+   "path": "ID20/Philips_Achieva/Labels/L5.nii.gz",
+   "size": 71574,
+   "md5": "cc39d7a963054362d5cf46b40ce913ae",
+   "sha256": "25ff23dd78da3ebc91c33af309f94000519bd406c42b3d5491c8918f28b2de2a",
+   "url": "https://osf.io/download/60552f7cc402cc011897b9e0/"
+  },
+  {
+   "path": "ID21/Philips_Elition/Images/Dixon_Fat.nii.gz",
+   "size": 5790853,
+   "md5": "25f526f36c64b7c8e0c263044ce97070",
+   "sha256": "024e33420541e00b3dc46e22c144e6494f1c74923f7c22af931e9ecd89d909e6",
+   "url": "https://osf.io/download/60800257c146950080390156/"
+  },
+  {
+   "path": "ID21/Philips_Elition/Images/Dixon_T2.nii.gz",
+   "size": 6036581,
+   "md5": "d6be0b892eb5300e5805346e73eafcd7",
+   "sha256": "ace99154f479f00e2818a7ff57f12bd27d66f0bde965252e8c4a035020f3664c",
+   "url": "https://osf.io/download/608002467f02c0007901c3e3/"
+  },
+  {
+   "path": "ID21/Philips_Elition/Images/Dixon_Water.nii.gz",
+   "size": 4806567,
+   "md5": "370e72a1b6af551c3356135e870bc952",
+   "sha256": "ec9d1d5945336c74a0ffb01318a5d7cbf965fd332d171247c78fa7323e8b722b",
+   "url": "https://osf.io/download/608002367f02c000800175c8/"
+  },
+  {
+   "path": "ID21/Philips_Elition/Images/T1_non_contrast.nii.gz",
+   "size": 6461001,
+   "md5": "84c0c5eb8765f764556912920b6170e9",
+   "sha256": "b7e6c6b849bbacb4525b2422831d0ad5465c8fdec679a8f47d26278b64520b12",
+   "url": "https://osf.io/download/y75dn/"
+  },
+  {
+   "path": "ID21/Philips_Elition/Labels/BS_L1_2.nii.gz",
+   "size": 54475,
+   "md5": "7eb20dd208b1cd0fb0f36f6465335bd9",
+   "sha256": "78f46cc277369d50cf0048ee9085ae19941fcb42e00270b47177568b3dee3603",
+   "url": "https://osf.io/download/6080028f9b0849008e038ec1/"
+  },
+  {
+   "path": "ID21/Philips_Elition/Labels/BS_L2_3.nii.gz",
+   "size": 60362,
+   "md5": "87ea97aea1ffd02534f31fbef81fd51f",
+   "sha256": "d17030ba8cd4b87d9ff721d01f90800cca0f29e402023ee465c7542b07a24b4b",
+   "url": "https://osf.io/download/608002917f02c0008401642a/"
+  },
+  {
+   "path": "ID21/Philips_Elition/Labels/BS_L3_4.nii.gz",
+   "size": 65431,
+   "md5": "c6091dd70a5bca395ee0fb29d4ea4ef2",
+   "sha256": "3b786714220addf37a6c7b6c8bd2ab24af0edc3577af9d0a14fc9b359e2dae01",
+   "url": "https://osf.io/download/608002919b0849008a03a610/"
+  },
+  {
+   "path": "ID21/Philips_Elition/Labels/BS_L4_5.nii.gz",
+   "size": 65907,
+   "md5": "6719ad89cf4a331ae7737d2ee813a6bf",
+   "sha256": "d5d7561de3401b1eb25dc07a561d8f0272f7747453e40a66a5c70b7d6e5f182f",
+   "url": "https://osf.io/download/608002909b0849008d038e2d/"
+  },
+  {
+   "path": "ID21/Philips_Elition/Labels/L1.nii.gz",
+   "size": 68701,
+   "md5": "ceb7ff99c4772c3918f77a4adc5b5a49",
+   "sha256": "f2312540dc3abec42332bad6b852b247e174c497c48b6b026ba66feff0e5ef7e",
+   "url": "https://osf.io/download/6080028cc14695007a397efe/"
+  },
+  {
+   "path": "ID21/Philips_Elition/Labels/L2.nii.gz",
+   "size": 69140,
+   "md5": "f1c0d0db84c091e9adbea0a2b40dd836",
+   "sha256": "b8e8a4fb80e4be89370c865ce2720fc700531448a795480da62925e3e9a181e3",
+   "url": "https://osf.io/download/6080028d9b08490067044033/"
+  },
+  {
+   "path": "ID21/Philips_Elition/Labels/L3.nii.gz",
+   "size": 70685,
+   "md5": "4a993faade02cda78787489e54fd9a23",
+   "sha256": "0c8add138260aaa6976e9199d678bcbd603b3df3a0fa908de77ff3bde453a70c",
+   "url": "https://osf.io/download/6080028c9b0849008e038ead/"
+  },
+  {
+   "path": "ID21/Philips_Elition/Labels/L4.nii.gz",
+   "size": 73404,
+   "md5": "2a636666889d22b4108fe61c485f2931",
+   "sha256": "ca0f7b0db3ee4845e301933869ad10a6ee06b94cd7dd6d1abd493b26558b2d38",
+   "url": "https://osf.io/download/ekjnz/"
+  },
+  {
+   "path": "ID21/Philips_Elition/Labels/L5.nii.gz",
+   "size": 73224,
+   "md5": "f2273506cb2605334b0bf4e43381a700",
+   "sha256": "7343242c0ff5846ea0bf406e4da6738783941fbef2f015e5e627f32f9e81d150",
+   "url": "https://osf.io/download/6080028d7f02c0007901c451/"
+  },
+  {
+   "path": "ID21/Siemens_Amira/Images/T1_non_contrast.nii.gz",
+   "size": 2572118,
+   "md5": "c6e2612e5727be53979ea4aa3460764c",
+   "sha256": "e33eed1b1e499d4d1724dbd67ecf9639e060b8c68fc8cce9f2a36d68a7117f29",
+   "url": "https://osf.io/download/60800367c146950080390621/"
+  },
+  {
+   "path": "ID21/Siemens_Amira/Images/T2.nii.gz",
+   "size": 8601952,
+   "md5": "f8d6d07b5e513d06ceb78cbb2de88274",
+   "sha256": "509896c95f5daf5c7b13da2ded70db59f40e7cffa7a7f8a0176dc256e6c968a6",
+   "url": "https://osf.io/download/3znbp/"
+  },
+  {
+   "path": "ID21/Siemens_Amira/Labels/BS_L1_2.nii.gz",
+   "size": 15688,
+   "md5": "e9c823ab322b5daa6acf888b1437f633",
+   "sha256": "b01592b45341f85b1f5ade85d3eb078efbfd99de14f6a7ca9e0f8470b3648534",
+   "url": "https://osf.io/download/608003b09b0849008e039448/"
+  },
+  {
+   "path": "ID21/Siemens_Amira/Labels/BS_L2_3.nii.gz",
+   "size": 17170,
+   "md5": "a1d2a988e29bfc82a1fa333c5cf9e960",
+   "sha256": "2dc1718c824d20b5b89376ad223b2823d02d91c92bd1eb6017167e7403c86cc1",
+   "url": "https://osf.io/download/608003af9b08490059042149/"
+  },
+  {
+   "path": "ID21/Siemens_Amira/Labels/BS_L3_4.nii.gz",
+   "size": 18914,
+   "md5": "c070475c07304ca5699b9209a6c686dd",
+   "sha256": "cef297a19b2cbd44753028457ddee73c13729bfa03583b51744fa1b8f0a6de79",
+   "url": "https://osf.io/download/608003b29b0849008d039269/"
+  },
+  {
+   "path": "ID21/Siemens_Amira/Labels/BS_L4_5.nii.gz",
+   "size": 17947,
+   "md5": "fa17a591c675060c7178d7a9ce959b54",
+   "sha256": "0fd2738a291a3b289d77b77ef27254c14878602b350c42b15897404487746658",
+   "url": "https://osf.io/download/608003b27f02c0006901c004/"
+  },
+  {
+   "path": "ID21/Siemens_Amira/Labels/L1.nii.gz",
+   "size": 20338,
+   "md5": "0376e15547135fe1caa1b1d7867b8ac8",
+   "sha256": "64878fd7759e6d99abbbf61c0b18b6a2ccf035d8c7eaf5cc5c905fdee7663104",
+   "url": "https://osf.io/download/608003af9b0849007f04094c/"
+  },
+  {
+   "path": "ID21/Siemens_Amira/Labels/L2.nii.gz",
+   "size": 21503,
+   "md5": "64b30bfeabc320c42991a8f1adec3a60",
+   "sha256": "86544abbb6a0ba7abbd4e67feb707e76441b35d23ee8276bbe4bf6c03b6bb706",
+   "url": "https://osf.io/download/608003af7f02c0008401688a/"
+  },
+  {
+   "path": "ID21/Siemens_Amira/Labels/L3.nii.gz",
+   "size": 21381,
+   "md5": "271afa08644e0f461bb6f37951321869",
+   "sha256": "1b8610780f30f0dbdecfb511a750e65feb5c8ddd54ed9407e47df2b3331ce18f",
+   "url": "https://osf.io/download/608003ad7f02c0007901c681/"
+  },
+  {
+   "path": "ID21/Siemens_Amira/Labels/L4.nii.gz",
+   "size": 22236,
+   "md5": "057b9337d713c901c5499ecd85712ddc",
+   "sha256": "7b2e1b8ab4ed301de23e553ba9b948405a0e15e288eb81faeede90eb00cd6b91",
+   "url": "https://osf.io/download/rncsm/"
+  },
+  {
+   "path": "ID21/Siemens_Amira/Labels/L5.nii.gz",
+   "size": 21858,
+   "md5": "fa0b5139761a818231aa86c39130be11",
+   "sha256": "f71e8b814038028538e7c27201777e388036360e9787a00226496e3a9fb119f0",
+   "url": "https://osf.io/download/qam8s/"
+  },
+  {
+   "path": "ID22/Philips_Elition/Images/Dixon_Fat.nii.gz",
+   "size": 21494082,
+   "md5": "4eea0c97553c92f3019928f6843ffaf3",
+   "sha256": "0947918e2725e4b91b8a3f230763ab5a9a24347f20c63db7f1803c5a09619b10",
+   "url": "https://osf.io/download/6055301690bb4e0140152edb/"
+  },
+  {
+   "path": "ID22/Philips_Elition/Images/Dixon_T2.nii.gz",
+   "size": 21179159,
+   "md5": "1bdd6648328e89ddda3b6ce7668b6ae0",
+   "sha256": "301907fbca63d0e0d4ab73cbb0da3c4a0a93c1cab88b13c30fd323f38c3cfeb5",
+   "url": "https://osf.io/download/60553016c402cc0114977e05/"
+  },
+  {
+   "path": "ID22/Philips_Elition/Images/Dixon_Water.nii.gz",
+   "size": 21483003,
+   "md5": "05a37b86130111f4d33854c7dabbcfa0",
+   "sha256": "30f969efa457fe957126237eecb26cecab6220927b98b8eb40f4959ec4f0cd8d",
+   "url": "https://osf.io/download/60553016c402cc0114977e09/"
+  },
+  {
+   "path": "ID22/Philips_Elition/Images/T1_non_contrast.nii.gz",
+   "size": 8967660,
+   "md5": "ab47e2b6b89b73331e3b13fd3ff0d53c",
+   "sha256": "bc41d5e1a2de3550270b752b3566405a17ad373e66ece41f3f651baab03fab5f",
+   "url": "https://osf.io/download/6055301190bb4e0140152ecf/"
+  },
+  {
+   "path": "ID22/Philips_Elition/Labels/BS_L1_2.nii.gz",
+   "size": 70222,
+   "md5": "614a340cefa8f0826ccf41f5c7370886",
+   "sha256": "b4b36ee40fa4a44e81e4bc7ee18619aa5c18912db6a4da8516ea8c144a3cf606",
+   "url": "https://osf.io/download/60553024c402cc011897bb8a/"
+  },
+  {
+   "path": "ID22/Philips_Elition/Labels/BS_L2_3.nii.gz",
+   "size": 70133,
+   "md5": "6f6a4d41ca22adbddba3a0d7f9242449",
+   "sha256": "facaad2e87c28bdb7852a071b61020b8fbeae591f6f5226928edc7abca838002",
+   "url": "https://osf.io/download/60553025c402cc0117979017/"
+  },
+  {
+   "path": "ID22/Philips_Elition/Labels/BS_L3_4.nii.gz",
+   "size": 75419,
+   "md5": "0288f053564f2ebd1145ec67766de326",
+   "sha256": "d446c60304ca9d4669fbc7b7f312c2483fe22744991065704a7cbd863a01279b",
+   "url": "https://osf.io/download/60553025c402cc011797901b/"
+  },
+  {
+   "path": "ID22/Philips_Elition/Labels/BS_L4_5.nii.gz",
+   "size": 79947,
+   "md5": "0068aa7af6b857bdeabdc2622599f8dd",
+   "sha256": "97a001ac86a6febfdd97f2ae040f55e9b36656f46e86c1e556511be6a583e979",
+   "url": "https://osf.io/download/60553022e8afef01335f0d04/"
+  },
+  {
+   "path": "ID22/Philips_Elition/Labels/L1.nii.gz",
+   "size": 76476,
+   "md5": "7698cfdcd1fe82bb482b4e3e02125c2a",
+   "sha256": "8a627897da9b136519f4a85f51a5ba387eb628de25bd86dc5225f36a49ec2ea1",
+   "url": "https://osf.io/download/60553021c402cc0117979008/"
+  },
+  {
+   "path": "ID22/Philips_Elition/Labels/L2.nii.gz",
+   "size": 77811,
+   "md5": "aba695419ce1def8692f55b134aa0a45",
+   "sha256": "f26be83ab558c1e11b2ff7fb4d37e9e0bc766bf6f108d344440c85900e4fc955",
+   "url": "https://osf.io/download/60553021c402cc011897bb76/"
+  },
+  {
+   "path": "ID22/Philips_Elition/Labels/L3.nii.gz",
+   "size": 78377,
+   "md5": "bb2de7a1f6b23a77f06f64dac96ffb10",
+   "sha256": "9505a02365f9c5d246103d6ccf2395821e392a3cc3c8c2266b47fc90c8dedcea",
+   "url": "https://osf.io/download/6055302090bb4e0140152ef1/"
+  },
+  {
+   "path": "ID22/Philips_Elition/Labels/L4.nii.gz",
+   "size": 82514,
+   "md5": "44fe2233cc015656959621a04826567c",
+   "sha256": "66c98571caba0e0cd87d1d2e10d39ca78da267af51bdf87d0a686d15964f7b17",
+   "url": "https://osf.io/download/60553022e8afef01325f2055/"
+  },
+  {
+   "path": "ID22/Philips_Elition/Labels/L5.nii.gz",
+   "size": 83398,
+   "md5": "1b571f55919c90d15817558ec38e251d",
+   "sha256": "27d7010f7d4f2d65b922ab05906bfc6153d6206f163fb3d277be54d07d1a4a56",
+   "url": "https://osf.io/download/60553023e8afef01395f5e35/"
+  },
+  {
+   "path": "ID22/Siemens_Verio/Images/T1_contrast.nii.gz",
+   "size": 2094887,
+   "md5": "fefef690a2cea0fee8222c9ff7d26758",
+   "sha256": "23ac3364ba95717cb0d548df532bc29693fdcff4be19c01b869945f0182818f2",
+   "url": "https://osf.io/download/60553034e8afef01395f5e67/"
+  },
+  {
+   "path": "ID22/Siemens_Verio/Images/T1_non_contrast.nii.gz",
+   "size": 2059320,
+   "md5": "a5cb08e32d1cf8f5b2b036a48bcc8ea5",
+   "sha256": "4517e4061d9df05a2b2f0246b0bcd89aad4341b397bbb6516dcc32003a4951d1",
+   "url": "https://osf.io/download/60553034c402cc011897bbb5/"
+  },
+  {
+   "path": "ID22/Siemens_Verio/Images/T2.nii.gz",
+   "size": 6144352,
+   "md5": "b93de4fd3b43f779b73d62ecef79d02c",
+   "sha256": "d97871af0335568f176990441f5e126a45c343a3b6ce4aef00b6f54d56b9b34d",
+   "url": "https://osf.io/download/6055303490bb4e0141154b8d/"
+  },
+  {
+   "path": "ID22/Siemens_Verio/Labels/BS_L1_2.nii.gz",
+   "size": 16310,
+   "md5": "c5273f5f0da70bd94635c6e991d0173c",
+   "sha256": "39d701f1275f55771c7f8321398ca607347f0aeb1236c5eb7470e8ba37cd7932",
+   "url": "https://osf.io/download/60553043e8afef01325f2076/"
+  },
+  {
+   "path": "ID22/Siemens_Verio/Labels/BS_L2_3.nii.gz",
+   "size": 16449,
+   "md5": "fe91def5bd897ad27aca0c9ecfd314c6",
+   "sha256": "f7091092ffb8286fb0df27b1e450e2f513ec71dfc9385b5c5c3c37f5800aff09",
+   "url": "https://osf.io/download/60553043c402cc011897bbea/"
+  },
+  {
+   "path": "ID22/Siemens_Verio/Labels/BS_L3_4.nii.gz",
+   "size": 15490,
+   "md5": "16e5acea86c472ca402f593270cbcd12",
+   "sha256": "71c6cc5fd8a1d77e67f3eb8e75868d687b7e40505d679356061ce74f3c787ad2",
+   "url": "https://osf.io/download/6055303f90bb4e0141154ba7/"
+  },
+  {
+   "path": "ID22/Siemens_Verio/Labels/BS_L4_5.nii.gz",
+   "size": 16612,
+   "md5": "4a49c2286f07e84182cc617882f0a4da",
+   "sha256": "6668d008b82b6c3e58d06aac3f386d4076bd8e52b74fd9bce9cf2e8c7f597d1a",
+   "url": "https://osf.io/download/60553040e8afef01325f206b/"
+  },
+  {
+   "path": "ID22/Siemens_Verio/Labels/L1.nii.gz",
+   "size": 19933,
+   "md5": "70dbf1b39b00269749b55f428a4ebd43",
+   "sha256": "6bc6301bc527a4cb2c5cbe477b485081c80f5d39466c676114f423975a0ec44f",
+   "url": "https://osf.io/download/6055304090bb4e0140152f1d/"
+  },
+  {
+   "path": "ID22/Siemens_Verio/Labels/L2.nii.gz",
+   "size": 20080,
+   "md5": "41dae79a7db5cf593a65df82e734bffa",
+   "sha256": "1581e335747c81e3bce7051833c54ed9ec6896098a0973504aaf07ff9e8b30ac",
+   "url": "https://osf.io/download/6055304090bb4e0141154bab/"
+  },
+  {
+   "path": "ID22/Siemens_Verio/Labels/L3.nii.gz",
+   "size": 20699,
+   "md5": "60e2f38fd2588c65fbc77eecf0d03799",
+   "sha256": "02379baddcbd4420bcdb5833f372d9ce8294574259fb2c128cac9d6565370a05",
+   "url": "https://osf.io/download/6055303fe8afef01335f0d19/"
+  },
+  {
+   "path": "ID22/Siemens_Verio/Labels/L4.nii.gz",
+   "size": 19936,
+   "md5": "5a7be7c60a0f8853fd6c6857bb2bfaee",
+   "sha256": "d68d3ab584db2876c23cb9fdc3f421d16692e441fdde152d64ed41faaa86ff2c",
+   "url": "https://osf.io/download/60553042e8afef01395f5e90/"
+  },
+  {
+   "path": "ID22/Siemens_Verio/Labels/L5.nii.gz",
+   "size": 21230,
+   "md5": "7e201295952c6e0d8b1d377fdaf5f294",
+   "sha256": "c22f52e39393b6cd1ae106528d186209bd562d9293b28acddfb313eb789c9f09",
+   "url": "https://osf.io/download/6055304290bb4e0141154bb2/"
+  },
+  {
+   "path": "ID23/Philips_Achieva/Images/Dixon_Fat.nii.gz",
+   "size": 43908253,
+   "md5": "8e97ec9f5c233a01566702562918606a",
+   "sha256": "6d0d6545ab74e66d5be7ce2e28f31211c911d83c72ebba2d9a7ad1a246fbdd66",
+   "url": "https://osf.io/download/605532ac90bb4e013d152111/"
+  },
+  {
+   "path": "ID23/Philips_Achieva/Images/Dixon_T2.nii.gz",
+   "size": 43330395,
+   "md5": "c63257b8fd7c8af9920f41c92a987bd8",
+   "sha256": "22ac43836c78f9415e12c0a4bfc40c0f3d164b0be12ad368dcb0b250647b47d5",
+   "url": "https://osf.io/download/605532ace8afef01325f21f7/"
+  },
+  {
+   "path": "ID23/Philips_Achieva/Images/Dixon_Water.nii.gz",
+   "size": 75264352,
+   "md5": "b7c8e0bc9e5a4b1a133b0158913c234a",
+   "sha256": "91f436acc93b57062d6fcc9a25b9ea806d1022e6ee679f8d7cf5366685ba1ea9",
+   "url": "https://osf.io/download/605532aee8afef01395f6407/"
+  },
+  {
+   "path": "ID23/Philips_Achieva/Images/T1_contrast.nii.gz",
+   "size": 15430596,
+   "md5": "2e0253d4e71ce47379f494931cc3301d",
+   "sha256": "d68aaac8a3abdc1a9adc60fc1440f4141c4eca6a9cae08c2f5640455e54bd6c5",
+   "url": "https://osf.io/download/605532a490bb4e014115507e/"
+  },
+  {
+   "path": "ID23/Philips_Achieva/Images/T1_non_contrast.nii.gz",
+   "size": 15200929,
+   "md5": "41aa4c79541b8761f77ee8d545b61319",
+   "sha256": "7bf1f7dcb9a402e7fa51bffc49f6f3f8080710d8194e5a1c6434d525ee312fd5",
+   "url": "https://osf.io/download/4vfx5/"
+  },
+  {
+   "path": "ID23/Philips_Achieva/Labels/BS_L1_2.nii.gz",
+   "size": 150877,
+   "md5": "3c40a91d836bb9ae4ac827e3ad4c813d",
+   "sha256": "9a693009144aa4f4e0292a72e7bf5925381d72969b95fa935608b714d5515023",
+   "url": "https://osf.io/download/605532bdc402cc01179793c4/"
+  },
+  {
+   "path": "ID23/Philips_Achieva/Labels/BS_L2_3.nii.gz",
+   "size": 154020,
+   "md5": "bc57c27503331bd47503f874c112b5d8",
+   "sha256": "b255b9ff4e1d0acae1940aa80a7a8fa812b83253e4b1814450d37966cd7aa634",
+   "url": "https://osf.io/download/605532bd90bb4e013d152131/"
+  },
+  {
+   "path": "ID23/Philips_Achieva/Labels/BS_L3_4.nii.gz",
+   "size": 139253,
+   "md5": "07119b92c366c07b1ec706a6255bf966",
+   "sha256": "03feb981302f0d1907d1d49fd7f3a4ed3df838b6e28837b236220a41877eb5bf",
+   "url": "https://osf.io/download/605532b990bb4e0140153255/"
+  },
+  {
+   "path": "ID23/Philips_Achieva/Labels/BS_L4_5.nii.gz",
+   "size": 140527,
+   "md5": "723c2fb26145e7d0d6ff7cb015a3a1f6",
+   "sha256": "c52a1b83f3a3c2e1f2d6547949460fcf93f62639b508c10352cfbda88e5591a5",
+   "url": "https://osf.io/download/605532b9c402cc01179793bd/"
+  },
+  {
+   "path": "ID23/Philips_Achieva/Labels/L1.nii.gz",
+   "size": 239628,
+   "md5": "bfd21b6efc504fd27762b75d3e246c8b",
+   "sha256": "c305039a06b78cdc6db5c1589fdf7d6e03142e006b37be03f89e6e3edf903972",
+   "url": "https://osf.io/download/605532bae8afef01395f6427/"
+  },
+  {
+   "path": "ID23/Philips_Achieva/Labels/L2.nii.gz",
+   "size": 248343,
+   "md5": "6c5223e6376fe504e8fc5044fc5d1baa",
+   "sha256": "5c8ad7cad1220ffaa5234202c10b4e7d5fd9f80b6595d49e63061a8270a2c2f6",
+   "url": "https://osf.io/download/605532bac402cc011897c258/"
+  },
+  {
+   "path": "ID23/Philips_Achieva/Labels/L3.nii.gz",
+   "size": 251494,
+   "md5": "cddfaa28a7e67b9dc04c340b691bf40a",
+   "sha256": "c6a131bd3bc8dff70e8cb56e951538ae6ad8e7445e729d2e228bce6d87228d74",
+   "url": "https://osf.io/download/605532bae8afef01395f642b/"
+  },
+  {
+   "path": "ID23/Philips_Achieva/Labels/L4.nii.gz",
+   "size": 225397,
+   "md5": "7dcdd0790f5899dc8624799449412612",
+   "sha256": "80fc6b4b39e50cf68cb4f26fe21e4fe20ccd03839417fc22837096259d6a597a",
+   "url": "https://osf.io/download/605532bdc402cc0114977fd3/"
+  },
+  {
+   "path": "ID23/Philips_Achieva/Labels/L5.nii.gz",
+   "size": 222376,
+   "md5": "39961a057a6868a55d3a409338fa4404",
+   "sha256": "55b66a52473d8ad037f515ab90f69178ec3354989701d0323394caf02b1ebf0b",
+   "url": "https://osf.io/download/605532bde8afef01395f6432/"
+  },
+  {
+   "path": "ID24/Philips_Elition/Images/Dixon_Fat.nii.gz",
+   "size": 6195567,
+   "md5": "d6c1d7814dd551d1f77b22980c2fdef1",
+   "sha256": "a3e0493d6505fc9b2435d3f5e4afc665c33298ad1c1ca4edfbd318b6a612057d",
+   "url": "https://osf.io/download/2jsra/"
+  },
+  {
+   "path": "ID24/Philips_Elition/Images/Dixon_T2.nii.gz",
+   "size": 6694966,
+   "md5": "0b7e6597645fc491eef6a9a68973c015",
+   "sha256": "11b1eb0524ade35299d7330489f6e8429993c1896831c34a8d9a8dcbfb758466",
+   "url": "https://osf.io/download/awc3m/"
+  },
+  {
+   "path": "ID24/Philips_Elition/Images/Dixon_Water.nii.gz",
+   "size": 5789554,
+   "md5": "2e456da3265933c3ed434bdf2399945a",
+   "sha256": "c1ae64ed02096a19e980654b807cc1e9c946655464cef7db7c250259882e6a43",
+   "url": "https://osf.io/download/wa65p/"
+  },
+  {
+   "path": "ID24/Philips_Elition/Images/T1_non_contrast.nii.gz",
+   "size": 7125324,
+   "md5": "bdeb77c85a13d8b30e7db7ae3da21c5a",
+   "sha256": "c191f9dc37a3deaee554d32fe9320b0c64facdc8e0e55b7aeefb00b515b47273",
+   "url": "https://osf.io/download/t42ec/"
+  },
+  {
+   "path": "ID24/Philips_Elition/Labels/BS_L1_2.nii.gz",
+   "size": 60744,
+   "md5": "f6aeaaa10066baa1f21a7be400aab09c",
+   "sha256": "bcc0b2042fc2045cc47670e834613682b8b861515ce17acff53b6a9eb13bde33",
+   "url": "https://osf.io/download/p4fmc/"
+  },
+  {
+   "path": "ID24/Philips_Elition/Labels/BS_L2_3.nii.gz",
+   "size": 58156,
+   "md5": "edb03dafeb0564c8965f7763950f6a03",
+   "sha256": "af31b2c8f0da47cc131a389aafd3fc3fa1282a1539088ce3a5d76d630ec73528",
+   "url": "https://osf.io/download/mwbdx/"
+  },
+  {
+   "path": "ID24/Philips_Elition/Labels/BS_L3_4.nii.gz",
+   "size": 61243,
+   "md5": "bdc0d031046a74fdb69f1ac204426b0c",
+   "sha256": "95fc6d118f22a2cbfbb9dd071bd89541952a12c54791359d41d00cb1c4f8ab53",
+   "url": "https://osf.io/download/m2syw/"
+  },
+  {
+   "path": "ID24/Philips_Elition/Labels/BS_L4_5.nii.gz",
+   "size": 58647,
+   "md5": "724431b696673a6a59a20d335260f650",
+   "sha256": "c0c5633958c6c243033681872b39452413cc79340100f774ceaedbc892ac4fbe",
+   "url": "https://osf.io/download/gmndv/"
+  },
+  {
+   "path": "ID24/Philips_Elition/Labels/L1.nii.gz",
+   "size": 57518,
+   "md5": "757096c8c50ba9063d8460246ff2138f",
+   "sha256": "ad1256ff8a1ff3bb23e8b307491201dfb6fd111e71272ab3125d0e89906015c2",
+   "url": "https://osf.io/download/se7d5/"
+  },
+  {
+   "path": "ID24/Philips_Elition/Labels/L2.nii.gz",
+   "size": 59659,
+   "md5": "cbeb420ee77ae23ced82339c6f9cb255",
+   "sha256": "4bf3d7e3b3f532da59fe25f3a8f3e438a24cb0b6806823b1db4da5a944577e81",
+   "url": "https://osf.io/download/uyw68/"
+  },
+  {
+   "path": "ID24/Philips_Elition/Labels/L3.nii.gz",
+   "size": 75007,
+   "md5": "d988807775132f89685bf46992c5122a",
+   "sha256": "3cced6221986c6a4337f2614fa82f8398a332b39c81b263a0343f7bc29d000bc",
+   "url": "https://osf.io/download/nc3q5/"
+  },
+  {
+   "path": "ID24/Philips_Elition/Labels/L4.nii.gz",
+   "size": 74392,
+   "md5": "b969eb4837c92e0c3ce80d37a988ac0d",
+   "sha256": "d28e61e6a8404a2a6f26a140530939a9d48bd96a5fbc43a57e41ca2c30cab491",
+   "url": "https://osf.io/download/hzs8w/"
+  },
+  {
+   "path": "ID24/Philips_Elition/Labels/L5.nii.gz",
+   "size": 73551,
+   "md5": "0d358cfb72848db7d436ed60549a780b",
+   "sha256": "9a67d5223f68cb219e71e2e491da240e5676c3ee17f7ef7878ad8dd7f2d2a180",
+   "url": "https://osf.io/download/gebtw/"
+  },
+  {
+   "path": "ID25/Philips_Achieva/Images/Dixon_Fat.nii.gz",
+   "size": 86400352,
+   "md5": "7714acc853d4b02614b3529751db4af8",
+   "sha256": "de8a70a2a0f734781ccf66df0da6e1dc00796ed60e4a38ef4b66996a15889d4e",
+   "url": "https://osf.io/download/60553381e8afef01395f6672/"
+  },
+  {
+   "path": "ID25/Philips_Achieva/Images/Dixon_T2.nii.gz",
+   "size": 86400352,
+   "md5": "92081ce78457c36cda3b52ec8f8b9370",
+   "sha256": "ca045998b333c5d5d1f55c9bedc1de7fcb699d430df70db1bdd9d19d86a41a14",
+   "url": "https://osf.io/download/60553381c402cc011897c468/"
+  },
+  {
+   "path": "ID25/Philips_Achieva/Images/Dixon_Water.nii.gz",
+   "size": 86400352,
+   "md5": "2c37c26f39d174fdc2b0c42dbfef07db",
+   "sha256": "e47eb17dbe4e437c99880f3650646d8bdb2849bc44871b115c8319ad08c21133",
+   "url": "https://osf.io/download/60553380c402cc011897c462/"
+  },
+  {
+   "path": "ID25/Philips_Achieva/Images/T1_contrast.nii.gz",
+   "size": 13858328,
+   "md5": "9d08de0923c6c541695868472d0c97df",
+   "sha256": "30fd4690b3296a7050dac6253bce5473c28107f1f532202d1af39cc03d09d262",
+   "url": "https://osf.io/download/60553368c402cc011897c41c/"
+  },
+  {
+   "path": "ID25/Philips_Achieva/Images/T1_non_contrast.nii.gz",
+   "size": 13369433,
+   "md5": "ef4c3cfbc454ec408baed2ff17d7dc9c",
+   "sha256": "5d444b6272db42a34e3872b6d727ab292b3d827a75dda583c91b9c1d875be656",
+   "url": "https://osf.io/download/60553368e8afef01395f6633/"
+  },
+  {
+   "path": "ID25/Philips_Achieva/Labels/BS_L1_2.nii.gz",
+   "size": 118260,
+   "md5": "60a5f2799559c82ecf67498cecb857eb",
+   "sha256": "e4310b36fb68def362a04b69aa160f99634b969902d6dd4fdad1f2d4348b98cf",
+   "url": "https://osf.io/download/60553399e8afef01325f22b9/"
+  },
+  {
+   "path": "ID25/Philips_Achieva/Labels/BS_L2_3.nii.gz",
+   "size": 156584,
+   "md5": "ac834171d9e7af97d4e49fb78e7cc92e",
+   "sha256": "4e9c923f5e98dc71c5251faccb53110f8ea5dd7805cd5e1d40b98a131aa6f044",
+   "url": "https://osf.io/download/6055339b90bb4e013d152210/"
+  },
+  {
+   "path": "ID25/Philips_Achieva/Labels/BS_L3_4.nii.gz",
+   "size": 146026,
+   "md5": "787232cd51675acb0db497a2faa2a13e",
+   "sha256": "abb412c1df7bcd9d1992a41572334d32f4905ff2a46f3135c80883cc1d23ed71",
+   "url": "https://osf.io/download/6055339590bb4e013d152205/"
+  },
+  {
+   "path": "ID25/Philips_Achieva/Labels/BS_L4_5.nii.gz",
+   "size": 134465,
+   "md5": "40759d3cf1c0d815999343fd5349fe02",
+   "sha256": "cfe4adb4b27acb0324966280ab0b01d2e76b30d9789a6849d4d5234a06930a0f",
+   "url": "https://osf.io/download/6055339590bb4e01401533af/"
+  },
+  {
+   "path": "ID25/Philips_Achieva/Labels/L1.nii.gz",
+   "size": 153817,
+   "md5": "aaf76fe38640c8a64d26c7d6f4ed5738",
+   "sha256": "bc0fe98a61e5e7798fabfdfef2fdb070d6052e9a83424ef80727bd02b743fc62",
+   "url": "https://osf.io/download/6055339790bb4e01401533b6/"
+  },
+  {
+   "path": "ID25/Philips_Achieva/Labels/L2.nii.gz",
+   "size": 171529,
+   "md5": "a2c65d9b1bbbb12b2177322e08eadc9d",
+   "sha256": "5332b17fb22906157d3571add0cb00ed1aa5efce23cbbc8d0c7eff9a1f1d4c86",
+   "url": "https://osf.io/download/60553397c402cc0117979506/"
+  },
+  {
+   "path": "ID25/Philips_Achieva/Labels/L3.nii.gz",
+   "size": 164164,
+   "md5": "228dddd9f626d67f30266e4d6c679a6a",
+   "sha256": "597ce9a4a89fde11e8ac10c819d1f47f8921d8b93d2c50dce617de02c515e7be",
+   "url": "https://osf.io/download/60553396e8afef01395f6696/"
+  },
+  {
+   "path": "ID25/Philips_Achieva/Labels/L4.nii.gz",
+   "size": 159545,
+   "md5": "549c2f90e93d09305a804cc86be4c591",
+   "sha256": "d73efd6791ddf4fe2b1e0fa31fa3d21dc62acea1b58737b2f7596689bfee3253",
+   "url": "https://osf.io/download/60553399e8afef01385f3a56/"
+  },
+  {
+   "path": "ID25/Philips_Achieva/Labels/L5.nii.gz",
+   "size": 164823,
+   "md5": "2c8ed10b5a99d2df6ddda220bbe893bd",
+   "sha256": "cf06bc4b352a849d446ecd0cc10ba950473984b69ac09458e7982a39691620e6",
+   "url": "https://osf.io/download/6055339ae8afef01335f0e0d/"
+  },
+  {
+   "path": "ID26/Philips_Achieva/Images/Dixon_Fat.nii.gz",
+   "size": 29737312,
+   "md5": "8f4310c74c52562e90ab403cc7946085",
+   "sha256": "dcbef6d7cd2498dc1824c08382e204ca35a7aac0a324a9593f6c1bf6609f20b5",
+   "url": "https://osf.io/download/6055347fc402cc011897c6d7/"
+  },
+  {
+   "path": "ID26/Philips_Achieva/Images/Dixon_T2.nii.gz",
+   "size": 29737312,
+   "md5": "914ad22ecae5b41ae6a2b30dd53c9a5c",
+   "sha256": "afa0b965023c11ea6211ef6ba8a1f3c6fe3512b8ddc315b4f556216a9748b078",
+   "url": "https://osf.io/download/6055347fe8afef01395f68af/"
+  },
+  {
+   "path": "ID26/Philips_Achieva/Images/Dixon_Water.nii.gz",
+   "size": 29737312,
+   "md5": "93122e15050da26c84d6fc317db1d048",
+   "sha256": "b47f25a440073b79d9e99b6f12315338255b3ec9ab51fc50097073f1841e1fe2",
+   "url": "https://osf.io/download/6055347f90bb4e014015350b/"
+  },
+  {
+   "path": "ID26/Philips_Achieva/Images/T1_non_contrast.nii.gz",
+   "size": 5956228,
+   "md5": "9d6ff780f051beef4ffa6a8f8224bb80",
+   "sha256": "b730525a24a7205eae8b4bdc556ec352909e98edb9aa14bed67208fbc01e397f",
+   "url": "https://osf.io/download/60553477c402cc0117979633/"
+  },
+  {
+   "path": "ID26/Philips_Achieva/Labels/BS_L1_2.nii.gz",
+   "size": 48665,
+   "md5": "97d030fc59f355f09717f2d6ba8183a2",
+   "sha256": "adfdc0b4a39cd8adce1a5075f4cb4a5b9338ed79a95b01d767d140e39aa4a533",
+   "url": "https://osf.io/download/6055349bc402cc01149780e9/"
+  },
+  {
+   "path": "ID26/Philips_Achieva/Labels/BS_L2_3.nii.gz",
+   "size": 50222,
+   "md5": "0cc4bdbbc58a56433d4467580c1db365",
+   "sha256": "85c701bbd96db6e520b1d53587858bddfa51a26f636824d1e548636bafa61772",
+   "url": "https://osf.io/download/6055349b90bb4e014115550b/"
+  },
+  {
+   "path": "ID26/Philips_Achieva/Labels/BS_L3_4.nii.gz",
+   "size": 53707,
+   "md5": "1e3e44353116d7ea6c3f35a6e5fe76b7",
+   "sha256": "7614470108ba1fc6edfa764e1db5184da56b62b6ecdb6211093cc0078fc08d8a",
+   "url": "https://osf.io/download/6055349890bb4e014015353c/"
+  },
+  {
+   "path": "ID26/Philips_Achieva/Labels/BS_L4_5.nii.gz",
+   "size": 62852,
+   "md5": "3b6ac07ae41fe5b64ca8464e48754962",
+   "sha256": "6eeb08856b10249daa67528c713c408187ad7d6c900db630a0281e120c662990",
+   "url": "https://osf.io/download/6055349a90bb4e0141155500/"
+  },
+  {
+   "path": "ID26/Philips_Achieva/Labels/L1.nii.gz",
+   "size": 66630,
+   "md5": "aa9c88c5b2485f5a5945cfb9f92f01e2",
+   "sha256": "d4f1b8315cc86e3f2b75e10a52dd89cadddcd7e868bdb6bb110d9954fe4a37a8",
+   "url": "https://osf.io/download/6055349890bb4e0140153544/"
+  },
+  {
+   "path": "ID26/Philips_Achieva/Labels/L2.nii.gz",
+   "size": 71759,
+   "md5": "a66c7749db3a71f9746873681b6f772d",
+   "sha256": "34ee15f6d96982ccc189c9b421b7acff8abc51321ffb9f6d126529e9c5ad24e9",
+   "url": "https://osf.io/download/6055349790bb4e013d152300/"
+  },
+  {
+   "path": "ID26/Philips_Achieva/Labels/L3.nii.gz",
+   "size": 70411,
+   "md5": "ecb283c808a0996b92b787537b84994f",
+   "sha256": "4763450953334436716680db670c9d02fe3cb18fb02cbd39bed10f0666f298d1",
+   "url": "https://osf.io/download/60553498e8afef01395f68f6/"
+  },
+  {
+   "path": "ID26/Philips_Achieva/Labels/L4.nii.gz",
+   "size": 68366,
+   "md5": "73c67f1c317e58e4613a21e6216cc8fe",
+   "sha256": "663e58ca8d791ceca1af65dc867739be80b02e51cdcbd88623f435dfbbbfc4f8",
+   "url": "https://osf.io/download/6055349ac402cc0117979665/"
+  },
+  {
+   "path": "ID26/Philips_Achieva/Labels/L5.nii.gz",
+   "size": 80634,
+   "md5": "72c87b878b85c2e86d3c1f85968435eb",
+   "sha256": "9ac7d5007efdcd3d77c1a8538718c178832983d55860a30e082a260d8552af53",
+   "url": "https://osf.io/download/6055349bc402cc011897c727/"
+  },
+  {
+   "path": "ID27/Philips_Achieva/Images/Dixon_Fat.nii.gz",
+   "size": 15253856,
+   "md5": "345336a653f13adbd834f66f64537248",
+   "sha256": "e149747e30c8fb4616429e88a0495c97d7083ad97fbc0fcd96359beab3114702",
+   "url": "https://osf.io/download/605534dc90bb4e01411555b4/"
+  },
+  {
+   "path": "ID27/Philips_Achieva/Images/Dixon_T2.nii.gz",
+   "size": 15253856,
+   "md5": "5020bde1b0457e1fc2709bb3a887692f",
+   "sha256": "94e781696a0521ad3c6c7b1ff6795ca0a3ff39b013c306c141c1034cce584a26",
+   "url": "https://osf.io/download/605534dcc402cc0114978136/"
+  },
+  {
+   "path": "ID27/Philips_Achieva/Images/Dixon_Water.nii.gz",
+   "size": 15253856,
+   "md5": "3f2dfa285a4e414dbcf446436bc74476",
+   "sha256": "c95c559ebb2868ec903790e8350dee857f21ba692dd74c0582997c652cee9bd0",
+   "url": "https://osf.io/download/605534dcc402cc011897c826/"
+  },
+  {
+   "path": "ID27/Philips_Achieva/Images/T1_contrast.nii.gz",
+   "size": 3188535,
+   "md5": "3a94627e271bf0e2d3e352e170203ea4",
+   "sha256": "cbd97fa4d435b008141fa1729b6ef73cd368bde15a6be00715a33518335fec94",
+   "url": "https://osf.io/download/605534d9e8afef01395f69af/"
+  },
+  {
+   "path": "ID27/Philips_Achieva/Images/T1_non_contrast.nii.gz",
+   "size": 3125322,
+   "md5": "8781e93f9ac2254025621f2861c963c5",
+   "sha256": "c3c3705329bc4cee2120b0dcd3d840109652f27b3f0572672e03ed7c1fe235b2",
+   "url": "https://osf.io/download/r3d92/"
+  },
+  {
+   "path": "ID27/Philips_Achieva/Labels/BS_L1_2.nii.gz",
+   "size": 26798,
+   "md5": "db7f5565f8e654737464a106cf4d91cd",
+   "sha256": "05f0c07a49f0af1a8890a2071058eb288c4cc394cd7ca7dfeaa8b9bd65647b13",
+   "url": "https://osf.io/download/605534e990bb4e01411555e6/"
+  },
+  {
+   "path": "ID27/Philips_Achieva/Labels/BS_L2_3.nii.gz",
+   "size": 26245,
+   "md5": "d3bd064e22066c4afb45af62f60b7009",
+   "sha256": "32710e0500ab9cb3e064004b41d00e545ede8fa95eff30293fb45d874bcb2570",
+   "url": "https://osf.io/download/605534eb90bb4e01401535de/"
+  },
+  {
+   "path": "ID27/Philips_Achieva/Labels/BS_L3_4.nii.gz",
+   "size": 28041,
+   "md5": "7d8ca66d5086c80e6b450d0a7f8040e5",
+   "sha256": "2fb988535c84e7639350e28af4afadce6dce4347c72c32a7c7e2cb40ed1661b9",
+   "url": "https://osf.io/download/605534e790bb4e013d15236a/"
+  },
+  {
+   "path": "ID27/Philips_Achieva/Labels/BS_L4_5.nii.gz",
+   "size": 30558,
+   "md5": "b995284063946600446be8d4bd857e87",
+   "sha256": "06e0a4ed0abba9473dc10b8379623809f4ac1f269002c73f0a0190043be7eec3",
+   "url": "https://osf.io/download/605534e7e8afef01395f69ec/"
+  },
+  {
+   "path": "ID27/Philips_Achieva/Labels/L1.nii.gz",
+   "size": 29711,
+   "md5": "9e7df7606987924d8544b61a6da2c7be",
+   "sha256": "cffbe00801ddf3cb7b80f7155cda0282e50b90d3e2f41933c3781d4ed0616c8a",
+   "url": "https://osf.io/download/605534e6c402cc011897c851/"
+  },
+  {
+   "path": "ID27/Philips_Achieva/Labels/L2.nii.gz",
+   "size": 29761,
+   "md5": "b593cb15943e9924b4b74c2c23c3cdde",
+   "sha256": "17cfea00babc4ac4dbdd9e81b09e5e0e35794f6a9dd46e8b9e26772235cbaf75",
+   "url": "https://osf.io/download/605534e6c402cc011897c857/"
+  },
+  {
+   "path": "ID27/Philips_Achieva/Labels/L3.nii.gz",
+   "size": 30459,
+   "md5": "f3b4107d829648a8c8ed37483c9e361d",
+   "sha256": "796eee16c253974bd70ee56d4943a1281129edfbf34e3332c5e37a3804e93deb",
+   "url": "https://osf.io/download/605534e6c402cc0117979705/"
+  },
+  {
+   "path": "ID27/Philips_Achieva/Labels/L4.nii.gz",
+   "size": 32854,
+   "md5": "57bf2e86b91065b5d28a8fdff24a8fae",
+   "sha256": "508d8f1eaa1aea809d2d0ade2f856fdbdc517a430a009621126cde8fa0a320f5",
+   "url": "https://osf.io/download/605534e8c402cc011897c865/"
+  },
+  {
+   "path": "ID27/Philips_Achieva/Labels/L5.nii.gz",
+   "size": 40244,
+   "md5": "f767f82a98cd596cd29b2cd513c64d35",
+   "sha256": "b5a2a86215eb0c7d984859dbbdb2447cb5527a32cfa49003e99720aefe76be76",
+   "url": "https://osf.io/download/605534ebc402cc011897c86d/"
+  },
+  {
+   "path": "ID28/Philips_Achieva/Images/Dixon_Fat.nii.gz",
+   "size": 35251552,
+   "md5": "10f687819782f45b9e9021aef8fb19f2",
+   "sha256": "33c94c853ff56374a2e974f2291d1c3f61c7f28f02f931a9ff39a1ae781a4262",
+   "url": "https://osf.io/download/wpg6x/"
+  },
+  {
+   "path": "ID28/Philips_Achieva/Images/Dixon_T2.nii",
+   "size": 35251552,
+   "md5": "bc6124b0db17924deafa6d9736be544d",
+   "sha256": "83acee0b0f1cf8ab6b92e75bf631261cbd900e04ba36e86d44fd4baf1f923a50",
+   "url": "https://osf.io/download/fdztb/"
+  },
+  {
+   "path": "ID28/Philips_Achieva/Images/Dixon_Water.nii.gz",
+   "size": 35251552,
+   "md5": "7db0eb48c01ecfed2833361c311c52db",
+   "sha256": "a312522b888fe91f360c504b32b7e58b1e880bae59a412a9838b53676e6d63a6",
+   "url": "https://osf.io/download/6055357c90bb4e01401536f3/"
+  },
+  {
+   "path": "ID28/Philips_Achieva/Images/T1_non_contrast.nii.gz",
+   "size": 7349540,
+   "md5": "09bdae31ee56cbc193c9982726c74a89",
+   "sha256": "6aca54b34982f287cc2cb3517d12f3bee93fa44663262e772cb5371cce7a6d9a",
+   "url": "https://osf.io/download/dak3n/"
+  },
+  {
+   "path": "ID28/Philips_Achieva/Labels/BS_L2_3.nii.gz",
+   "size": 62140,
+   "md5": "ec08ecc0d883fb442cfb9b8d655e32b1",
+   "sha256": "7db776f15829b7ac221c97a81fec629165a19cd63cb3f85cf2c12d1f801014b1",
+   "url": "https://osf.io/download/6055358b90bb4e013d15243a/"
+  },
+  {
+   "path": "ID28/Philips_Achieva/Labels/BS_L3_4.nii.gz",
+   "size": 70597,
+   "md5": "d6088638e84e33cdcc1cdb4dd3fbc30f",
+   "sha256": "a4984363815bfa1f6f28949892fd3b17903d15d8180a2d9aae9878247e4251b3",
+   "url": "https://osf.io/download/60553588e8afef01385f3d3a/"
+  },
+  {
+   "path": "ID28/Philips_Achieva/Labels/BS_L4_5.nii.gz",
+   "size": 71218,
+   "md5": "1fde3c608595120a0e649d23bf8626f6",
+   "sha256": "dafbc4f33fd9bd40d6b7578e093b5eafd528b75961d139bea2843fc13d62c926",
+   "url": "https://osf.io/download/60553589e8afef01385f3d3e/"
+  },
+  {
+   "path": "ID28/Philips_Achieva/Labels/L2.nii.gz",
+   "size": 84522,
+   "md5": "f1bcdce248657815b5e18898484a51e7",
+   "sha256": "4001bf05eec544e169e059e95cc0135b77173c47dce59dc6e94f93973339bf26",
+   "url": "https://osf.io/download/60553586c402cc0117979820/"
+  },
+  {
+   "path": "ID28/Philips_Achieva/Labels/L3.nii.gz",
+   "size": 85589,
+   "md5": "92f7f7021b9986d4a08830481faf9d26",
+   "sha256": "ad9d48e978b1760c7396781e1de1427dc7dfc5ab3bfafd7f2d85c1e016e65270",
+   "url": "https://osf.io/download/6055358690bb4e013d15242d/"
+  },
+  {
+   "path": "ID28/Philips_Achieva/Labels/L4.nii.gz",
+   "size": 87401,
+   "md5": "605351a18634e4bf33934d8d0b34e888",
+   "sha256": "1da4d20d11e0c9e6f4014696027c7fffac902897485624d0e34130479e07b94c",
+   "url": "https://osf.io/download/6055358790bb4e013d152431/"
+  },
+  {
+   "path": "ID28/Philips_Achieva/Labels/L5.nii.gz",
+   "size": 92368,
+   "md5": "3b619451685c34e2e673ab2a0cc247f4",
+   "sha256": "12587970a90acc03d09c85bfd755d13dbb1d324de333f4adb5e51828642dbb12",
+   "url": "https://osf.io/download/6055358ac402cc0113976c66/"
+  },
+  {
+   "path": "ID28/Siemens_Verio/Images/STIR.nii.gz",
+   "size": 10027360,
+   "md5": "36156e4b03c3d4fc6a84f71b4d0efbbb",
+   "sha256": "b3dcc9b73a353b6323360bec7eba99757efe52bab4be282270b08170d5f8ef5f",
+   "url": "https://osf.io/download/6055359ac402cc011897cada/"
+  },
+  {
+   "path": "ID28/Siemens_Verio/Images/T1_non_contrast.nii.gz",
+   "size": 3242976,
+   "md5": "94fbd9edb70c257132bd250190e66411",
+   "sha256": "3bb8cabbf506978701c8b19725c6dbc0161b94b6fa200bf0c48e53873a00decf",
+   "url": "https://osf.io/download/xkw53/"
+  },
+  {
+   "path": "ID28/Siemens_Verio/Images/T2.nii.gz",
+   "size": 10027360,
+   "md5": "9ffb8d937cc517bde7da570ffedb5a6c",
+   "sha256": "6ab30ba9c9c04f57e054b70c3779485151e7758d061ff6ddea7c0a52e9bc2657",
+   "url": "https://osf.io/download/6055359ac402cc011797985c/"
+  },
+  {
+   "path": "ID28/Siemens_Verio/Labels/BS_L1_2.nii.gz",
+   "size": 10027360,
+   "md5": "8ed5627cea4084c4fd894b4969e26d41",
+   "sha256": "7115a4cbbadbb9bac9b60f0442f184bad6fbb193567b45703588b9c98e1e9d9b",
+   "url": "https://osf.io/download/605535a990bb4e01411557ce/"
+  },
+  {
+   "path": "ID28/Siemens_Verio/Labels/BS_L2_3.nii.gz",
+   "size": 10027360,
+   "md5": "74f333b94221c1a4a1b2be0dd183495e",
+   "sha256": "4527be97241e6a7f614b8742f47165e6754e6e5a2df9aa1d40ce59412e7cc6bc",
+   "url": "https://osf.io/download/605535a9c402cc011797988c/"
+  },
+  {
+   "path": "ID28/Siemens_Verio/Labels/BS_L3_4.nii.gz",
+   "size": 10027360,
+   "md5": "f93448880f7a289a950be882b25f330d",
+   "sha256": "5c0887f3e0d9f93f62ee48b021183c66644f08d35dc76b23b315677662554731",
+   "url": "https://osf.io/download/605535a6c402cc011797987c/"
+  },
+  {
+   "path": "ID28/Siemens_Verio/Labels/BS_L4_5.nii.gz",
+   "size": 10027360,
+   "md5": "3894792c11775c57a7886bdcad1da700",
+   "sha256": "4e04445fe98a31dc891b0a54a1df4315cda23a7a39d3dc01081a9db4b99fc14c",
+   "url": "https://osf.io/download/605535a490bb4e0140153735/"
+  },
+  {
+   "path": "ID28/Siemens_Verio/Labels/L1.nii.gz",
+   "size": 10027360,
+   "md5": "63d18c1afb077e872aaaffe645a36a2c",
+   "sha256": "8a8bbf3b80ecb67fd3844c536c6e078f1b8b7fc53cb7d62d6ec2d69f3ad897ea",
+   "url": "https://osf.io/download/605535a690bb4e01411557b6/"
+  },
+  {
+   "path": "ID28/Siemens_Verio/Labels/L2.nii.gz",
+   "size": 10027360,
+   "md5": "66fe28d1bc17bb749d055776bc9476b9",
+   "sha256": "95da833ccbf6fa070be34ab00060074590035cc1efeebad75215b4389b625aa7",
+   "url": "https://osf.io/download/605535a690bb4e014015373d/"
+  },
+  {
+   "path": "ID28/Siemens_Verio/Labels/L3.nii.gz",
+   "size": 10027360,
+   "md5": "50938ad47d7e2533f1b5a30c3a0dc9b1",
+   "sha256": "ab8e86b29ba349db9d4a759ddc7190020d35d606584453e44e6df8faae4f0d1e",
+   "url": "https://osf.io/download/605535a490bb4e013d152451/"
+  },
+  {
+   "path": "ID28/Siemens_Verio/Labels/L4.nii.gz",
+   "size": 10027360,
+   "md5": "da551b58a0d6ec76ee914f1527237c3f",
+   "sha256": "1b4df1593fefe1741180ac9c00356d57b1b0f6ebd2b4e87fdc149941c75fd074",
+   "url": "https://osf.io/download/605535a790bb4e013d152456/"
+  },
+  {
+   "path": "ID28/Siemens_Verio/Labels/L5.nii.gz",
+   "size": 10027360,
+   "md5": "37e5a3e654ae076607d064b787aea294",
+   "sha256": "2da17b1cdc151ca99bab7c85b3240f633a09ed9c80f6ebfe3f71024aae755d8a",
+   "url": "https://osf.io/download/605535a890bb4e01411557c6/"
+  },
+  {
+   "path": "ID29/Philips_Achieva/Images/Dixon_Fat.nii.gz",
+   "size": 47293227,
+   "md5": "608e23732c1714cb249ca4a2c4dc6d79",
+   "sha256": "568bdab2b331bf7bacf008351fbdacd91cfe74cbcc77b1b122b6473847357f8b",
+   "url": "https://osf.io/download/60553607c402cc011797991a/"
+  },
+  {
+   "path": "ID29/Philips_Achieva/Images/Dixon_T2.nii.gz",
+   "size": 46605309,
+   "md5": "4fe3018286405997cba2989f101f08e2",
+   "sha256": "b9dbeab5104cf90e5a87c1bc4cd6fe1fc11afb537c3f5676e5294e5fcd6c5ae8",
+   "url": "https://osf.io/download/6055360890bb4e01411558db/"
+  },
+  {
+   "path": "ID29/Philips_Achieva/Images/Dixon_Water.nii.gz",
+   "size": 46811043,
+   "md5": "b1632fb28c280f21c5f5b53c400a5799",
+   "sha256": "bdf8beefd3aecd4fd4d2c5e1c4b337f08481b1a54b2305bf0dbf5c825b63f67c",
+   "url": "https://osf.io/download/60553608c402cc011897cbf2/"
+  },
+  {
+   "path": "ID29/Philips_Achieva/Images/T1_contrast.nii.gz",
+   "size": 16411900,
+   "md5": "4740026ac6a00de76623e3548953dac7",
+   "sha256": "cc2ebede9185276b045edd4a929064d94897769266f8c693d7c2d2cd4338a20e",
+   "url": "https://osf.io/download/605535fe90bb4e013d1524b4/"
+  },
+  {
+   "path": "ID29/Philips_Achieva/Images/T1_non_contrast.nii.gz",
+   "size": 16867173,
+   "md5": "58cc031a05b7e0a9e90e8e9160d15948",
+   "sha256": "944d5bf3072e27a09fa019e409a84b0facaf888122f59f2c43a5f460cb2ceaa5",
+   "url": "https://osf.io/download/605535fd90bb4e01411558c2/"
+  },
+  {
+   "path": "ID29/Philips_Achieva/Labels/BS_L3_4.nii.gz",
+   "size": 147262,
+   "md5": "69486a1e00af6aac286343f362dac733",
+   "sha256": "acb8cf1c22a71e77efb9d056672b58a3d5aba226f4ad672629f7d9893eceaca3",
+   "url": "https://osf.io/download/6055361090bb4e01411558fc/"
+  },
+  {
+   "path": "ID29/Philips_Achieva/Labels/BS_L4_5.nii.gz",
+   "size": 132197,
+   "md5": "6545db8ba58b5818f9f45cca21ff2bbe",
+   "sha256": "be7850220891452a3d71df1908d8f712ea6f14415df1424e35d72e6dde700370",
+   "url": "https://osf.io/download/6055361290bb4e014015380e/"
+  },
+  {
+   "path": "ID29/Philips_Achieva/Labels/L3.nii.gz",
+   "size": 182485,
+   "md5": "6e820ad21a0e6777ef55c46a2c3e4d80",
+   "sha256": "d873a3fa961eb35a31a47414ced5ba9511ceaa2b9ae2c21979bb8ce3823e0669",
+   "url": "https://osf.io/download/60553612e8afef01395f6cfe/"
+  },
+  {
+   "path": "ID29/Philips_Achieva/Labels/L4.nii.gz",
+   "size": 195250,
+   "md5": "3843cebf7b50066b1df147b665213eda",
+   "sha256": "45c07c14407ada29fa78a8799d99b16cf6c3b6589bf3a2f2c952dea8783deacc",
+   "url": "https://osf.io/download/6055361090bb4e013d1524ce/"
+  },
+  {
+   "path": "ID29/Philips_Achieva/Labels/L5.nii.gz",
+   "size": 141765,
+   "md5": "c5fa08c21aa69b61da685805f127089b",
+   "sha256": "ae5405f48d1ee8c9c7e5dee2fa9374eff8d624547773678001475dd5669e575b",
+   "url": "https://osf.io/download/60553610c402cc011897cc12/"
+  },
+  {
+   "path": "ID29/Philips_Ingenia/Images/Dixon_Fat.nii.gz",
+   "size": 9887490,
+   "md5": "cd0fa5289a69074650f13efd8e8874c2",
+   "sha256": "ede6376e0958749dc46f70cfb3e945116709013cf7e74e7dc274210afc1d6434",
+   "url": "https://osf.io/download/6055362690bb4e0140153828/"
+  },
+  {
+   "path": "ID29/Philips_Ingenia/Images/Dixon_T2.nii.gz",
+   "size": 9754598,
+   "md5": "37447c26b6eed1aecfad149a3b5a7942",
+   "sha256": "6bda81aa87da7265c4b65bd6774bbb36e878cb74c973f33171b19bd412e008d2",
+   "url": "https://osf.io/download/60553626c402cc011797995d/"
+  },
+  {
+   "path": "ID29/Philips_Ingenia/Images/Dixon_Water.nii.gz",
+   "size": 9822534,
+   "md5": "2507f01174be0737c4349d2520eaa0c2",
+   "sha256": "da20f67baa461584c5a2bfa2565f41a9045c8d3ae8e3a827c1320247bf7c542f",
+   "url": "https://osf.io/download/60553626e8afef01395f6d33/"
+  },
+  {
+   "path": "ID29/Philips_Ingenia/Images/T1_contrast.nii.gz",
+   "size": 3772874,
+   "md5": "baacad31dbc92f6c3b5f2a00d4775dc8",
+   "sha256": "1e90dd63e67c11339fa74d12715bb9d752f2de22729832b4dbff22789a0f888b",
+   "url": "https://osf.io/download/60553625e8afef01385f3e33/"
+  },
+  {
+   "path": "ID29/Philips_Ingenia/Images/T1_non_contrast.nii.gz",
+   "size": 3732862,
+   "md5": "cc08dfd00cd905e5de98fa0598b43170",
+   "sha256": "a9ccc30cf003471136e12346cac9dfe7f1d8dec49069444f2741511214ddcccd",
+   "url": "https://osf.io/download/60553625c402cc011897cc4a/"
+  },
+  {
+   "path": "ID29/Philips_Ingenia/Labels/BS_L1_2.nii.gz",
+   "size": 31641,
+   "md5": "b78e537bad082cfb903d9fb65726ae1a",
+   "sha256": "a52bc9a8dda9c9e70d0afbd800c68846372ffac55b817318cbe49c36329cc8dc",
+   "url": "https://osf.io/download/6055363790bb4e013d152500/"
+  },
+  {
+   "path": "ID29/Philips_Ingenia/Labels/BS_L2_3.nii.gz",
+   "size": 28351,
+   "md5": "5d48ff2aaeeb77ab7f97b11ec495ee94",
+   "sha256": "54649de3aa8a515a46f93038558c6cc5e5ef57729bce6e983b59783415360916",
+   "url": "https://osf.io/download/60553637e8afef01385f3e5b/"
+  },
+  {
+   "path": "ID29/Philips_Ingenia/Labels/BS_L3_4.nii.gz",
+   "size": 39227,
+   "md5": "6392bf974d9584c1f4aacb4f197fc3f3",
+   "sha256": "4083f58e2c57bb0fae4133eb3730f9b74f7765983b97c87141c8932e16ff3a7e",
+   "url": "https://osf.io/download/60553633e8afef01395f6d64/"
+  },
+  {
+   "path": "ID29/Philips_Ingenia/Labels/BS_L4_5.nii.gz",
+   "size": 35699,
+   "md5": "7ada59f765e0c64fef1fce34bea5105e",
+   "sha256": "c4225ac094c44b14d6d8a6e22bfdadaece69ba3c1768005cc50ec01d692ddfce",
+   "url": "https://osf.io/download/60553632e8afef01385f3e51/"
+  },
+  {
+   "path": "ID29/Philips_Ingenia/Labels/L1.nii.gz",
+   "size": 38698,
+   "md5": "fd6c180b77f83b5d2667da36af8b2516",
+   "sha256": "10e5f679e5204bc50c5afa55d76f5aefbc9e6fd42dfad276fb7eabad3e3102e5",
+   "url": "https://osf.io/download/6055363390bb4e013d1524f7/"
+  },
+  {
+   "path": "ID29/Philips_Ingenia/Labels/L2.nii.gz",
+   "size": 43346,
+   "md5": "3c793deba3031832779a8a6eda225545",
+   "sha256": "46229720e229bfac0b513fdb5b91d5ede1a9864df22ef2c5a601dbca08515571",
+   "url": "https://osf.io/download/6055363390bb4e0140153847/"
+  },
+  {
+   "path": "ID29/Philips_Ingenia/Labels/L3.nii.gz",
+   "size": 51810,
+   "md5": "f06ee612883831337be2b2479042e785",
+   "sha256": "1ff805376bee15cf859abaa977f006faf3c1b477e56248dc1d1827f24631c69a",
+   "url": "https://osf.io/download/60553633c402cc011897cc83/"
+  },
+  {
+   "path": "ID29/Philips_Ingenia/Labels/L4.nii.gz",
+   "size": 53918,
+   "md5": "53dc563e7e6891fa0e7def9b01423aec",
+   "sha256": "ea7d8513d81c4b4de6c412a01d22b3e9f08c59bb149bd5c9463ed7759094f7e9",
+   "url": "https://osf.io/download/60553635e8afef01385f3e55/"
+  },
+  {
+   "path": "ID29/Philips_Ingenia/Labels/L5.nii.gz",
+   "size": 37756,
+   "md5": "fc36fbad5d8242edcd3a888aeddbaadf",
+   "sha256": "2fd8afe63d30bfa8c9d3be243928f2dae6555ba1b874c6f9459ed25109a6fd99",
+   "url": "https://osf.io/download/6055363790bb4e0141155950/"
+  },
+  {
+   "path": "ID30/Philips_Achieva/Images/Dixon_Fat.nii.gz",
+   "size": 7839957,
+   "md5": "626c6a36dd7a1257e935603922aec6af",
+   "sha256": "968c82428610686e5603c932b3447eba09e3554dc53c1b2d161745c801a18352",
+   "url": "https://osf.io/download/60553674c402cc01179799f8/"
+  },
+  {
+   "path": "ID30/Philips_Achieva/Images/Dixon_T2.nii.gz",
+   "size": 7722563,
+   "md5": "1c9cac0ea3716c8214ffdd762e1ababb",
+   "sha256": "733d4d9a31b366457426bddc0535961a48db97c46ed20aee7a4db52887e364eb",
+   "url": "https://osf.io/download/60553675c402cc011897cd68/"
+  },
+  {
+   "path": "ID30/Philips_Achieva/Images/Dixon_Water.nii.gz",
+   "size": 7733533,
+   "md5": "fcff7b9edd9f684b71bd52c7e877f1a7",
+   "sha256": "e32e1d3eedb2df202f1e3c51a3c9ff55612ff2adf5b0c785df8d553adcd72b37",
+   "url": "https://osf.io/download/6055367590bb4e01411559e5/"
+  },
+  {
+   "path": "ID30/Philips_Achieva/Images/T1_contrast.nii.gz",
+   "size": 2947525,
+   "md5": "c27e2b20cbfb5cb44c6905a8fa2c3566",
+   "sha256": "174c373da0aa171fe87a3c0c00f53e28c9d33cf7cf0c6ce49ca65c0c2e278ed7",
+   "url": "https://osf.io/download/6055367390bb4e01411559d9/"
+  },
+  {
+   "path": "ID30/Philips_Achieva/Images/T1_non_contrast.nii.gz",
+   "size": 2882146,
+   "md5": "9a214ccae3e93116f7dc6e925ac2b8db",
+   "sha256": "926eb4f445f93b1595e347ab420145941020148a857b81b05ab5e7aec5f6c101",
+   "url": "https://osf.io/download/60553672e8afef01385f3ebf/"
+  },
+  {
+   "path": "ID30/Philips_Achieva/Labels/BS_L1_2.nii.gz",
+   "size": 31639,
+   "md5": "534f68c11a76f20b7d1e928e4afa3fa9",
+   "sha256": "0875d603be9fb0464bf03ad0e445a1484cb9e0146eb966ece6276d95af586463",
+   "url": "https://osf.io/download/60553686c402cc011897cda3/"
+  },
+  {
+   "path": "ID30/Philips_Achieva/Labels/BS_L2_3.nii.gz",
+   "size": 26648,
+   "md5": "63f28b5cdf0813232a432386e02e43d6",
+   "sha256": "492b8238df122e2f53228f092732e5bbd6cb66a78fbdbbb52902fd8722f351ce",
+   "url": "https://osf.io/download/6055368690bb4e0141155a26/"
+  },
+  {
+   "path": "ID30/Philips_Achieva/Labels/BS_L3_4.nii.gz",
+   "size": 39669,
+   "md5": "aa56a154d3481d1d557467687ec8429f",
+   "sha256": "0b6f12a2db854eb649b3c631fcb77b55116bce259fe14abe73c561d09aff859e",
+   "url": "https://osf.io/download/6055368290bb4e01401538eb/"
+  },
+  {
+   "path": "ID30/Philips_Achieva/Labels/BS_L4_5.nii.gz",
+   "size": 40089,
+   "md5": "c9c33ee523a636ad0956d89cae8a1ead",
+   "sha256": "579cd0ad55daa13a660d4a71217fd7185dc8d5ca245517203c377673262b06d8",
+   "url": "https://osf.io/download/60553682c402cc0117979a1d/"
+  },
+  {
+   "path": "ID30/Philips_Achieva/Labels/L1.nii.gz",
+   "size": 40411,
+   "md5": "5dff672ca996a95e176f553a42d65efd",
+   "sha256": "b82f32b69b4333e15802e4efa7e9b53e370c027689f11f9f06c0cb9421bd0af5",
+   "url": "https://osf.io/download/60553681e8afef01335f0f20/"
+  },
+  {
+   "path": "ID30/Philips_Achieva/Labels/L2.nii.gz",
+   "size": 38049,
+   "md5": "4c318510b40f61a618bcb7045737f067",
+   "sha256": "8017311686baaacb20c8507ecc70a1994777196ce3483efc22f109bf1f2083aa",
+   "url": "https://osf.io/download/60553680c402cc01149782ad/"
+  },
+  {
+   "path": "ID30/Philips_Achieva/Labels/L3.nii.gz",
+   "size": 40278,
+   "md5": "e43353fdbc7f7ee969f63e3d7d2781f7",
+   "sha256": "32bb9875e414f92d96ce2f8d9be1513a757a36acfcf6a41ee7ce9d4b1ccfb1ed",
+   "url": "https://osf.io/download/6055368190bb4e01401538e9/"
+  },
+  {
+   "path": "ID30/Philips_Achieva/Labels/L4.nii.gz",
+   "size": 42915,
+   "md5": "decdf8bdcfe60615f8f004748dd36c3a",
+   "sha256": "ccb963d9e51ee3c91a60cd72342dc00031cbd41ddbdb2024be605ec837b5a8b1",
+   "url": "https://osf.io/download/60553685c402cc0117979a31/"
+  },
+  {
+   "path": "ID30/Philips_Achieva/Labels/L5.nii.gz",
+   "size": 46108,
+   "md5": "84cb9a2c41e22707ac144a8d21584622",
+   "sha256": "93a3d27ad438bcfd39b82c1ad98b14930935d30e3d4dfe78a001df67ad618301",
+   "url": "https://osf.io/download/60553686c402cc011897cda7/"
+  },
+  {
+   "path": "ID30/Siemens_Espree/Images/T1_non_contrast.nii.gz",
+   "size": 1757557,
+   "md5": "7685e078870ce49976b8f20ff9b58ee4",
+   "sha256": "1e78e43cb3d869b38a2161877807ac1e44df153d1d9b3f4dd6c526eb2fd671e6",
+   "url": "https://osf.io/download/rpvbg/"
+  },
+  {
+   "path": "ID30/Siemens_Espree/Images/T2.nii.gz",
+   "size": 6488416,
+   "md5": "e92e92f18722b46f768ba44b2aa53fe4",
+   "sha256": "3266bee8a87938c7ae1b773472ffab1660b00cad448e71db6ac5494e53f0fe8d",
+   "url": "https://osf.io/download/608004f57f02c00080017ece/"
+  },
+  {
+   "path": "ID30/Siemens_Espree/Labels/BS_L1_2.nii.gz",
+   "size": 11407,
+   "md5": "785c995acc14c23fb5c689a6ba70e342",
+   "sha256": "a61643697714eefabc2cdcfdca0830684c6e741f5b2c5a9096d93d2eecee1224",
+   "url": "https://osf.io/download/608005007f02c0006901c0fe/"
+  },
+  {
+   "path": "ID30/Siemens_Espree/Labels/BS_L2_3.nii.gz",
+   "size": 11331,
+   "md5": "eeb7481a764ac8fdfb26676e6c1fdf78",
+   "sha256": "67ce1228f22e5cbb2c8ac5e84dfc663874fd49a32ecb4c62dabdb147c7720deb",
+   "url": "https://osf.io/download/60800501c14695007f390a47/"
+  },
+  {
+   "path": "ID30/Siemens_Espree/Labels/BS_L3_4.nii.gz",
+   "size": 12265,
+   "md5": "cac6695383314fc105e3be8d77f519ce",
+   "sha256": "728852f24a297e6e36471661b6837fefe617ff7a1d3621697fbd81fb63705d89",
+   "url": "https://osf.io/download/608005019b0849008a03aae5/"
+  },
+  {
+   "path": "ID30/Siemens_Espree/Labels/BS_L4_5.nii.gz",
+   "size": 12187,
+   "md5": "64ef2cc6ce526db34db10e9304615549",
+   "sha256": "b225dca1ea9edb4f29309f8c4de694b000fb5248cc70762ab98c72383351cc52",
+   "url": "https://osf.io/download/608004fe9b0849008e039ab5/"
+  },
+  {
+   "path": "ID30/Siemens_Espree/Labels/L1.nii.gz",
+   "size": 13016,
+   "md5": "d169fcc1f54c084d555a5bc05d0de6cb",
+   "sha256": "fe1de9b7d7bb0e1ed230875016a154c52e70bca34e17570f05d74f162b95202a",
+   "url": "https://osf.io/download/608004fd9b0849008e039ab1/"
+  },
+  {
+   "path": "ID30/Siemens_Espree/Labels/L2.nii.gz",
+   "size": 13515,
+   "md5": "9c20d2d9afe97070b7f9b0f091055283",
+   "sha256": "e2ef6f5180472803abbf32baaad0b49059100d322c4eda96fa8537c511a3d367",
+   "url": "https://osf.io/download/608004ff9b0849007f0409d7/"
+  },
+  {
+   "path": "ID30/Siemens_Espree/Labels/L3.nii.gz",
+   "size": 14403,
+   "md5": "de6cd36386424874d53066ac0e07e309",
+   "sha256": "122b7e35a96a214750f73fad6ef2aae9c83c9fec4248455d0fe10b9e5effa436",
+   "url": "https://osf.io/download/608004fe7f02c00084016e30/"
+  },
+  {
+   "path": "ID30/Siemens_Espree/Labels/L4.nii.gz",
+   "size": 15113,
+   "md5": "2a28e55223213112cd5dba198ef98af0",
+   "sha256": "c57707ece472290fe9ffe0ca857fb8883da7dd0ade25c7a0808f67084bb57365",
+   "url": "https://osf.io/download/608004ffc14695007f390a37/"
+  },
+  {
+   "path": "ID30/Siemens_Espree/Labels/L5.nii.gz",
+   "size": 15595,
+   "md5": "ef8ccde5175a94fae4fa8b979941236a",
+   "sha256": "b2f8bff70c5827b991283389d44ac59961a96635ec999bfc3d1ab8c0c2ef9d18",
+   "url": "https://osf.io/download/60800501c14695007f390a46/"
+  },
+  {
+   "path": "ID31/Philips_Ingenia/Images/Dixon_Fat.nii.gz",
+   "size": 23995263,
+   "md5": "d6d805f233ac8ed57a9f2af6378f1dee",
+   "sha256": "75760ac5d505b0632a2046fc4b07abc44797e377a93cef024c6743db74e56bab",
+   "url": "https://osf.io/download/605536dae8afef01385f3f56/"
+  },
+  {
+   "path": "ID31/Philips_Ingenia/Images/Dixon_T2.nii.gz",
+   "size": 23647180,
+   "md5": "83995dc54217288cd2507793f5ffe236",
+   "sha256": "31ba8f3e33bd26a173b1afcaa5f53cfc8b745bfbd02f17a98c5f09fe8b5515d3",
+   "url": "https://osf.io/download/605536d9e8afef01385f3f50/"
+  },
+  {
+   "path": "ID31/Philips_Ingenia/Images/Dixon_Water.nii.gz",
+   "size": 23653493,
+   "md5": "fdf28dbf2deefc173a9f25fb11b6af83",
+   "sha256": "7422142282ab1ecf7a8f8d1d3a9e6521796133a3e87322ccc2f17949a929fefc",
+   "url": "https://osf.io/download/605536d990bb4e0140153985/"
+  },
+  {
+   "path": "ID31/Philips_Ingenia/Images/T1_non_contrast.nii.gz",
+   "size": 8633973,
+   "md5": "849754a9ae696b94763b3940006fec26",
+   "sha256": "c96beafef94a5f7b0b59c6f63276cd29379dd339010930038c5eb183620a16bc",
+   "url": "https://osf.io/download/605536d4e8afef01325f252e/"
+  },
+  {
+   "path": "ID31/Philips_Ingenia/Labels/BS_L1_2.nii.gz",
+   "size": 75202,
+   "md5": "d5a36f811fcd22743ea47a65b69dccd8",
+   "sha256": "10bcdbf0fa88ad3f0f2eb1d300b8da24efbb3ffd87bda3cb752f30f3eada30f6",
+   "url": "https://osf.io/download/605536e990bb4e0141155b16/"
+  },
+  {
+   "path": "ID31/Philips_Ingenia/Labels/BS_L2_3.nii.gz",
+   "size": 75786,
+   "md5": "6b1aaa3b2263f433ef12b116f7e88577",
+   "sha256": "e3980a6f1a0bdc988891a72f092a6336f95e7bddfebe4c35e6e666620c715f37",
+   "url": "https://osf.io/download/605536e9e8afef01395f6f36/"
+  },
+  {
+   "path": "ID31/Philips_Ingenia/Labels/BS_L3_4.nii.gz",
+   "size": 78834,
+   "md5": "0a98488baf301562ee442bc967099ad3",
+   "sha256": "b862432d176d3cb05168267160602bf659a4336f8acbef1ba1f6fffdfaeeda19",
+   "url": "https://osf.io/download/605536e5e8afef01385f3f6c/"
+  },
+  {
+   "path": "ID31/Philips_Ingenia/Labels/BS_L4_5.nii.gz",
+   "size": 82728,
+   "md5": "0529b6c157cdea1209a9812f1a2d3e69",
+   "sha256": "cfc2c298cc6b44d36a7d0f1df67acdfa9f39c20f786976eac473694fb56a7a5d",
+   "url": "https://osf.io/download/605536e590bb4e013d1525c6/"
+  },
+  {
+   "path": "ID31/Philips_Ingenia/Labels/L1.nii.gz",
+   "size": 104224,
+   "md5": "f2f9d36530c668cbdf3330b2309655a2",
+   "sha256": "e33f95eedc113f1afcd87193202a2f9a3450d5b6cb7848c9bce3123e183e560d",
+   "url": "https://osf.io/download/605536e790bb4e01401539a5/"
+  },
+  {
+   "path": "ID31/Philips_Ingenia/Labels/L2.nii.gz",
+   "size": 108641,
+   "md5": "5ae73efb0f6d7f2ed3ad33921de399ef",
+   "sha256": "9afdbeaa4e311333ef1cbb904c87db83d2bfde2160777f1db32e6e953a1a118c",
+   "url": "https://osf.io/download/605536e790bb4e01401539a6/"
+  },
+  {
+   "path": "ID31/Philips_Ingenia/Labels/L3.nii.gz",
+   "size": 110914,
+   "md5": "14ed9dc3c2235aa92b720920805f84ad",
+   "sha256": "d10c42c8136bb7cf42cd061cbaf6ea3c0bd135068f49d814b4109895c65da4b9",
+   "url": "https://osf.io/download/605536e6c402cc0117979ac6/"
+  },
+  {
+   "path": "ID31/Philips_Ingenia/Labels/L4.nii.gz",
+   "size": 97593,
+   "md5": "8f525b618e7b4dd1b8ebd61e1439ab4b",
+   "sha256": "af6fca29caa36e063edde61d1ddcf17369e8d7898a5d44f7aac67152bea780f8",
+   "url": "https://osf.io/download/605536e8c402cc011897ceb1/"
+  },
+  {
+   "path": "ID31/Philips_Ingenia/Labels/L5.nii.gz",
+   "size": 100215,
+   "md5": "8e446c3a1c1f85c84fe08edcc7277321",
+   "sha256": "ed5e8125f9c7732652d50639eee6e590a5edfee4906a0014967d0a7bfcbc8222",
+   "url": "https://osf.io/download/605536e9c402cc0117979ad7/"
+  },
+  {
+   "path": "ID32/Philips_Achieva/Images/Dixon_Fat.nii.gz",
+   "size": 7845376,
+   "md5": "a71542b2c5a7286b5f603c02d6c7d5aa",
+   "sha256": "dc8279b58cfe843aa332770f3b35d8164edf663e6a3511f97beb6e4bc94c5310",
+   "url": "https://osf.io/download/60553769c402cc011897d061/"
+  },
+  {
+   "path": "ID32/Philips_Achieva/Images/Dixon_T2.nii.gz",
+   "size": 7711427,
+   "md5": "b94944d36f78fd03c0788aad71c735f1",
+   "sha256": "2e5242e763ef8649a99940f817a4436412c192934cdb3278945f3604fd8c733a",
+   "url": "https://osf.io/download/hg24a/"
+  },
+  {
+   "path": "ID32/Philips_Achieva/Images/Dixon_Water.nii.gz",
+   "size": 7700682,
+   "md5": "69ddd6d9f70f4b7f858ab6ff3966103c",
+   "sha256": "1c476dc904e8e878be61853546f9e9352bde820268eef1271457a8568f2455a2",
+   "url": "https://osf.io/download/60553768c402cc0117979bc1/"
+  },
+  {
+   "path": "ID32/Philips_Achieva/Images/T1_contrast.nii.gz",
+   "size": 2991152,
+   "md5": "38db2cba78d75d637bc417cb33efc4a7",
+   "sha256": "e4a60b1f8f97081bf2d84f43a940c321b98ede9e1ad01884eded77f70f6b4a70",
+   "url": "https://osf.io/download/6055376790bb4e0137153942/"
+  },
+  {
+   "path": "ID32/Philips_Achieva/Images/T1_non_contrast.nii.gz",
+   "size": 2954927,
+   "md5": "1a2cd51e99eca00966db0e1f1b17a810",
+   "sha256": "342b71bae587884f4580beeede9a20b198696f61edbbfaa0851110ebe06872f1",
+   "url": "https://osf.io/download/60553768c402cc0114978367/"
+  },
+  {
+   "path": "ID32/Philips_Achieva/Labels/BS_L1_2.nii.gz",
+   "size": 26048,
+   "md5": "35adaab1e4487ec0ff9fc444b015762a",
+   "sha256": "9a21c7975a1a9e559f2c7b17bcc8c075723e009ef60cc44b8d6a52686c2d2cbd",
+   "url": "https://osf.io/download/6055377990bb4e013715395f/"
+  },
+  {
+   "path": "ID32/Philips_Achieva/Labels/BS_L2_3.nii.gz",
+   "size": 29039,
+   "md5": "7e86f02a57a8c66f97f1ec60a9b84bc0",
+   "sha256": "149314345a4c604da8ea107f55d0a1524d4121664a808966525119234b08dc05",
+   "url": "https://osf.io/download/6055377990bb4e0141155c4c/"
+  },
+  {
+   "path": "ID32/Philips_Achieva/Labels/BS_L3_4.nii.gz",
+   "size": 30152,
+   "md5": "55d84adff6f65939ae0da68b66350e83",
+   "sha256": "cf7f2c153fc04bbbc92da9334567cc125c02b1d3815b3272c94becd0230b247f",
+   "url": "https://osf.io/download/6055377a90bb4e0140153a6c/"
+  },
+  {
+   "path": "ID32/Philips_Achieva/Labels/BS_L4_5.nii.gz",
+   "size": 32096,
+   "md5": "83f6f1baf7801fb469abbfd343c45472",
+   "sha256": "0cb13edbf03b0d6406944cd15e64d715fdec0371a7e08ebda416e55d1107f0f8",
+   "url": "https://osf.io/download/60553775e8afef01395f7075/"
+  },
+  {
+   "path": "ID32/Philips_Achieva/Labels/L1.nii.gz",
+   "size": 36148,
+   "md5": "a74dc4a93f18226c4beecc805490f1ca",
+   "sha256": "08022fe99b9c7c5a89fa576ddcacd0f058873260b7cda384a1b7657db51fb43a",
+   "url": "https://osf.io/download/60553775c402cc011897d088/"
+  },
+  {
+   "path": "ID32/Philips_Achieva/Labels/L2.nii.gz",
+   "size": 36378,
+   "md5": "afdaeb1e7466a02d6e85f0b666dcba76",
+   "sha256": "6dbc611f07abb0ae76e4f788839b20746b973c5d83f925588d91ea9e3c1eff9e",
+   "url": "https://osf.io/download/6055377690bb4e0137153955/"
+  },
+  {
+   "path": "ID32/Philips_Achieva/Labels/L3.nii.gz",
+   "size": 40436,
+   "md5": "b0206dae22505bac0efea18b3c22a245",
+   "sha256": "58f84542fb12ebcab4b233a4698b79c6f95574bc7603f7d2d9693bba80ae037d",
+   "url": "https://osf.io/download/6055377590bb4e0141155c37/"
+  },
+  {
+   "path": "ID32/Philips_Achieva/Labels/L4.nii.gz",
+   "size": 43386,
+   "md5": "24a910bfbd6270c089860f064a494d66",
+   "sha256": "74ff4a075534a0d4864f1b854237313b1fe03e8c904310910d3b7ead383c9599",
+   "url": "https://osf.io/download/6055377590bb4e0140153a5a/"
+  },
+  {
+   "path": "ID32/Philips_Achieva/Labels/L5.nii.gz",
+   "size": 48191,
+   "md5": "7d52d47fc1cbf0da259ebc6915af77c0",
+   "sha256": "a13e37d8b2fb7f075dc6c8af00b066cd9ec664a15461ba4d703359052d6373a9",
+   "url": "https://osf.io/download/6055377790bb4e0141155c41/"
+  },
+  {
+   "path": "ID32/Philips_Elition/Images/Dixon_Fat.nii.gz",
+   "size": 3730668,
+   "md5": "722f2dec3dd1f0c39d6f1f2e08ac4584",
+   "sha256": "2cfd081658a9feddd24672ce42a2d5749bec0530ce71e5c39a6d6f2fa35e5533",
+   "url": "https://osf.io/download/3nxmz/"
+  },
+  {
+   "path": "ID32/Philips_Elition/Images/Dixon_T2.nii.gz",
+   "size": 6214616,
+   "md5": "f186eb43020ed6d304a46595cf31f68a",
+   "sha256": "709251d71a2ce6efac2b6fff9bb03702d1864ed0fd3b2a775476e7fb6e7d9164",
+   "url": "https://osf.io/download/xqew7/"
+  },
+  {
+   "path": "ID32/Philips_Elition/Images/Dixon_Water.nii.gz",
+   "size": 9094795,
+   "md5": "6996381c427e82af49ec9e8e684ef969",
+   "sha256": "cdea787619ffa26a86e613cb624168836a8a42955da53c3c01e38ef2ee5374e6",
+   "url": "https://osf.io/download/gvf96/"
+  },
+  {
+   "path": "ID32/Philips_Elition/Images/T1_contrast.nii.gz",
+   "size": 6454915,
+   "md5": "ac635f6f284d605381877e592bc17619",
+   "sha256": "4528d314bd3a2d22272efcad83d4afbd19db15ebccdf8ac8d6ff3ab53589760b",
+   "url": "https://osf.io/download/6055378dc402cc011897d0d8/"
+  },
+  {
+   "path": "ID32/Philips_Elition/Images/T1_non_contrast.nii.gz",
+   "size": 6439298,
+   "md5": "3a6c8dece342a4a8eca30d32d08cab08",
+   "sha256": "5545530ca66c1f52e8d5eeafbadda50387df0cade8258c530f20185c5a00126b",
+   "url": "https://osf.io/download/6055378c90bb4e0141155c84/"
+  },
+  {
+   "path": "ID32/Philips_Elition/Labels/BS_L1_2.nii.gz",
+   "size": 50999,
+   "md5": "312089ef8dfcb3c1a107e05c1a4d11d9",
+   "sha256": "8f98348656201a9aa207b3c411f032458446520cf8c2733949d9f18d70bf6b0c",
+   "url": "https://osf.io/download/605537a990bb4e0141155cbd/"
+  },
+  {
+   "path": "ID32/Philips_Elition/Labels/BS_L2_3.nii.gz",
+   "size": 54565,
+   "md5": "32df7f4cf490ad99087c5a68bea4f879",
+   "sha256": "aecd74a3032c182ca9975ce72021f3bb019762c50f555924e285c8e9ad79893f",
+   "url": "https://osf.io/download/605537aae8afef01385f40aa/"
+  },
+  {
+   "path": "ID32/Philips_Elition/Labels/BS_L3_4.nii.gz",
+   "size": 53655,
+   "md5": "68a38766ae68cafbdaae2f45cb5b88b8",
+   "sha256": "2bd24045cd8c5b48de15ade28e950874d13f764c95d2cad343ef142ac079c779",
+   "url": "https://osf.io/download/605537a990bb4e0140153ab9/"
+  },
+  {
+   "path": "ID32/Philips_Elition/Labels/BS_L4_5.nii.gz",
+   "size": 51841,
+   "md5": "4ab7b4d39f6ed621f16261d9d61f25bb",
+   "sha256": "b698fc1a9c0bd6c55970f8678493f75fc8ac9f29fd015c317877c72d12f262c3",
+   "url": "https://osf.io/download/605537a6c402cc011897d13d/"
+  },
+  {
+   "path": "ID32/Philips_Elition/Labels/L1.nii.gz",
+   "size": 70509,
+   "md5": "75654a0e2a941beefbae16ce205063c6",
+   "sha256": "809c39c60ea7dcae84b6696d9a6d1826f95e0ed6e20f3ab0286a385195194aeb",
+   "url": "https://osf.io/download/605537a6c402cc0117979c39/"
+  },
+  {
+   "path": "ID32/Philips_Elition/Labels/L2.nii.gz",
+   "size": 70479,
+   "md5": "f329eba51ff960cc980d8adc135b192a",
+   "sha256": "c74e1d0e59af2d4d121ef5572f2cce6b13ff6c4ae9d7af38184f969d71be9d5e",
+   "url": "https://osf.io/download/605537a690bb4e0141155cb1/"
+  },
+  {
+   "path": "ID32/Philips_Elition/Labels/L3.nii.gz",
+   "size": 76224,
+   "md5": "d7166d69f969311b67c79bc62e0fb9c1",
+   "sha256": "e4e99de3ba1197f6f111714f1a0adff28f5c48d9812c200f5e952b526a35158b",
+   "url": "https://osf.io/download/605537a6e8afef01395f70fc/"
+  },
+  {
+   "path": "ID32/Philips_Elition/Labels/L4.nii.gz",
+   "size": 70681,
+   "md5": "6d1ebb69293c82851baac79e3001d2cf",
+   "sha256": "4e17faf00a496e8a7d54c94b85d475d04c39b32e58f182946d9bccaad2469bee",
+   "url": "https://osf.io/download/605537a690bb4e013d15264e/"
+  },
+  {
+   "path": "ID32/Philips_Elition/Labels/L5.nii.gz",
+   "size": 61024,
+   "md5": "0794226df7a06420e5b9517489c246ec",
+   "sha256": "5e4f3434ddd0b983b626c1d94cefea1d044d0ecbab6c9a126156c31fdf7da1fc",
+   "url": "https://osf.io/download/605537a990bb4e0140153aba/"
+  },
+  {
+   "path": "ID33/Philips_Achieva/Images/Dixon_Fat.nii.gz",
+   "size": 24701056,
+   "md5": "460e1f75d89a6d38f334e85d28162c9b",
+   "sha256": "813f71426ae2fc626f79ab4c89292d297199d4b4f1ae9ee9070d18afcdea6044",
+   "url": "https://osf.io/download/60553847e8afef01385f4189/"
+  },
+  {
+   "path": "ID33/Philips_Achieva/Images/Dixon_T2.nii.gz",
+   "size": 24302063,
+   "md5": "8a71004f953835ea7b597dfe6baf9d9c",
+   "sha256": "8a1c50b04d6e862397c05ae3a15bd54926e522ceacc59e886f9886c171006839",
+   "url": "https://osf.io/download/6055384790bb4e0141155e1c/"
+  },
+  {
+   "path": "ID33/Philips_Achieva/Images/Dixon_Water.nii.gz",
+   "size": 24376867,
+   "md5": "87ce9e4cfdddc94b1a9a171674d17e47",
+   "sha256": "95599361bcda00d486b98661a7fcbc55a124731b5174417bdfcd948c7863f0b5",
+   "url": "https://osf.io/download/6055384690bb4e0140153bb4/"
+  },
+  {
+   "path": "ID33/Philips_Achieva/Images/T1_non_contrast.nii.gz",
+   "size": 9049172,
+   "md5": "42e86b3461ec5da6e2112c53794e9e71",
+   "sha256": "78de67f1d11be6d8a017e0f6d255c941b4fd26391fa5c68dc8404f7159d9a492",
+   "url": "https://osf.io/download/60553842e8afef01385f417d/"
+  },
+  {
+   "path": "ID33/Philips_Achieva/Labels/BS_L1_2.nii.gz",
+   "size": 86102,
+   "md5": "544de071c65659b5fa204191d487d6b0",
+   "sha256": "a90f0872f41df6ec7740c4bd2d57c17e56650a8b937653296e636c01d61cb58a",
+   "url": "https://osf.io/download/60553855c402cc0117979d64/"
+  },
+  {
+   "path": "ID33/Philips_Achieva/Labels/BS_L2_3.nii.gz",
+   "size": 90174,
+   "md5": "cc999ef7017dc05af17d92f5b15598a2",
+   "sha256": "8a0eb2b5bf4f2df0d3ea2410b6e54fcaef3863fd4eae78bc3f54fc91657ec7d7",
+   "url": "https://osf.io/download/60553856c402cc011897d31a/"
+  },
+  {
+   "path": "ID33/Philips_Achieva/Labels/BS_L3_4.nii.gz",
+   "size": 94869,
+   "md5": "0a073751ba4fc382bd559636c6f9d83a",
+   "sha256": "5e4555f7b7c26c7289ef981ff05b5c94c6268c23ffb292b47ce0322525e77907",
+   "url": "https://osf.io/download/6055385190bb4e0141155e33/"
+  },
+  {
+   "path": "ID33/Philips_Achieva/Labels/BS_L4_5.nii.gz",
+   "size": 102829,
+   "md5": "e38ad5196916a2d5cffffc32bac0b907",
+   "sha256": "f7d2ba3d884609aa086458be30d72426ea4b9b994651f0ddcba54d0b414bfac6",
+   "url": "https://osf.io/download/60553850c402cc0117979d4a/"
+  },
+  {
+   "path": "ID33/Philips_Achieva/Labels/L1.nii.gz",
+   "size": 96792,
+   "md5": "22bd7c654cceeb41ddd07c2439ae8cd5",
+   "sha256": "c706d6236c2747f654f3a5941158080b8dca7ea2e0601b47df6129e644adc0f1",
+   "url": "https://osf.io/download/6055385290bb4e013d152701/"
+  },
+  {
+   "path": "ID33/Philips_Achieva/Labels/L2.nii.gz",
+   "size": 106294,
+   "md5": "713c2e5392f4b3443317e01e6bd303f0",
+   "sha256": "2fea055cf0b029fcfb1a0261131cd85685b03dc3e165a4b1a9100e2b640b8c13",
+   "url": "https://osf.io/download/60553852e8afef01325f262f/"
+  },
+  {
+   "path": "ID33/Philips_Achieva/Labels/L3.nii.gz",
+   "size": 110015,
+   "md5": "c481ae50fc73e57d3c94195c2c8b6856",
+   "sha256": "0145857f0a60d25494217145685ad6a1cf78c227f5320ad7145d8e3a78fc7a99",
+   "url": "https://osf.io/download/60553853c402cc011497840b/"
+  },
+  {
+   "path": "ID33/Philips_Achieva/Labels/L4.nii.gz",
+   "size": 117289,
+   "md5": "a378f76036d1b3613eb282a7cf7cc41b",
+   "sha256": "5afcddcde3bd8a7786e6d252d4ae876e4e4c3f5dc7d2b5a7179a0db980884042",
+   "url": "https://osf.io/download/60553854c402cc011897d30d/"
+  },
+  {
+   "path": "ID33/Philips_Achieva/Labels/L5.nii.gz",
+   "size": 103260,
+   "md5": "965aafb9dc2783a2f7951d63338fb2dd",
+   "sha256": "db94980fae53501bb76515fbc32139ce084f2e1322ce9d24179f319f61d3d98a",
+   "url": "https://osf.io/download/6055385590bb4e0141155e44/"
+  },
+  {
+   "path": "ID33/Siemens_Aera/Images/T1_non_contrast.nii.gz",
+   "size": 2824218,
+   "md5": "337cc332a1bc1d568f520741ecaaf445",
+   "sha256": "9f99c13001be51fd2d073be04f584682428e252414859203963f996686e4c83c",
+   "url": "https://osf.io/download/6055386cc402cc0114978438/"
+  },
+  {
+   "path": "ID33/Siemens_Aera/Images/T2.nii.gz",
+   "size": 8367862,
+   "md5": "276f6498770f2bbd9826ec7bd3c8bf16",
+   "sha256": "022bd3214105ad452a13afc25526f91b54404f91577b612e4f4023750598ebd8",
+   "url": "https://osf.io/download/6055386dc402cc011897d37e/"
+  },
+  {
+   "path": "ID33/Siemens_Aera/Labels/BS_L1_2.nii.gz",
+   "size": 24813,
+   "md5": "02ac3ea6e7a6bd8127824b4b0c724a7a",
+   "sha256": "03950c6614fb95e04682a67e6a872b35afbd0ba1af8ab46c21be3c2f5870d5ef",
+   "url": "https://osf.io/download/6055387890bb4e0137153a17/"
+  },
+  {
+   "path": "ID33/Siemens_Aera/Labels/BS_L2_3.nii.gz",
+   "size": 27515,
+   "md5": "ab56aaccab8ffc0724a5ef6570f07b7e",
+   "sha256": "19a80c1bd377226e70d74f1c97e244f8e4afe22a0cc27b28a14f852c1cf1a7ca",
+   "url": "https://osf.io/download/60553878c402cc011f9753cc/"
+  },
+  {
+   "path": "ID33/Siemens_Aera/Labels/BS_L3_4.nii.gz",
+   "size": 30400,
+   "md5": "cbcf0a510f32df7ad118167a2953d12f",
+   "sha256": "c734d423619d6a32ebc67a5a36b8a24fa8fdb32f14cf7369041ff546bdae5f5b",
+   "url": "https://osf.io/download/6055387590bb4e0137153a0f/"
+  },
+  {
+   "path": "ID33/Siemens_Aera/Labels/BS_L4_5.nii.gz",
+   "size": 35951,
+   "md5": "48daf4d03b45e88ee0d97dcaff7007c5",
+   "sha256": "151a90b20ca68cca2448ebaf07e5ae646c5f50a5daa37ff283dc41b2cb29bc5c",
+   "url": "https://osf.io/download/60553875c402cc01209753c8/"
+  },
+  {
+   "path": "ID33/Siemens_Aera/Labels/L1.nii.gz",
+   "size": 29579,
+   "md5": "c5a5a278c921f890329ad167d2b4f8ff",
+   "sha256": "40c6991be0d020b6320d239acddcfd0b7e0accdc62cc094b76e6007a8b533995",
+   "url": "https://osf.io/download/6055387490bb4e014714f3f1/"
+  },
+  {
+   "path": "ID33/Siemens_Aera/Labels/L2.nii.gz",
+   "size": 31902,
+   "md5": "49c68b8412bcbac132ad5c003b856847",
+   "sha256": "c7339c08c0382649ac2128b8fb9707a0a9e2afbe860d47dd2a96571a01a2de0a",
+   "url": "https://osf.io/download/60553875e8afef013f5efaf2/"
+  },
+  {
+   "path": "ID33/Siemens_Aera/Labels/L3.nii.gz",
+   "size": 32699,
+   "md5": "fd73849165cc3e35935cf22ce9bc6c92",
+   "sha256": "1dc003be6945269e21bc10554b139d6319ae833912c966baef0bbb6ee5c7a3d5",
+   "url": "https://osf.io/download/60553875c402cc011f9753bf/"
+  },
+  {
+   "path": "ID33/Siemens_Aera/Labels/L4.nii.gz",
+   "size": 35653,
+   "md5": "716b5a6bf1d7e72e35068dc4315bee6f",
+   "sha256": "ed0116fd2890ea6395753ea3c0a3805c8ee9f02b094e300b282279604ad5b87d",
+   "url": "https://osf.io/download/60553877c402cc0117979dab/"
+  },
+  {
+   "path": "ID33/Siemens_Aera/Labels/L5.nii.gz",
+   "size": 37141,
+   "md5": "a43d92ea3a1c5dac1b951f46253a9672",
+   "sha256": "719475f8273f7906ae39e3abaedb8fb94f6d6ac92c07aae08221929001ac6626",
+   "url": "https://osf.io/download/60553879c402cc01209753de/"
+  },
+  {
+   "path": "ID34/Philips_Achieva/Images/Dixon_Fat.nii.gz",
+   "size": 19959890,
+   "md5": "a3397ff62a0167e17d5653dc8947f1cb",
+   "sha256": "e644ab17d9218d6b53f87f8f0110d2ab87004ba472e5e5b4022ac84169523ed2",
+   "url": "https://osf.io/download/605538e190bb4e0140153c38/"
+  },
+  {
+   "path": "ID34/Philips_Achieva/Images/Dixon_T2.nii.gz",
+   "size": 19756524,
+   "md5": "4c3d5ad930c646a73ed41d7c65923523",
+   "sha256": "6ea21e5190b35a66bbb5c4efcc5ff92204b6785fd9da6bb5ee1e361780515b62",
+   "url": "https://osf.io/download/605538e190bb4e014714f45d/"
+  },
+  {
+   "path": "ID34/Philips_Achieva/Images/Dixon_Water.nii.gz",
+   "size": 19662399,
+   "md5": "964b878529368cf03fa7dbd91a2027f6",
+   "sha256": "cffbbf07dccbec4c9381879b8d5a7afb58f826b80133e701927eb575b84c4da7",
+   "url": "https://osf.io/download/605538e0e8afef01405efc13/"
+  },
+  {
+   "path": "ID34/Philips_Achieva/Images/T1_non_contrast.nii.gz",
+   "size": 7388303,
+   "md5": "68b6f1144587d5a3fc54b9ff3a72f57d",
+   "sha256": "820dca68f6c1525c46b749912a3a657aae7ab0a7eab71dff401b4c2083331ca9",
+   "url": "https://osf.io/download/605538dc90bb4e0137153a55/"
+  },
+  {
+   "path": "ID34/Philips_Achieva/Labels/BS_L1_2.nii.gz",
+   "size": 60318,
+   "md5": "dc07914d1a562b1ad51e8ed8fa01f49a",
+   "sha256": "5c9f17fcf0870e5d899dc1e93e202cec811cdd24cd3e6daea72ce4d309bcb7ea",
+   "url": "https://osf.io/download/605538f490bb4e0137153a6a/"
+  },
+  {
+   "path": "ID34/Philips_Achieva/Labels/BS_L2_3.nii.gz",
+   "size": 66380,
+   "md5": "3a3afb834436c63742f0fc047e9f5b87",
+   "sha256": "05fe67eeb6049ab529179f96a9bdc0b264fc204bdca5783c0754847ddb1b75b4",
+   "url": "https://osf.io/download/605538f4e8afef01395f7343/"
+  },
+  {
+   "path": "ID34/Philips_Achieva/Labels/BS_L3_4.nii.gz",
+   "size": 68085,
+   "md5": "f19e81920757587e2de5369b9e49cdf9",
+   "sha256": "5c709ae5bfe6aaa09017b77d654830a97ff8c58b5f586be9b15c41ab47d30944",
+   "url": "https://osf.io/download/605538f4e8afef01405efc51/"
+  },
+  {
+   "path": "ID34/Philips_Achieva/Labels/BS_L4_5.nii.gz",
+   "size": 72460,
+   "md5": "d3bb40b3f3f537fd9c856509a37de597",
+   "sha256": "a7d00eba04753b072862a122077fc0f4268732948ef9afcdb533420ff8a7abb4",
+   "url": "https://osf.io/download/605538f0c402cc011897d3f3/"
+  },
+  {
+   "path": "ID34/Philips_Achieva/Labels/L1.nii.gz",
+   "size": 88339,
+   "md5": "3ec0a2710ea9fd33955eaa46a8bbcd1a",
+   "sha256": "52300a7f402262273052e14b8f5355de932e7848fce562c4d8ebb05f74090cad",
+   "url": "https://osf.io/download/605538f0c402cc011f97548e/"
+  },
+  {
+   "path": "ID34/Philips_Achieva/Labels/L2.nii.gz",
+   "size": 94797,
+   "md5": "9141c017ffdc5504bbc1239703aa407a",
+   "sha256": "c0a8a9e07a71f62fbc16ac0e7db1d4894ca5f2f6639c3560b47b2046a7fdeff2",
+   "url": "https://osf.io/download/605538f0c402cc0120975515/"
+  },
+  {
+   "path": "ID34/Philips_Achieva/Labels/L3.nii.gz",
+   "size": 98709,
+   "md5": "dbeeb92a2602ca5da9a14beea306716d",
+   "sha256": "c1d0cef9690185e3afe3f799f12d61ac80ffa3272c26a94440a665df2b968d35",
+   "url": "https://osf.io/download/605538f1c402cc012097551d/"
+  },
+  {
+   "path": "ID34/Philips_Achieva/Labels/L4.nii.gz",
+   "size": 91164,
+   "md5": "84b5908c183ed567c7dea18dc8064338",
+   "sha256": "07a1f64484171a2572067251f46a378c8ee9445a4d776fea45a3eaea73c87e5a",
+   "url": "https://osf.io/download/605538f0e8afef013f5efbb3/"
+  },
+  {
+   "path": "ID34/Philips_Achieva/Labels/L5.nii.gz",
+   "size": 96965,
+   "md5": "eca8259e763b4262b6adcc7b1988f1d4",
+   "sha256": "c1a535db2767711d624f8b5b0c4f94163d81ed7be3e863121f4208be54de63cc",
+   "url": "https://osf.io/download/605538f4c402cc011897d3f9/"
+  },
+  {
+   "path": "ID34/Siemens_Avanto/Images/STIR.nii.gz",
+   "size": 5700736,
+   "md5": "c26c77fae897b8209cb4452c863e8494",
+   "sha256": "f87598d3b5e00c52d32c71a8ec0d4424a047fdcf97175af8446f3c8bae7dbf56",
+   "url": "https://osf.io/download/60553912e8afef01405efc8f/"
+  },
+  {
+   "path": "ID34/Siemens_Avanto/Images/T1_non_contrast.nii.gz",
+   "size": 2823401,
+   "md5": "eb22e1891ee80c1cba677d69e8de9f8b",
+   "sha256": "6ecd8040f64df3790ca19222273435aee618305b867b4fc4b2c68eacaac7756a",
+   "url": "https://osf.io/download/60553911e8afef013f5efbdb/"
+  },
+  {
+   "path": "ID34/Siemens_Avanto/Images/T2.nii.gz",
+   "size": 10107034,
+   "md5": "87dcb188e57aeef3ad05750cf292bb98",
+   "sha256": "fc879969e4c59a9a1c40a5302f407b4723609c7c53b0ccc961c7ad52dc2709ef",
+   "url": "https://osf.io/download/6055391290bb4e0137153a82/"
+  },
+  {
+   "path": "ID34/Siemens_Avanto/Labels/BS_L1_2.nii.gz",
+   "size": 18988,
+   "md5": "7fd8cc9955b12a274d1fda364ac27d6e",
+   "sha256": "a25bbdbad36db1d9c47283a7f1b6af4ceb070e0652b5cda43c799e8fdf44cf1d",
+   "url": "https://osf.io/download/6055392b90bb4e014814f567/"
+  },
+  {
+   "path": "ID34/Siemens_Avanto/Labels/BS_L2_3.nii.gz",
+   "size": 18883,
+   "md5": "c7ae20bea3d5a52affd1d987ee4d1e46",
+   "sha256": "8455bbde090daa1eaade0d0bf06d32114b3f39e07f0f8e1e91bdb69f83f51a64",
+   "url": "https://osf.io/download/6055392a90bb4e014814f562/"
+  },
+  {
+   "path": "ID34/Siemens_Avanto/Labels/BS_L3_4.nii.gz",
+   "size": 20689,
+   "md5": "c0eb975e5237d3f42b41a761eb1e2e17",
+   "sha256": "da729f0ba094d87580bd6efe0bc2a0a20ea930b4324ded1b9de343a0ef1cf580",
+   "url": "https://osf.io/download/60553926e8afef013f5efbfb/"
+  },
+  {
+   "path": "ID34/Siemens_Avanto/Labels/BS_L4_5.nii.gz",
+   "size": 22183,
+   "md5": "ab1baaa9147468755f546f2dbfae745f",
+   "sha256": "d31a9a62786b377ace0b1a29a8900da21d0c658dfb528eb762c6686067166939",
+   "url": "https://osf.io/download/60553926e8afef01405efccc/"
+  },
+  {
+   "path": "ID34/Siemens_Avanto/Labels/L1.nii.gz",
+   "size": 22755,
+   "md5": "f2b1a86a1663cab8bdebf8639a40d881",
+   "sha256": "6a660fce2de72b2e6682cbe2857bc8d89aa1866a8935611a1300357526229fb5",
+   "url": "https://osf.io/download/60553925c402cc011f9754e6/"
+  },
+  {
+   "path": "ID34/Siemens_Avanto/Labels/L2.nii.gz",
+   "size": 23897,
+   "md5": "8b6362e5f49f8601c6968be3eace8cbe",
+   "sha256": "150a35c145d7607ba91b881605bcb7ce40f575460be5d933f2eced228af090e2",
+   "url": "https://osf.io/download/6055392690bb4e0140153c56/"
+  },
+  {
+   "path": "ID34/Siemens_Avanto/Labels/L3.nii.gz",
+   "size": 25612,
+   "md5": "0e33307b454ccc0dc1dedfa70c145d55",
+   "sha256": "870b49a3fa8543e743b4a2ceac7f97f4b0d26a38f95be91050693905cdb7c60d",
+   "url": "https://osf.io/download/60553925c402cc01209755a9/"
+  },
+  {
+   "path": "ID34/Siemens_Avanto/Labels/L4.nii.gz",
+   "size": 26430,
+   "md5": "c9cb9a3009dbe83c9cc8bad22a87b72c",
+   "sha256": "d77852aec94d95bdae82d5eb95f30ca1d876cb32370e08f9ed43ed773dbbd952",
+   "url": "https://osf.io/download/60553928c402cc0117979ddc/"
+  },
+  {
+   "path": "ID34/Siemens_Avanto/Labels/L5.nii.gz",
+   "size": 24941,
+   "md5": "32fb82e5ec514cc1d21f65174e333b99",
+   "sha256": "37c7ccb21f494bb1042e04a91131f098e957d12cbf78e0fe4f87fe333264158f",
+   "url": "https://osf.io/download/6055392790bb4e0140153c5a/"
+  },
+  {
+   "path": "ID35/Philips_Elition/Images/T1_non_contrast.nii.gz",
+   "size": 2976767,
+   "md5": "6990ce8162990c8333fec1f40131f840",
+   "sha256": "89c7859afd501fda124c3fbcc7c9cdf33d10156a749b31f032f5fb0743ee46db",
+   "url": "https://osf.io/download/njpm4/"
+  },
+  {
+   "path": "ID35/Philips_Elition/Labels/BS_L1_2.nii.gz",
+   "size": 29744,
+   "md5": "c83c8952aff8623a5c7b253457c67c58",
+   "sha256": "cc329074039d9f25b413ccfdf1324026f6ee424d521415e5bcc3f0329a858122",
+   "url": "https://osf.io/download/605539a1e8afef01405efdec/"
+  },
+  {
+   "path": "ID35/Philips_Elition/Labels/BS_L2_3.nii.gz",
+   "size": 30109,
+   "md5": "84e2cb1bcd4f2f89e62681299ab90894",
+   "sha256": "900c63ad376f53a5612d0436e5295469c5db94ed99f53fc647e249bcc4e4445d",
+   "url": "https://osf.io/download/6055399dc402cc0117979df3/"
+  },
+  {
+   "path": "ID35/Philips_Elition/Labels/BS_L3_4.nii.gz",
+   "size": 29929,
+   "md5": "1b0243b3ee678bb1a7be941445093b59",
+   "sha256": "207f0d8c68ea91aa0a7c385d71baec616f02455bc6c8af15ce946d1ac3fc0331",
+   "url": "https://osf.io/download/6055399de8afef01405efdd5/"
+  },
+  {
+   "path": "ID35/Philips_Elition/Labels/BS_L4_5.nii.gz",
+   "size": 33350,
+   "md5": "00e1f444ab4c9a9c807f855f3a877229",
+   "sha256": "2f673a86f9abece0f5a4bf51fed51fe03e4b3e6d307a3bedc8fa1940f831ad44",
+   "url": "https://osf.io/download/6055399d90bb4e014714f52f/"
+  },
+  {
+   "path": "ID35/Philips_Elition/Labels/L1.nii.gz",
+   "size": 37061,
+   "md5": "cbbf7e364c19a044d4546b826209588a",
+   "sha256": "8f63f67762f1e764f890dde13f5f6a740b63649b2339c490cb407c3b9f4097b9",
+   "url": "https://osf.io/download/6055399ee8afef01405efdde/"
+  },
+  {
+   "path": "ID35/Philips_Elition/Labels/L2.nii.gz",
+   "size": 37144,
+   "md5": "b8ad2e34f455164de9298b6e2f2e2c77",
+   "sha256": "44f7f7b5fc49a0394cfec1ff3d65372039c4c738019dbc207713c54e0dc1dc78",
+   "url": "https://osf.io/download/6055399de8afef01405efdd0/"
+  },
+  {
+   "path": "ID35/Philips_Elition/Labels/L3.nii.gz",
+   "size": 38474,
+   "md5": "87223afa54764e43267c2f304afd3f56",
+   "sha256": "58535d329fe61c732e45f375c85e13f516efa6b62b6f047a251c25dc04e683d8",
+   "url": "https://osf.io/download/605539a1c402cc012097571f/"
+  },
+  {
+   "path": "ID35/Philips_Elition/Labels/L4.nii.gz",
+   "size": 41212,
+   "md5": "4332d90e052ee8e1eb0faeb9d3d5f0a9",
+   "sha256": "d0b990924e639dd14c749479b3a34fc8d13a00c4ea6066f8c5c1a60559a508a5",
+   "url": "https://osf.io/download/605539a0c402cc011f9755a2/"
+  },
+  {
+   "path": "ID35/Philips_Elition/Labels/L5.nii.gz",
+   "size": 42136,
+   "md5": "1539cf268e74cd55ec2fa25609eabab4",
+   "sha256": "bcd4eab6eb63c17f98e3c7e94956c4639977fd6d582f7f3de4ba287d3dfc7540",
+   "url": "https://osf.io/download/605539a0c402cc0120975718/"
+  },
+  {
+   "path": "ID35/Philips_Ingenia/Images/Dixon_Fat.nii.gz",
+   "size": 18843751,
+   "md5": "6911f576e2f1431d9e03ebd99254549b",
+   "sha256": "f0e92fcb1d95aa3a8064a9093bc3670318ddc878f0b819548a88ad472e3e6d0b",
+   "url": "https://osf.io/download/605539aee8afef01395f73af/"
+  },
+  {
+   "path": "ID35/Philips_Ingenia/Images/Dixon_T2.nii.gz",
+   "size": 18693248,
+   "md5": "3c79546b0ee4562e94e238c456b561d0",
+   "sha256": "fa8d7379f97902cca6d65370172761f24060755f346aa11989d5ca4261e0f964",
+   "url": "https://osf.io/download/605539ade8afef013f5efcaf/"
+  },
+  {
+   "path": "ID35/Philips_Ingenia/Images/Dixon_Water.nii.gz",
+   "size": 18728924,
+   "md5": "0d6216cc20b8b89e52eb0ecb731f018f",
+   "sha256": "03afb0b20e868d1ef53125ff1ebf9c84d0ac768fed434d3b0572fd5568c85cc7",
+   "url": "https://osf.io/download/605539ae90bb4e014814f67c/"
+  },
+  {
+   "path": "ID35/Philips_Ingenia/Images/T1_contrast.nii.gz",
+   "size": 6664742,
+   "md5": "88471edefe5d1e80f6369dec51c14a2e",
+   "sha256": "9af73c440100ebace93ca3e16ea7630577873618c01c9232c73679d08c8f8555",
+   "url": "https://osf.io/download/605539aac402cc011f9755b4/"
+  },
+  {
+   "path": "ID35/Philips_Ingenia/Images/T1_non_contrast.nii.gz",
+   "size": 6818612,
+   "md5": "b5498e6f623446fade7c0c3d6b6d2c17",
+   "sha256": "94552e38819d00c958a4279d778ffb3d5c81ec9d0cb1f609894fb577a1cb5417",
+   "url": "https://osf.io/download/605539abe8afef01395f73ab/"
+  },
+  {
+   "path": "ID35/Philips_Ingenia/Labels/BS_L1_2.nii.gz",
+   "size": 52524,
+   "md5": "43966601a4d3549b07d28bc8d93eb84e",
+   "sha256": "0f51561cb1ffdf3ecd6cd55e35342a53a2ccbc0a8b6404bea28f7f75450e8992",
+   "url": "https://osf.io/download/605539c1e8afef01395f73c8/"
+  },
+  {
+   "path": "ID35/Philips_Ingenia/Labels/BS_L2_3.nii.gz",
+   "size": 54195,
+   "md5": "ce6eb57f7e734ba675f63b4fb2786eaf",
+   "sha256": "fd90ec3d05cbd3f134eb9712edaf49d72601326c7fadb9a25ae01a27dbe10021",
+   "url": "https://osf.io/download/605539c2c402cc0120975768/"
+  },
+  {
+   "path": "ID35/Philips_Ingenia/Labels/BS_L3_4.nii.gz",
+   "size": 54437,
+   "md5": "a9e0fffa96472b5bedc21f65539af8e8",
+   "sha256": "af03d25ac5b0a4e0ddbae6f0f93b98993c0f162d2355d9413dc7c55bf985931c",
+   "url": "https://osf.io/download/605539bec402cc0120975753/"
+  },
+  {
+   "path": "ID35/Philips_Ingenia/Labels/BS_L4_5.nii.gz",
+   "size": 50295,
+   "md5": "2c604a7f9e06e1b0ad7c4e4e82b956b1",
+   "sha256": "c913a4a5e906edd2c9dbb4f3c5c02bfaaae689439a06510221caebed29064b62",
+   "url": "https://osf.io/download/605539be90bb4e014814f69f/"
+  },
+  {
+   "path": "ID35/Philips_Ingenia/Labels/L1.nii.gz",
+   "size": 84924,
+   "md5": "19179c7a07828764bca373467413666a",
+   "sha256": "5ff98a62ea7a685ad3c3a6939a2dded50f41c3ef284cd959145d212447609a4a",
+   "url": "https://osf.io/download/605539bec402cc012097574f/"
+  },
+  {
+   "path": "ID35/Philips_Ingenia/Labels/L2.nii.gz",
+   "size": 71964,
+   "md5": "0fe170c193c974b5de59d8285afa84bb",
+   "sha256": "28bec7ce660a31831c66e74f492d24fb5a79b6d098eedccc818c6a49b8352988",
+   "url": "https://osf.io/download/605539bee8afef01405efe28/"
+  },
+  {
+   "path": "ID35/Philips_Ingenia/Labels/L3.nii.gz",
+   "size": 73964,
+   "md5": "c611edb3daa8e8838e9d31db85ef8adb",
+   "sha256": "cbef2251e98ffb9b3556c7f0e9ccc1922ef576080bf6dec6fee48a0e6fa1c8b5",
+   "url": "https://osf.io/download/605539be90bb4e014814f6a1/"
+  },
+  {
+   "path": "ID35/Philips_Ingenia/Labels/L4.nii.gz",
+   "size": 68738,
+   "md5": "c4b9b87868774efc6e7540617750cbd2",
+   "sha256": "f50f69093d5b869d6c754e2e68667919cfe49e74543d8eec60a14354497164a2",
+   "url": "https://osf.io/download/605539c0c402cc0120975760/"
+  },
+  {
+   "path": "ID35/Philips_Ingenia/Labels/L5.nii.gz",
+   "size": 63198,
+   "md5": "9c6f6798eb4621d937918a6849d64d4f",
+   "sha256": "74a365204aafbe08c5f4689f696dd335b864d650007eff091ec30a5cc901bfb5",
+   "url": "https://osf.io/download/605539c0e8afef01385f422d/"
+  },
+  {
+   "path": "ID36/Philips_Achieva/Images/Dixon_Fat.nii.gz",
+   "size": 43685378,
+   "md5": "a6ec49177003c3e1949c37133a9e62a1",
+   "sha256": "eaa91a888d6cac307ed574dae69bb0d31a1cd20bb9b073a0de917272cc5ee5c9",
+   "url": "https://osf.io/download/60553a33c402cc011f9756f7/"
+  },
+  {
+   "path": "ID36/Philips_Achieva/Images/Dixon_T2.nii.gz",
+   "size": 43062737,
+   "md5": "b3f7bbce714dc968d5d9f145a999b50c",
+   "sha256": "a21d498fc84dfbd8164ec94b3743d98d3de5c61bdf2abee72ef518c20bba5863",
+   "url": "https://osf.io/download/btj7w/"
+  },
+  {
+   "path": "ID36/Philips_Achieva/Images/Dixon_Water.nii.gz",
+   "size": 43290177,
+   "md5": "ad1ea41dcb0437b18cea4aecfb6f5a12",
+   "sha256": "9d5d22fb1b7edd8cdb97f0aadba19bb5d477ab15a647ca8c3f59bda4f3bd206c",
+   "url": "https://osf.io/download/60553a33c402cc011f9756f8/"
+  },
+  {
+   "path": "ID36/Philips_Achieva/Images/T1_non_contrast.nii.gz",
+   "size": 15071004,
+   "md5": "171654fac09bd29ee76e8516c4f47e81",
+   "sha256": "2f31446d298a310c3da61eee33ec8af1971940505278ef16c5cdb837738798b6",
+   "url": "https://osf.io/download/60553a2ac402cc012097594f/"
+  },
+  {
+   "path": "ID36/Philips_Achieva/Labels/BS_L1_2.nii.gz",
+   "size": 113934,
+   "md5": "69a434705127e83fdefb04bbe5de64bb",
+   "sha256": "6ccab684addee781337883a24bf740789ecaf94325d9909b46a4c633b90df1c5",
+   "url": "https://osf.io/download/60553a4ac402cc011897d50e/"
+  },
+  {
+   "path": "ID36/Philips_Achieva/Labels/BS_L2_3.nii.gz",
+   "size": 116684,
+   "md5": "f9911a758dc76f6dafb934f7665a288b",
+   "sha256": "ac92a918bf941a634c44f837bf899548e5ba40e61673cca0d2e741324c8ed1f7",
+   "url": "https://osf.io/download/60553a4690bb4e014714f66c/"
+  },
+  {
+   "path": "ID36/Philips_Achieva/Labels/BS_L3_4.nii.gz",
+   "size": 137274,
+   "md5": "6b9ed1d0b7fcbb0c4d4059d2f446de7b",
+   "sha256": "a78a0de37ee457f5cf140b142a6a567c1c962a767a4adf40bcebc3958bc2a0b0",
+   "url": "https://osf.io/download/60553a4690bb4e0141155fe3/"
+  },
+  {
+   "path": "ID36/Philips_Achieva/Labels/BS_L4_5.nii.gz",
+   "size": 124995,
+   "md5": "90959929b53f746ff8ce1a6ddf26fc6d",
+   "sha256": "2319a315fe91ab1713dca33f100dc2f4a6c613852c6a0da9fe30fbc9d832b6de",
+   "url": "https://osf.io/download/60553a46c402cc01209759c5/"
+  },
+  {
+   "path": "ID36/Philips_Achieva/Labels/L2.nii.gz",
+   "size": 152484,
+   "md5": "13a2f6d660ea950337d86e3a91cee685",
+   "sha256": "fac4182d3d907510e632e986a0374d2220abda841bb98891274e7c76bd656f85",
+   "url": "https://osf.io/download/60553a47c402cc01209759d1/"
+  },
+  {
+   "path": "ID36/Philips_Achieva/Labels/L3.nii.gz",
+   "size": 153973,
+   "md5": "d1f694a5583b006f511af4a2ca9dedb1",
+   "sha256": "b042e033e2630a598df7a827c99f048a3126c795b5bf529e911e9f132bbe91cd",
+   "url": "https://osf.io/download/60553a47e8afef01395f7459/"
+  },
+  {
+   "path": "ID36/Philips_Achieva/Labels/L4.nii.gz",
+   "size": 168430,
+   "md5": "b3e0a6f5a3fa4c023154ddea5b1e5776",
+   "sha256": "f23be64a20f2d7403a9ef88114f8942fc9dbc438d65f192b651571ce9ae19fb5",
+   "url": "https://osf.io/download/60553a4ae8afef01405f005f/"
+  },
+  {
+   "path": "ID36/Philips_Achieva/Labels/L5.nii.gz",
+   "size": 158236,
+   "md5": "78c5c7d400c81f88eb87115b06dbd3f5",
+   "sha256": "3c3c419e4291086dc96b478c5005a5e0a06b7e41cf49337c8007014dd581aca6",
+   "url": "https://osf.io/download/60553a4ac402cc0117979e3e/"
+  },
+  {
+   "path": "ID36/Siemens_Magnetom/Images/T1.nii.gz",
+   "size": 2511116,
+   "md5": "5afc1e7c8542341eec4cd94963e8bce6",
+   "sha256": "5f2e2e9f80bf2ffbb4e411d215d1b1af1645b5ba7893a8ea1e26285fc4353d63",
+   "url": "https://osf.io/download/60553a5190bb4e014814f871/"
+  },
+  {
+   "path": "ID36/Siemens_Magnetom/Images/T1_contrast.nii.gz",
+   "size": 2516214,
+   "md5": "242acdc3693229b37b16f2b17bff650c",
+   "sha256": "e3fa583912d8904a6e988103d7362a1cac1e53b0b953e52cdc9c9a8b69e48682",
+   "url": "https://osf.io/download/60553a51c402cc011f975739/"
+  },
+  {
+   "path": "ID36/Siemens_Magnetom/Images/T2.nii.gz",
+   "size": 2266461,
+   "md5": "72bffa42696e5552dc72d354f157020c",
+   "sha256": "9c5902d608749c93ebae45e220a18eeeb58222a9b921f5ebb17ff6d4e7828183",
+   "url": "https://osf.io/download/60553a51c402cc01209759fd/"
+  },
+  {
+   "path": "ID36/Siemens_Magnetom/Labels/BS_L1_2.nii.gz",
+   "size": 14830,
+   "md5": "32a6f34832f29068bb316c1952a4c867",
+   "sha256": "a05d3b5ca9775dc4422306e773cfb328ec9be75f85da1c9427678ec9de141c28",
+   "url": "https://osf.io/download/60553a6390bb4e014814f894/"
+  },
+  {
+   "path": "ID36/Siemens_Magnetom/Labels/BS_L2_3.nii.gz",
+   "size": 14939,
+   "md5": "6ded6fec5af34c20491bb9b12f2a81ae",
+   "sha256": "dd7aa5248f24ac2a3513a627220cbd705d6774684166f6412ad6da01aa19ed73",
+   "url": "https://osf.io/download/60553a63c402cc0120975a4d/"
+  },
+  {
+   "path": "ID36/Siemens_Magnetom/Labels/BS_L3_4.nii.gz",
+   "size": 15261,
+   "md5": "d66fd9de9a73be58be09b40f5f25a585",
+   "sha256": "bebb7719d1bf3dea0b2e10b12619db8a13983f97d9accaf92e7a81b674d6ceba",
+   "url": "https://osf.io/download/60553a5fc402cc0117979e4a/"
+  },
+  {
+   "path": "ID36/Siemens_Magnetom/Labels/BS_L4_5.nii.gz",
+   "size": 16552,
+   "md5": "59f369529f54870c8967ca72e6557259",
+   "sha256": "f4e64ee1939d083c4b9c9188b2858afba3e9e39053330080d8d19e41db7a7ae5",
+   "url": "https://osf.io/download/60553a5fc402cc0120975a34/"
+  },
+  {
+   "path": "ID36/Siemens_Magnetom/Labels/L1.nii.gz",
+   "size": 19669,
+   "md5": "137c6389efd1698d50d366547cba20af",
+   "sha256": "683d690828975919ad3d69baa21b6301922aef9e62dc7e6828e1712b0122da36",
+   "url": "https://osf.io/download/eknzm/"
+  },
+  {
+   "path": "ID36/Siemens_Magnetom/Labels/L2.nii.gz",
+   "size": 20919,
+   "md5": "4f4b7bae088b211d3f07588a2bf20d89",
+   "sha256": "61334480cc4842d322f062cd3a4f53851296ed8e76d60e84151f22f734767cd5",
+   "url": "https://osf.io/download/tg3rn/"
+  },
+  {
+   "path": "ID36/Siemens_Magnetom/Labels/L3.nii.gz",
+   "size": 19938,
+   "md5": "c080344e3d999f23167327530296b38f",
+   "sha256": "56de63340f1648645832230e2251ed5051e56274d89c1f1f4ba7b61a1c3e255d",
+   "url": "https://osf.io/download/2t5ud/"
+  },
+  {
+   "path": "ID36/Siemens_Magnetom/Labels/L4.nii.gz",
+   "size": 20808,
+   "md5": "4d7f5f4aa98afd1fa4ca1940e3221aab",
+   "sha256": "97083cd3fe68344af013872970d389efb3d771df30320b2051a770f14adb9a66",
+   "url": "https://osf.io/download/nyjf6/"
+  },
+  {
+   "path": "ID36/Siemens_Magnetom/Labels/L5.nii.gz",
+   "size": 21686,
+   "md5": "14480245ca785064ead1fc6deec2983b",
+   "sha256": "5a05b10b28772fd859aea8c158b9c146021c1baf422f245b5a5faa54f2085d35",
+   "url": "https://osf.io/download/60553a6290bb4e014814f88e/"
+  },
+  {
+   "path": "ID37/Philips_Achieva/Images/Dixon_Fat.nii.gz",
+   "size": 6425096,
+   "md5": "90c5fb453879a324337044a022024a14",
+   "sha256": "8890dc059bf3347b10f9a33dfb7387ade9a388c2c5b3ac3206c2ffe981cf8e2c",
+   "url": "https://osf.io/download/60553abc90bb4e014714f6f7/"
+  },
+  {
+   "path": "ID37/Philips_Achieva/Images/Dixon_T2.nii.gz",
+   "size": 6720059,
+   "md5": "654dceb3f043703db3a729ef242904be",
+   "sha256": "4608edc02b11a45b1179112be68958de253e0853ca1c31df27848aaf20b80707",
+   "url": "https://osf.io/download/60553abcc402cc0120975b0a/"
+  },
+  {
+   "path": "ID37/Philips_Achieva/Images/Dixon_Water.nii.gz",
+   "size": 5650068,
+   "md5": "68d96f24bb10ceae6c4dd2b1a4f940ce",
+   "sha256": "572dd6bd7b767af2194e84386eda0108b5a2eedbb8292ae77f9ab863fc82f69b",
+   "url": "https://osf.io/download/60553abc90bb4e014814f946/"
+  },
+  {
+   "path": "ID37/Philips_Achieva/Images/T1_non_contrast.nii.gz",
+   "size": 7223048,
+   "md5": "f7f322a9b8cb1ed2b8d756bd62ab1317",
+   "sha256": "084158e1c5e09e72509bf1132f12b017ea7fc29a700fb84bd30276b4b1e128ab",
+   "url": "https://osf.io/download/60553abdc402cc0117979e6a/"
+  },
+  {
+   "path": "ID37/Philips_Achieva/Labels/BS_L1_2.nii.gz",
+   "size": 75487,
+   "md5": "4516bece9003118137f6a5bd65c509f1",
+   "sha256": "38efbaedd5c556c18ce8def743fadbabaee72a4f086e7fb6fab7d43161b9b198",
+   "url": "https://osf.io/download/60553ac990bb4e014714f715/"
+  },
+  {
+   "path": "ID37/Philips_Achieva/Labels/BS_L2_3.nii.gz",
+   "size": 71129,
+   "md5": "98010541715783f1fed656ea2113c69c",
+   "sha256": "e6cc659199370b9125906e46d0e599d4452dc3611f85e94377be75f2669758d8",
+   "url": "https://osf.io/download/60553acae8afef01395f74ba/"
+  },
+  {
+   "path": "ID37/Philips_Achieva/Labels/BS_L3_4.nii.gz",
+   "size": 67222,
+   "md5": "6e9843971ecb6eff06e1f8b1b25939cc",
+   "sha256": "ce1e81698757850f58a560e54d1943e9f1334f65c36211128feaaf983872b5e7",
+   "url": "https://osf.io/download/60553aca90bb4e013d152857/"
+  },
+  {
+   "path": "ID37/Philips_Achieva/Labels/BS_L4_5.nii.gz",
+   "size": 71748,
+   "md5": "0a8d550944a8f07d7afe1497a7ce0b08",
+   "sha256": "69e826cf861d0a3a1e2182e419b7d84a66d4a2c8052613b0427c6de264f4e762",
+   "url": "https://osf.io/download/60553ac590bb4e014714f709/"
+  },
+  {
+   "path": "ID37/Philips_Achieva/Labels/L1.nii.gz",
+   "size": 80353,
+   "md5": "284a035317243248b59beffeb8b82f1e",
+   "sha256": "55669b557384b4606e7ddc5c34c08819f77324378ba515e5d67d7bcaeb904872",
+   "url": "https://osf.io/download/98fvh/"
+  },
+  {
+   "path": "ID37/Philips_Achieva/Labels/L2.nii.gz",
+   "size": 78743,
+   "md5": "6f1b879fc7c0e842adffa3f13b65f6db",
+   "sha256": "ad202c1faf3caa5d75630c32a8789734d1f0d85549681c3c75ec686c69cb517e",
+   "url": "https://osf.io/download/60553ac6e8afef01405f01a0/"
+  },
+  {
+   "path": "ID37/Philips_Achieva/Labels/L3.nii.gz",
+   "size": 80689,
+   "md5": "8a5f5229c513bc95ae479cabd250e5ec",
+   "sha256": "bc356b077b552c409404ff317b36b557deb665ab5cd31240c9158fda7e145d0e",
+   "url": "https://osf.io/download/60553ac6e8afef01405f01a4/"
+  },
+  {
+   "path": "ID37/Philips_Achieva/Labels/L4.nii.gz",
+   "size": 85020,
+   "md5": "272138b4c1bacdeaadc6ffa5468a4fbb",
+   "sha256": "e7e0ae9d46f3d2ae0436290c8a30a4d1d0b3abaf179986247cb85c705b97c82e",
+   "url": "https://osf.io/download/60553ac7e8afef01405f01aa/"
+  },
+  {
+   "path": "ID37/Philips_Achieva/Labels/L5.nii.gz",
+   "size": 84442,
+   "md5": "afb61aac2de359eaa7a4ef10b996d454",
+   "sha256": "395a32886610ca82f80cec17e276d0f2a5ddbca012f90f68fa67504a681cb516",
+   "url": "https://osf.io/download/60553ac890bb4e014814f95e/"
+  },
+  {
+   "path": "ID37/Philips_Achieva_external/Images/T1_non_contrast.nii.gz",
+   "size": 7575870,
+   "md5": "c49de5cfcabbb45bbcca3db14acf793e",
+   "sha256": "432c510aea0865813f95bb9c763dd06950480d370c148da7744093e053d7fab7",
+   "url": "https://osf.io/download/mkxj6/"
+  },
+  {
+   "path": "ID37/Philips_Achieva_external/Images/T2.nii.gz",
+   "size": 19371167,
+   "md5": "d36f980700a5ecdefa6c46e860ae0a0f",
+   "sha256": "ec15ff228180d2bf5f909db3896b6732a077137f1060219e04c1694e4186b869",
+   "url": "https://osf.io/download/6080085a9b0849008a03b1ce/"
+  },
+  {
+   "path": "ID37/Philips_Achieva_external/Labels/BS_L1_2.nii.gz",
+   "size": 60770,
+   "md5": "c169093e5c638d96a415bf0f001c9f13",
+   "sha256": "c775d8d00f08e7b93077bed9763dc7779358fddbfe4d064aff4e5190089a4a89",
+   "url": "https://osf.io/download/8aj64/"
+  },
+  {
+   "path": "ID37/Philips_Achieva_external/Labels/BS_L2_3.nii.gz",
+   "size": 57989,
+   "md5": "cd8359a340cd29f4a569b4d78a0852dc",
+   "sha256": "373ca6a63a97794778667a4a4d18cf6530e59fe277a0eec2108e40cb515473e4",
+   "url": "https://osf.io/download/9t24q/"
+  },
+  {
+   "path": "ID37/Philips_Achieva_external/Labels/BS_L3_4.nii.gz",
+   "size": 55734,
+   "md5": "134cb7d8fcc4f2a1de424fec971a3ec0",
+   "sha256": "53ed35fe14c5c45233c6b37c5b06c328e4c7afe3161faebbb48567f898b07a0d",
+   "url": "https://osf.io/download/60800886c14695007a398b64/"
+  },
+  {
+   "path": "ID37/Philips_Achieva_external/Labels/BS_L4_5.nii.gz",
+   "size": 52750,
+   "md5": "48c1ea21fbdb30393ac099aa2b4e1a8c",
+   "sha256": "0a4b1dfb1cbfd3e4027e55b2f74e1bf7e0b467803d4a525150fc7b5ccc317e7d",
+   "url": "https://osf.io/download/608008857f02c0007901ccde/"
+  },
+  {
+   "path": "ID37/Philips_Achieva_external/Labels/L1.nii.gz",
+   "size": 68718,
+   "md5": "040b6819c3ac5f55f47edc2c912e641d",
+   "sha256": "0dcc2885dc7c47db61305d188cf6aaf2447adf4908807be7fadb1586d3339717",
+   "url": "https://osf.io/download/60800883c14695007a398b57/"
+  },
+  {
+   "path": "ID37/Philips_Achieva_external/Labels/L2.nii.gz",
+   "size": 72466,
+   "md5": "55005280ee2269949c24441bdc990a45",
+   "sha256": "cd124921a33f4da02f221adde63d6905871baf71deea698d9ab4da81dd3bcd93",
+   "url": "https://osf.io/download/608008839b0849008e03acce/"
+  },
+  {
+   "path": "ID37/Philips_Achieva_external/Labels/L3.nii.gz",
+   "size": 74628,
+   "md5": "ffdcf95c73bae65f2a0c21fa92533d82",
+   "sha256": "956e35de03269f1977612b2fefd19a7cff2005d288bcdf6217c97c7609452fd3",
+   "url": "https://osf.io/download/60800883c146950076397768/"
+  },
+  {
+   "path": "ID37/Philips_Achieva_external/Labels/L4.nii.gz",
+   "size": 74266,
+   "md5": "117af79f4864c6adcc74a12cb7a89aad",
+   "sha256": "a491361fd486541162ad4e6400ca05eeb169591551327e9f4968b9e318e01f01",
+   "url": "https://osf.io/download/608008837f02c0006b01d2f2/"
+  },
+  {
+   "path": "ID37/Philips_Achieva_external/Labels/L5.nii.gz",
+   "size": 70908,
+   "md5": "28543dc76d04fb417dd663da0503dda6",
+   "sha256": "85dd5d4df48e93d97b0ee88b705724cb48ca8a2fcf1b31da25f76a734eb915e4",
+   "url": "https://osf.io/download/608008837f02c00084017697/"
+  },
+  {
+   "path": "ID38/GE_Signa/Images/T1_non_contrast.nii.gz",
+   "size": 1909707,
+   "md5": "630eb07df53bc672127f294886b06178",
+   "sha256": "92266e5a3df2d601f0de0fbefac87b0aa654037852a2f286cdfec1d5e2fed13e",
+   "url": "https://osf.io/download/60553b46e8afef01385f42e3/"
+  },
+  {
+   "path": "ID38/GE_Signa/Images/T2.nii.gz",
+   "size": 1606024,
+   "md5": "b0bdff20f14c5c6a67d2d31d25d3e72d",
+   "sha256": "c942867659b7aa5508b5d066c156a90624d6d7b51e05ecb0c37ad8eb5cd9aa8f",
+   "url": "https://osf.io/download/60553b46c402cc0120975c70/"
+  },
+  {
+   "path": "ID38/GE_Signa/Labels/BS_L1_2.nii.gz",
+   "size": 23959,
+   "md5": "5c6777c39afb2ea007f96a140b351ba7",
+   "sha256": "22a337b3bca9b57a507964b6332d1076b219a2cee695707c96ecb17f52774e86",
+   "url": "https://osf.io/download/60553b52c402cc0120975ca9/"
+  },
+  {
+   "path": "ID38/GE_Signa/Labels/BS_L2_3.nii.gz",
+   "size": 26220,
+   "md5": "01fdb5a1a528f9f5f0162a4f12cf8d84",
+   "sha256": "5fd1351ccbcae11f198963808521322e4545ff1b6a9e9372304d0881ae38d054",
+   "url": "https://osf.io/download/60553b52c402cc011897d5cc/"
+  },
+  {
+   "path": "ID38/GE_Signa/Labels/BS_L3_4.nii.gz",
+   "size": 30852,
+   "md5": "10179863ff32e7656425c0e5589db1b7",
+   "sha256": "9cbe04a54b8ca21b94d3dedba478f6892bb407dae09ab7104dd02fc3961f2111",
+   "url": "https://osf.io/download/60553b54e8afef01405f033c/"
+  },
+  {
+   "path": "ID38/GE_Signa/Labels/BS_L4_5.nii.gz",
+   "size": 29149,
+   "md5": "2a17431bcbbe11e17b5364f8f5fec88c",
+   "sha256": "02160595a0897cd4081a0ba77fb0f5da9acc78a21eb54c6ab4173ea0d3c6d37c",
+   "url": "https://osf.io/download/60553b54e8afef01405f0339/"
+  },
+  {
+   "path": "ID38/GE_Signa/Labels/L1.nii.gz",
+   "size": 28982,
+   "md5": "605f4407be4df18cc99a955f6bd3ba46",
+   "sha256": "8b26c34a4ae31674e990a57f2620a9c2f177a8525857bc03daef2466db7f1403",
+   "url": "https://osf.io/download/60553b5090bb4e01411560c0/"
+  },
+  {
+   "path": "ID38/GE_Signa/Labels/L2.nii.gz",
+   "size": 30319,
+   "md5": "654b3ed69468cb2826edf4a52bb1e493",
+   "sha256": "98eb2d099a2568085f57639a3e151995346f75874e1c79df986fd5fd87643369",
+   "url": "https://osf.io/download/60553b4fe8afef01385f42ec/"
+  },
+  {
+   "path": "ID38/GE_Signa/Labels/L3.nii.gz",
+   "size": 31016,
+   "md5": "c4edeed2f277fd56bd49ca426f4a168e",
+   "sha256": "4e4508cad16bd3b1e12970a9d4f465f5548df11c34e8da2e5ab1658cdb2fddc6",
+   "url": "https://osf.io/download/60553b4ec402cc0120975c8c/"
+  },
+  {
+   "path": "ID38/GE_Signa/Labels/L4.nii.gz",
+   "size": 32750,
+   "md5": "aa6fa8c111e7ae2dfdd7ef95e635ca85",
+   "sha256": "89c971fc22328c3f33418fc356093d78425773cad3a0cda9ff803c0bb3d85bd6",
+   "url": "https://osf.io/download/60553b4fe8afef013f5effbb/"
+  },
+  {
+   "path": "ID38/GE_Signa/Labels/L5.nii.gz",
+   "size": 38407,
+   "md5": "b248c40d24220a8feec5e1e6538ec885",
+   "sha256": "1a5b706b0d19bb541002a5a4b24c4d138383aaeac3c0f747b3ee32d1d330e996",
+   "url": "https://osf.io/download/60553b4fc402cc011f9758ae/"
+  },
+  {
+   "path": "ID38/Philips_Achieva/Images/Dixon_Fat.nii.gz",
+   "size": 8638858,
+   "md5": "71177ec7e9f8813b4f22444f72a482b9",
+   "sha256": "0cf4cc324d90953a04435e477e52697e19ffbf95cbfd9e3ce97e09205dd798ed",
+   "url": "https://osf.io/download/60553b64c402cc011f9758de/"
+  },
+  {
+   "path": "ID38/Philips_Achieva/Images/Dixon_T2.nii.gz",
+   "size": 8527631,
+   "md5": "59b72fddd73a228b00fcd865fda571ba",
+   "sha256": "ea57a10b21ab322015c2434f006272dc5eef81e186070cab4e3824d95e283e37",
+   "url": "https://osf.io/download/60553b64c402cc011897d5ec/"
+  },
+  {
+   "path": "ID38/Philips_Achieva/Images/Dixon_Water.nii.gz",
+   "size": 8541808,
+   "md5": "f5995e464d10087d233199a6fcdb338c",
+   "sha256": "74a72b4117a403ee50077c179592407e59e43fe3b7cf58dc108038602b44fcae",
+   "url": "https://osf.io/download/60553b64c402cc011897d5e8/"
+  },
+  {
+   "path": "ID38/Philips_Achieva/Images/T1_non_contrast.nii.gz",
+   "size": 3178133,
+   "md5": "c93dbdbc0ce88f9d3e2dbc2c9952e580",
+   "sha256": "55860367d5ae72652b6a13198ccf4d0157c318755edcbe27d44650172e3bf856",
+   "url": "https://osf.io/download/jkw5x/"
+  },
+  {
+   "path": "ID38/Philips_Achieva/Labels/BS_L1_2.nii.gz",
+   "size": 29308,
+   "md5": "7965b125a9fe16afd63b96f4dd33d41b",
+   "sha256": "34c3968ac172758fb0b4fb0e9cfa39d4c06f91227c0463ddca0c615b25c5b9e9",
+   "url": "https://osf.io/download/60553b7ee8afef013f5f0011/"
+  },
+  {
+   "path": "ID38/Philips_Achieva/Labels/BS_L2_3.nii.gz",
+   "size": 33490,
+   "md5": "ef62ec2e58a767a5cf8ea15de817a4aa",
+   "sha256": "c24f06fb494de1d56be069d356c5c3558e2b0352429be3fcfe6478b266ea2087",
+   "url": "https://osf.io/download/60553b7fe8afef01405f03b1/"
+  },
+  {
+   "path": "ID38/Philips_Achieva/Labels/BS_L3_4.nii.gz",
+   "size": 39216,
+   "md5": "63658a1e49c165357d875e024903d914",
+   "sha256": "e77c281ad28ad39ecb02e6d481ec5c6f57fbed7f0c80f42830e7d065c4ced67e",
+   "url": "https://osf.io/download/60553b7ee8afef01405f03a5/"
+  },
+  {
+   "path": "ID38/Philips_Achieva/Labels/BS_L4_5.nii.gz",
+   "size": 34297,
+   "md5": "1dc44da2fab6f3ebeb38e816542caa23",
+   "sha256": "7321977516f7c52c2dddced3a35e4b96dc2f54891cf44165f387aebffea23a4b",
+   "url": "https://osf.io/download/60553b7bc402cc0120975d1e/"
+  },
+  {
+   "path": "ID38/Philips_Achieva/Labels/L1.nii.gz",
+   "size": 34163,
+   "md5": "752f774e90ce59e2fad760148a2b767d",
+   "sha256": "d8bfa26ada6d7a4dfd3515b036bf3777b61840fc88f8cc74fa9d084cc433385f",
+   "url": "https://osf.io/download/60553b7ae8afef01395f7555/"
+  },
+  {
+   "path": "ID38/Philips_Achieva/Labels/L2.nii.gz",
+   "size": 36019,
+   "md5": "04132019986a68b3e6ddc12e8e425380",
+   "sha256": "130f4798f2af2ecf51ed88f523ec1e2222cd746a4a8569e69467ea0f7d0f1218",
+   "url": "https://osf.io/download/60553b7ce8afef01405f039b/"
+  },
+  {
+   "path": "ID38/Philips_Achieva/Labels/L3.nii.gz",
+   "size": 42352,
+   "md5": "70060a2b89d3073e27a765a1f67c0da8",
+   "sha256": "caa74bd63e9e37567cdc27cbffac3e92abb507f713268754f90253964d2f35e4",
+   "url": "https://osf.io/download/60553b7be8afef01395f755b/"
+  },
+  {
+   "path": "ID38/Philips_Achieva/Labels/L4.nii.gz",
+   "size": 42331,
+   "md5": "bdd62ef2a0a8e3e6bf328a2c20bc7c13",
+   "sha256": "18c2eacf59ce133de57badb52217f36cf5dad8f3ecf9b4ee80244d8c52db05f4",
+   "url": "https://osf.io/download/60553b7bc402cc0120975d1a/"
+  },
+  {
+   "path": "ID38/Philips_Achieva/Labels/L5.nii.gz",
+   "size": 45133,
+   "md5": "d403c04308e79b28cd62fc1440fdd711",
+   "sha256": "cc59d1cab2166087169b504adf6785996cc99608030c7c8fa9e5015d55477ed9",
+   "url": "https://osf.io/download/60553b7ee8afef01385f4304/"
+  },
+  {
+   "path": "ID39/Philips_Achieva/Images/Dixon_Fat.nii.gz",
+   "size": 39155399,
+   "md5": "71a3e4d099f1c6af878c306c7517c485",
+   "sha256": "65df17332593ea7136c52f55797db9db2beeb721b716107e6b849b7b23d9f577",
+   "url": "https://osf.io/download/52wxp/"
+  },
+  {
+   "path": "ID39/Philips_Achieva/Images/Dixon_T2.nii.gz",
+   "size": 39070748,
+   "md5": "eaf3c55956dac3d685aa3f2b2fd0ad50",
+   "sha256": "208848f751a60efc2b6057261dae16d3cf04266f917e3f612ab5b90a70c5b686",
+   "url": "https://osf.io/download/j5hfu/"
+  },
+  {
+   "path": "ID39/Philips_Achieva/Images/Dixon_Water.nii.gz",
+   "size": 39078055,
+   "md5": "6394b784fb2d961fda4e5e78b6f97b6c",
+   "sha256": "e1c719118f2a2759bec3cacbcf35002e1d71cd174083a0cacaf59d1257370adc",
+   "url": "https://osf.io/download/jh87k/"
+  },
+  {
+   "path": "ID39/Philips_Achieva/Images/T1_contrast.nii.gz",
+   "size": 14381669,
+   "md5": "faa52847ec55a4c641c5773860f82783",
+   "sha256": "a7db4b1a607b65c33a9e55031599b300627fe87d5586dcea5b28eccd845505b0",
+   "url": "https://osf.io/download/mdz8h/"
+  },
+  {
+   "path": "ID39/Philips_Achieva/Images/T1_non_contrast.nii.gz",
+   "size": 13707516,
+   "md5": "95f3ff1d6be9a54b1c08a056c87b5264",
+   "sha256": "019a06925cd90de851fe802ad3ea7f83a3b32e4f62f80d7ff02b1457d8cbef8b",
+   "url": "https://osf.io/download/c9j2t/"
+  },
+  {
+   "path": "ID39/Philips_Achieva/Labels/BS_L1_2.nii.gz",
+   "size": 124839,
+   "md5": "42e42d783bfab6ee16b41e0120e0fce0",
+   "sha256": "8272dc340c44a4c8a1eda1f4635f2df5d8d0a78f5dc0769181bbe3e425954214",
+   "url": "https://osf.io/download/60553c33c402cc0120975f25/"
+  },
+  {
+   "path": "ID39/Philips_Achieva/Labels/BS_L2_3.nii.gz",
+   "size": 131838,
+   "md5": "94df84467d55ada84dea3f035f9ee60b",
+   "sha256": "bd87aa26fd73ab9cc91caeb66399214cae5682f7e5aacbdeec06d8bf45f0b5c1",
+   "url": "https://osf.io/download/60553c34c402cc0120975f2a/"
+  },
+  {
+   "path": "ID39/Philips_Achieva/Labels/BS_L3_4.nii.gz",
+   "size": 132806,
+   "md5": "a97558eb488a57830de164bac3bd218a",
+   "sha256": "b49bec485266ebafb77292845e7c53e0b65f60f494871fcffd6ef61a32501da9",
+   "url": "https://osf.io/download/60553c2f90bb4e014714f943/"
+  },
+  {
+   "path": "ID39/Philips_Achieva/Labels/BS_L4_5.nii.gz",
+   "size": 139306,
+   "md5": "93a4bf661695377733ba383909c3aa77",
+   "sha256": "b9d01acff125d3d4516a397ebbcf54a80fd0d35207b05647ad0c3ebe64be8b0f",
+   "url": "https://osf.io/download/60553c30e8afef013f5f0146/"
+  },
+  {
+   "path": "ID39/Philips_Achieva/Labels/L1.nii.gz",
+   "size": 163793,
+   "md5": "72d12dd917f538c4f27d57cf94c529eb",
+   "sha256": "055be7064be3d9ad9898931bed3bef209b62c0f29a26825654f898124540eeb6",
+   "url": "https://osf.io/download/60553c30c402cc011f975a29/"
+  },
+  {
+   "path": "ID39/Philips_Achieva/Labels/L2.nii.gz",
+   "size": 171738,
+   "md5": "9bbe86dbb4722b3682017cd8f5f217c4",
+   "sha256": "47c8e8d48f5228a2c176e193803649b22cf898da54bb9358e61c542aabde92c4",
+   "url": "https://osf.io/download/60553c3090bb4e014814fcf1/"
+  },
+  {
+   "path": "ID39/Philips_Achieva/Labels/L3.nii.gz",
+   "size": 170749,
+   "md5": "78b0143e2ca169e61077e0428ccb51ca",
+   "sha256": "221412c36b08e9611d6ec6727f963a256d178347057b344f18ebcc9e98d2f5b5",
+   "url": "https://osf.io/download/60553c3090bb4e014814fcee/"
+  },
+  {
+   "path": "ID39/Philips_Achieva/Labels/L4.nii.gz",
+   "size": 179010,
+   "md5": "ea8921a87e40d7c7e554236922d2b87f",
+   "sha256": "221d9bdd2c4502b66645e8785add6c738d714b038357863300bd17851197fbbd",
+   "url": "https://osf.io/download/60553c32e8afef01395f75f5/"
+  },
+  {
+   "path": "ID39/Philips_Achieva/Labels/L5.nii.gz",
+   "size": 175941,
+   "md5": "d568c6a269784d6fac76660ae789efae",
+   "sha256": "f51a6ea367026f6a5c87de5ef1dc0300692e467e536a8e6113d89acafa71f62d",
+   "url": "https://osf.io/download/60553c33c402cc011f975a31/"
+  },
+  {
+   "path": "ID39/Siemens_Avanto/Images/STIR.nii.gz",
+   "size": 15244220,
+   "md5": "d2bbcdf1d07b021ff612c9fc5456b11a",
+   "sha256": "c3453f73b629d3598a3c8a2f5e8c763d7ab5cf5530e3b53610a9c55d6dbabe06",
+   "url": "https://osf.io/download/bgvfq/"
+  },
+  {
+   "path": "ID39/Siemens_Avanto/Images/T1_contrast.nii.gz",
+   "size": 5195479,
+   "md5": "bf3d77f4edd86ee719879e8d519aa805",
+   "sha256": "59f50869151f839fe4e909195667f12e9ece04807cb7bc44a6c1e1f506756bda",
+   "url": "https://osf.io/download/zx92a/"
+  },
+  {
+   "path": "ID39/Siemens_Avanto/Images/T1_non_contrast.nii.gz",
+   "size": 4976975,
+   "md5": "739dd6cd26387f9b2f43133eab0b2632",
+   "sha256": "83864a2dac80d8690ee7098714becf6c9e58532979f0a093a5ad3ed0b9112fa0",
+   "url": "https://osf.io/download/phxad/"
+  },
+  {
+   "path": "ID39/Siemens_Avanto/Images/T2.nii.gz",
+   "size": 18724507,
+   "md5": "7e25961e52ee02ed60b4fad0f6246ac0",
+   "sha256": "6473d3f01f217a16f2978b889c3ad6c5a3f71968fc040b94b984b7d056cd2d47",
+   "url": "https://osf.io/download/60553c4690bb4e01411561a7/"
+  },
+  {
+   "path": "ID39/Siemens_Avanto/Labels/BS_L1_2.nii.gz",
+   "size": 30252,
+   "md5": "9b178c10eed1a2f12f4b58bc7811407c",
+   "sha256": "70a88051d5abe04d483ce2772d7e4fe732c831f5fcfb2966c8a3025794711da6",
+   "url": "https://osf.io/download/60553c6ee8afef01405f069a/"
+  },
+  {
+   "path": "ID39/Siemens_Avanto/Labels/BS_L2_3.nii.gz",
+   "size": 30581,
+   "md5": "fa6969c20eb0a2fad2061956a91b9495",
+   "sha256": "1682e92f3fa3e3720bdc55321a3387e9e2977b206f77f82f3b4552fbd8c30131",
+   "url": "https://osf.io/download/60553c6f90bb4e014714f9a3/"
+  },
+  {
+   "path": "ID39/Siemens_Avanto/Labels/BS_L3_4.nii.gz",
+   "size": 32798,
+   "md5": "de03d941d445c1b60d8ed2380c26fa73",
+   "sha256": "8ba2fe2d21664885b2bc5d371cef341e2e3de2f4b54e8a27c93e2adc94227292",
+   "url": "https://osf.io/download/60553c6ae8afef013f5f01c5/"
+  },
+  {
+   "path": "ID39/Siemens_Avanto/Labels/BS_L4_5.nii.gz",
+   "size": 32678,
+   "md5": "79ddd6dcfcb2b994b72e2baed197c43b",
+   "sha256": "5e25e45aa5d8ff3043c9393d09515120baeb138b15a4b943fe8c284277774e36",
+   "url": "https://osf.io/download/60553c69e8afef01405f067a/"
+  },
+  {
+   "path": "ID39/Siemens_Avanto/Labels/L1.nii.gz",
+   "size": 37300,
+   "md5": "d5cb3acc366e63e08b6758aff3195f08",
+   "sha256": "891e94e83e196e74a77bc03d843ef7648ab2522fd18261054482d65c2cab0e06",
+   "url": "https://osf.io/download/60553c6bc402cc011f975a9e/"
+  },
+  {
+   "path": "ID39/Siemens_Avanto/Labels/L2.nii.gz",
+   "size": 37440,
+   "md5": "52b984bb0dca21b94b258b2cecb4c478",
+   "sha256": "ba9396114f6576fc741f1d70aafcbb09059acf884b37dbf5863bd6208e2aa770",
+   "url": "https://osf.io/download/60553c6be8afef013f5f01cd/"
+  },
+  {
+   "path": "ID39/Siemens_Avanto/Labels/L3.nii.gz",
+   "size": 39369,
+   "md5": "915928c8ba46145e7faae93e36663505",
+   "sha256": "6a8f2cf91d16a875c3bc7f60dc578cb096b8c8749e4e6f2bda2c7ae2d58d54c4",
+   "url": "https://osf.io/download/60553c6be8afef013f5f01cf/"
+  },
+  {
+   "path": "ID39/Siemens_Avanto/Labels/L4.nii.gz",
+   "size": 40732,
+   "md5": "45594d7c5780cf8e62db6e78dc97c961",
+   "sha256": "4883b1dc849076ef0dc7b44c48038f93488edd2ae19d9b30548d6ce40f07791f",
+   "url": "https://osf.io/download/60553c6cc402cc0120975fcb/"
+  },
+  {
+   "path": "ID39/Siemens_Avanto/Labels/L5.nii.gz",
+   "size": 41704,
+   "md5": "ab40ecf6c31ae53ece65060b0b58ab4e",
+   "sha256": "e790f7e90cf3892beb5d4ebee77584d18b0f9e60922e0e4d7473c7ed655d0758",
+   "url": "https://osf.io/download/60553c6ce8afef01405f0690/"
+  },
+  {
+   "path": "license.txt",
+   "size": 19753,
+   "md5": "5fde05b08a3df8590d9b1a7b9746cc93",
+   "sha256": "43a372304b1da21ff143b9dd10424d93dc193073aecd5984a6b3872416dc7acd",
+   "url": "https://osf.io/download/f5q49/"
+  }
+ ]
+}

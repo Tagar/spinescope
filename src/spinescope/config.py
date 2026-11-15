@@ -240,5 +240,23 @@ class Config:
     verify_sacrum_offset_mm: float = 30.0
     verify_sacrum_fov_mm: float = 100.0
 
+    # ---- viewer: label review (viewer/assets/labels.js) ----
+    # Disc confidence colour bands: at or above ``high`` green, at or above ``low`` amber, else red.
+    # Numbering confidence below ``low`` raises the "labels unconfirmed" banner (the same 0.5 that
+    # anatomy.pipeline uses for "numbering confidence is low"). Judgement defaults, not calibrated.
+    viewer_conf_high: float = 0.8
+    viewer_conf_low: float = 0.5
+    # Disc plausibility. SPIDER training truth: normals tilt at most ~60 deg from the superior-inferior axis
+    # (99.9th percentile 57 deg). A component whose normal tilts more than this is a sagittal strip, not a disc.
+    ml_disc_max_tilt_deg: float = 70.0
+    # 3-D centroid and normal: discs are averaged over the sagittal slices within this distance of the
+    # mid-sagittal plane. SPIDER truth is the 3-D voxel centroid, and the mid-plane centroid sits about 1.3 mm
+    # anterior of it (lab09 training split). 27 mm = eight 3.34 mm SPIDER slices; the error plateaus there.
+    ml_disc_3d_half_width_mm: float = 27.0
+    ml_disc_3d_ap_half_mm: float = 22.0  # AP half window around the mid-plane centre (lumbar AP ~35 mm)
+    # Use the 3-D normal too. Off: on the independent Sudirman axial-slab normals it is worse (3.3 vs 2.5 deg
+    # median), while SPIDER's own normals are 3-D masks, so the SPIDER gain is partly definitional.
+    ml_disc_normal_3d: bool = False
+
 
 DEFAULT = Config()

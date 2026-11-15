@@ -43,6 +43,7 @@ def render_html(payload: dict[str, Any]) -> str:
         "__TITLE__": _html_escape(title),
         "__CSS__": _asset("viewer.css"),
         "__MATH__": _asset("math.js"),
+        "__LABELS__": _asset("labels.js"),
         "__APP__": _asset("app.js"),
         "__DATA__": _json_for_script(payload),
     }

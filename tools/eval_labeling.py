@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import functools
 import hashlib
 import html
 import importlib
@@ -122,20 +123,11 @@ def _subsample(cases: list[Case], k: int | None) -> list[Case]:
 
 # --------------------------------------------------------------------------- backends
 def resolve_backend(spec: str) -> Callable[[Any], Any]:
-    """'classical' -> label_spine, 'ml' -> spinescope.anatomy.ml.label_spine, or 'module:function'."""
-    if spec == "classical":
+    """'classical' | 'ml' | 'auto' -> label_spine with that backend, or 'module:function'."""
+    if spec in ("classical", "ml", "auto"):
         from spinescope.anatomy import label_spine
 
-        return label_spine
-    if spec == "ml":
-        try:
-            ml = importlib.import_module("spinescope.anatomy.ml")
-        except ImportError as exc:
-            raise SystemExit(f"ML labeller is not available on this checkout: {exc}") from exc
-        fn = getattr(ml, "label_spine", None)
-        if fn is None:
-            raise SystemExit("spinescope.anatomy.ml has no label_spine")
-        return fn  # type: ignore[no-any-return]
+        return functools.partial(label_spine, backend=spec)
     mod, _, attr = spec.partition(":")
     if not attr:
         raise SystemExit(f"backend must be 'classical', 'ml' or 'module:function', got {spec!r}")
