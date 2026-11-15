@@ -152,9 +152,12 @@ def test_missing_evidence_images_are_warnings_not_errors(tmp_path: Path) -> None
     doc = minimal_valid()
     res = validate(doc)
     assert res.ok
-    assert any("evidence image not found: out/reader/sag_t2.png" in w for w in res.warnings)
+    assert any("evidence image not found: image " in w for w in res.warnings)
+    assert not any("sag_t2.png" in w for w in res.warnings)  # the path is not echoed
     # aggregated: the same image cited many times gives one warning
-    assert sum("out/reader/sag_t2.png" in w for w in res.warnings) == 1
+    from spinescope.report.validate import _image_label
+
+    assert sum(_image_label("out/reader/sag_t2.png") in w for w in res.warnings) == 1
 
 
 def test_existing_relative_evidence_image_is_not_warned(tmp_path: Path) -> None:

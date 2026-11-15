@@ -118,7 +118,7 @@ def _collect(sources: Source | list[Source] | tuple[Source, ...], consensus: Con
             res = validate(src)
         else:
             path = Path(src)
-            label = path.name
+            label = f"file {i + 1}"  # never the file name: it may carry identifying text
             try:
                 raw = json.loads(path.read_text(encoding="utf-8"))
             except (OSError, ValueError) as exc:

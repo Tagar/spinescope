@@ -9,6 +9,13 @@
   paths, and their status is set by provenance: an AI reader cannot confirm the names, and `confirmed` needs a human
   confirm with the sacrum in view. Brief, tasks, viewer, MCP `open_study(anchors_path)` and the analysis modules use
   the reviewed file. The viewer's rename, delete and confirm now carry canal, posterior-element and body names too.
+- Privacy audit (lab33): a canary phantom (`tests/_canary.py`) with identifying text in every text attribute, a
+  private tag, the folder name and the UIDs, scanned through every output surface (`tests/test_privacy_canaries.py`,
+  own CI job). Fixes: free-text series descriptions are scrubbed to protocol vocabulary in every output
+  (`spinescope.privacy.public_text`; the classifier still reads the raw text), exception messages and warnings no
+  longer quote input paths or file names, merge and evidence-image labels are positional or hashed, benchmark errors
+  drop path-like tokens, the MCP server withholds messages of unexpected exceptions, and DERIVED series are flagged.
+  See `docs/privacy.md` and `SECURITY.md`.
 - One-command labelling benchmark (`tools/benchmark.py`, `spinescope benchmark`): SPIDER validation, Sudirman, qx5rt and
   the phantom robustness suites, cached and parallel, with a golden file (`benchmarks/golden.json`) and a regression
   check (`--check`). Numbers and protocol in `docs/benchmarks.md`.

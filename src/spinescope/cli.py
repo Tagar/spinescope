@@ -16,6 +16,7 @@ if TYPE_CHECKING:
 
 
 def _cmd_inspect(args: argparse.Namespace) -> int:
+    from .privacy import public_text
     from .study import load_study
 
     if getattr(args, "label", False):
@@ -34,7 +35,7 @@ def _cmd_inspect(args: argparse.Namespace) -> int:
                     "spacing": s.spacing,
                     "plane": s.plane,
                     "obliquity_deg": round(s.obliquity, 2),
-                    "description": s.description,
+                    "description": public_text(s.description),
                     "role": s.meta.get("role", {}),
                 }
                 for k, s in study.stacks.items()
@@ -404,10 +405,18 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(raw)
     from .anatomy.review import ReviewError
 
+    path = getattr(args, "path", None)
+
+    def _scrub(text: str) -> str:
+        return text.replace(str(path), "<input path>") if path else text
+
     try:
         return int(args.func(args))
     except ReviewError as exc:  # a corrected file that does not belong to this study, or is malformed
-        print(f"anchors refused: {exc}", file=sys.stderr)
+        print(f"anchors refused: {_scrub(str(exc))}", file=sys.stderr)
+        return 2
+    except Exception as exc:  # errors may quote the input path: show the type and the message without it
+        print(f"spinescope: {type(exc).__name__}: {_scrub(str(exc))}", file=sys.stderr)
         return 2
 
 

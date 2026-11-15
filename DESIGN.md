@@ -14,7 +14,8 @@
    evidence used, and fails loudly (warning + low confidence) rather than silently.
 3. **Privacy by construction.** Readers keep an allowlist of technical DICOM attributes
    (`spinescope.io.KEEP_TAGS`). Names, IDs, dates, institutions, physicians, UIDs and file paths never
-   reach outputs (private `meta` keys start with `_` and are never serialized). Tests use the phantom
+   reach outputs; free-text attributes are reduced to protocol vocabulary in outputs (`spinescope.privacy`,
+   `docs/privacy.md`) (private `meta` keys start with `_` and are never serialized). Tests use the phantom
    (which carries fake PHI precisely to test this) or public datasets.
 4. **Honest outputs.** The toolkit measures and flags; it does not diagnose. Automated grades are
    "suggestions" with confidence; reading sheets and structured findings are for a reader (human or

@@ -553,14 +553,11 @@ class SpineTools:
                 raise ToolError("a findings path is not a file")
             real.append(p)
         consensus = merge(list(real), use_confidence=use_confidence, config=self._cfg)
-        names: dict[str, str] = {}
-        for p in real:
-            names[str(Path(p).resolve())] = Path(p).name
-            names[p] = Path(p).name
+        full_paths = sorted({p for p in real} | {str(Path(p).resolve()) for p in real}, key=len, reverse=True)
 
-        def scrub(text: str) -> str:
-            for full, short in names.items():
-                text = text.replace(full, short)
+        def scrub(text: str) -> str:  # input paths never leave the server: merge labels them "file n"
+            for full in full_paths:
+                text = text.replace(full, "<findings file>")
             return text
 
         out = json.loads(scrub(json.dumps(consensus.to_dict(), ensure_ascii=False)))
@@ -658,7 +655,14 @@ def build_server(tools: SpineTools | None = None) -> Any:
         method: Callable[..., Any] = getattr(impl, name)
 
         def adapter(*args: Any, _m: Callable[..., Any] = method, **kwargs: Any) -> Any:
-            return _as_content(_m(*args, **kwargs))
+            try:
+                return _as_content(_m(*args, **kwargs))
+            except ToolError:
+                raise
+            except Exception as exc:
+                # Library messages can quote inputs (paths, series text): the model gets the type only.
+                log.debug("tool failed: %s", type(exc).__name__)
+                raise ToolError(f"the tool failed ({type(exc).__name__}); details withheld") from None
 
         functools.update_wrapper(adapter, method)
         adapter.__name__ = name

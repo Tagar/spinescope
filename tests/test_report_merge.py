@@ -303,8 +303,10 @@ def test_sources_as_directory_with_rejects_and_skips(tmp_path: Path) -> None:
     (tmp_path / "broken.json").write_text("{", encoding="utf-8")
     res = merge(tmp_path)
     assert res.reader_names == ["a", "b"]
-    assert [r["source"] for r in res.rejected] == ["broken.json", "c.json"]
-    assert res.skipped == ["notes.json"]
+    # sources are labelled by position, never by file name (a file name can carry identifying text)
+    assert [r["source"] for r in res.rejected] == ["file 3", "file 4"]
+    assert not any("broken" in str(v) or "c.json" in str(v) for v in res.rejected)
+    assert res.skipped == ["file 5"]
     assert res.fields[PF]["status"] == "unanimous"
     assert any('$.levels["L4-L5"].disc.pfirrmann.value' in e for e in res.rejected[1]["errors"])
 

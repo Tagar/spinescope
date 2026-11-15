@@ -19,6 +19,8 @@ from typing import Any
 import numpy as np
 from numpy.typing import NDArray
 
+from .privacy import public_text
+
 FloatArray = NDArray[np.float64]
 
 PLANES = ("sag", "cor", "ax")
@@ -189,7 +191,7 @@ class Stack:
 
     def summary(self) -> str:
         return (
-            f"{self.key}: '{self.description}' n={self.n} {self.vol.shape[1]}x{self.vol.shape[2]} "
+            f"{self.key}: '{public_text(self.description)}' n={self.n} {self.vol.shape[1]}x{self.vol.shape[2]} "
             f"px={self.row_mm:.3f}x{self.col_mm:.3f}mm thk={self.thickness:g} spacing={self.spacing:.2f}mm "
             f"plane={self.plane} oblique={self.obliquity:.1f}deg"
         )

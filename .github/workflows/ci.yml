@@ -64,8 +64,22 @@ jobs:
       - run: python -m pip install -e ".[dev]"
       - run: python -m pytest -m "" --cov=spinescope --cov-report=term-missing --cov-report=xml
 
+  # Privacy canaries: every output surface (text, JSON, PNG, HTML, logs, errors) is scanned for planted identifying
+  # text; see docs/privacy.md. Also part of the test job; this job makes the check visible on its own.
+  privacy:
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: python -m pip install -e ".[dev]"
+      - run: python -m pytest tests/test_privacy_canaries.py tests/test_report_merge.py tests/test_report_render.py -q
+
   build:
-    needs: [test, test-full]
+    needs: [test, test-full, privacy]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

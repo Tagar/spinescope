@@ -22,6 +22,7 @@ from numpy.typing import NDArray
 
 from ..config import DEFAULT, Config
 from ..geometry import Stack, unit
+from ..privacy import public_text
 from ..series import DISPLAY_AXES
 from ..study import Study
 
@@ -202,7 +203,7 @@ def plan_reformat(study: Study, plane: str, *, config: Config = DEFAULT) -> Refo
         rows=rows,
         cols=cols,
         contrast=str(role.get("contrast", "")),
-        source_description=src.description,
+        source_description=public_text(src.description),
     )
 
 

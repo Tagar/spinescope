@@ -7,6 +7,7 @@ for evidence images; the HTML page embeds thumbnails (base64 PNG) so it works wi
 from __future__ import annotations
 
 import base64
+import hashlib
 import html
 import io
 import logging
@@ -110,7 +111,7 @@ def _ev_text(evidence: list[dict[str, Any]]) -> str:
     parts = []
     for ev in evidence:
         sl = ",".join(str(s) for s in ev["slices"]) or "whole"
-        parts.append(f"{Path(ev['image']).name} [{ev['series']} k={sl}] ({', '.join(ev['readers'])})")
+        parts.append(f"{_image_ref(str(ev['image']))} [{ev['series']} k={sl}] ({', '.join(ev['readers'])})")
     return "; ".join(parts) or "-"
 
 
@@ -343,6 +344,11 @@ def _render_md(blocks: list[Block]) -> str:
     return "\n".join(out).rstrip() + "\n"
 
 
+def _image_ref(image: str) -> str:
+    """Opaque label for an evidence image: a hash of its path, never the file name (names can carry identifiers)."""
+    return "image " + hashlib.sha256(image.encode("utf-8")).hexdigest()[:8]
+
+
 def _thumbnail_b64(image: str, image_root: Path | None, thumb_px: int) -> str | None:
     """Base64 PNG thumbnail of an evidence image, or None if it cannot be read."""
     p = Path(image)
@@ -357,7 +363,7 @@ def _thumbnail_b64(image: str, image_root: Path | None, thumb_px: int) -> str | 
             buf = io.BytesIO()
             im.save(buf, format="PNG", optimize=True)
     except (OSError, ValueError) as exc:
-        log.warning("evidence image not embedded (%s): %s", p.name, exc)
+        log.warning("evidence image not embedded (%s): %s", _image_ref(image), type(exc).__name__)
         return None
     return base64.b64encode(buf.getvalue()).decode("ascii")
 
@@ -390,7 +396,7 @@ class _Gallery:
             return None
         n = len(self.entries) + 1
         self.index[image] = n
-        self.entries.append((n, Path(image).name, str(ev["series"]), data))
+        self.entries.append((n, _image_ref(image), str(ev["series"]), data))
         return n
 
 
@@ -400,7 +406,7 @@ def _html_cell(cell: Cell, gallery: _Gallery) -> str:
     parts = []
     for ev in cell.items:
         sl = ",".join(str(s) for s in ev["slices"]) or "whole"
-        label = f"{html.escape(Path(ev['image']).name)} [{html.escape(str(ev['series']))} k={sl}]"
+        label = f"{html.escape(_image_ref(str(ev['image'])))} [{html.escape(str(ev['series']))} k={sl}]"
         n = gallery.index.get(str(ev["image"])) or None
         if n is not None:
             parts.append(f'<a href="#img-{n}">{label}</a>')
