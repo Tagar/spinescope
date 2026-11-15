@@ -65,6 +65,34 @@ def model_path(name: str = MODEL_ASSET) -> Path:
     return Path(str(resources.files("spinescope.anatomy.ml") / "assets" / name))
 
 
+#: ONNX Runtime intra-op threads for new sessions (0 = runtime default). Set with :func:`set_intra_op_threads`
+#: when several labelling jobs share a machine (each process should use a few threads, not every core).
+_INTRA_OP_THREADS = 0
+
+
+def set_intra_op_threads(n: int) -> None:
+    """Limit ONNX Runtime intra-op threads for labeller sessions created from now on (0 = runtime default)."""
+    global _INTRA_OP_THREADS
+    if n < 0:
+        raise ValueError("intra-op thread count must be >= 0")
+    if n != _INTRA_OP_THREADS:
+        _INTRA_OP_THREADS = n
+        _session_for.cache_clear()
+
+
+def session_options() -> ort.SessionOptions:
+    """ONNX Runtime options shared by the packaged models (quiet, CPU, thread limit from :func:`set_intra_op_threads`)."""
+    try:
+        import onnxruntime as ort
+    except ImportError as exc:  # pragma: no cover - exercised when the extra is missing
+        raise ImportError("the learned labellers need onnxruntime: pip install 'spinescope[ml]'") from exc
+    opts = ort.SessionOptions()
+    opts.log_severity_level = 3
+    if _INTRA_OP_THREADS > 0:
+        opts.intra_op_num_threads = _INTRA_OP_THREADS
+    return opts
+
+
 @lru_cache(maxsize=4)
 def _session_for(path: str) -> ort.InferenceSession:
     try:
@@ -73,9 +101,7 @@ def _session_for(path: str) -> ort.InferenceSession:
         raise ImportError("label_spine_ml needs onnxruntime: pip install 'spinescope[ml]'") from exc
     if not Path(path).is_file():
         raise FileNotFoundError(f"labeller weights not found: {path}")
-    opts = ort.SessionOptions()
-    opts.log_severity_level = 3
-    return ort.InferenceSession(path, sess_options=opts, providers=["CPUExecutionProvider"])
+    return ort.InferenceSession(path, sess_options=session_options(), providers=["CPUExecutionProvider"])
 
 
 def load_session(path: str | Path | None = None) -> ort.InferenceSession:
@@ -115,6 +141,19 @@ def segment_stack(
     imgs = np.stack([normalise(resample_slice(stack, g), window) for g in grids])
     probs = run_network(sess, imgs)
     return SegmentedStack(stack=stack, grids=grids, probs=probs, window=window)
+
+
+def segment_primary(
+    study: Study, config: Config | None = None, *, session: Any = None
+) -> SegmentedStack | None:
+    """Network output for the primary sagittal stack of ``study`` (``study.best('sag')``); None without sagittal."""
+    cfg = config or DEFAULT
+    if session is None and cfg.ml_model != MODEL_ASSET:
+        session = load_session(model_path(cfg.ml_model))
+    stack = study.best("sag")
+    if stack is None:
+        return None
+    return segment_stack(stack, cfg, session=session)
 
 
 def label_spine_ml(study: Study, config: Config | None = None, *, session: Any = None) -> Anchors:
@@ -165,5 +204,8 @@ __all__ = [
     "load_session",
     "model_path",
     "run_network",
+    "segment_primary",
     "segment_stack",
+    "session_options",
+    "set_intra_op_threads",
 ]

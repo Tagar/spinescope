@@ -11,7 +11,9 @@ from .labeller import (
     label_spine_ml_segmented,
     load_session,
     model_path,
+    segment_primary,
     segment_stack,
+    set_intra_op_threads,
 )
 from .postprocess import anchors_from_segmentation
 
@@ -27,5 +29,7 @@ __all__ = [
     "normalise",
     "plane_grid",
     "resample_slice",
+    "segment_primary",
     "segment_stack",
+    "set_intra_op_threads",
 ]
