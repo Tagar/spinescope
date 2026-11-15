@@ -67,7 +67,7 @@ def truth_from_mask(mask_path: str) -> tuple[list[TruthDisc], float | None]:
         pts = origin + (idx * spacing) @ direction.T
         centre = pts.mean(axis=0)
         cov = np.cov((pts - centre).T)
-        w, v = np.linalg.eigh(cov)
+        _w, v = np.linalg.eigh(cov)
         normal = v[:, 0]
         if normal[2] < 0:
             normal = -normal
