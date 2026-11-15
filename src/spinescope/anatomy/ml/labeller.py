@@ -143,7 +143,9 @@ def segment_stack(
     return SegmentedStack(stack=stack, grids=grids, probs=probs, window=window)
 
 
-def segment_primary(study: Study, config: Config | None = None, *, session: Any = None) -> SegmentedStack | None:
+def segment_primary(
+    study: Study, config: Config | None = None, *, session: Any = None
+) -> SegmentedStack | None:
     """Network output for the primary sagittal stack of ``study`` (``study.best('sag')``); None without sagittal."""
     cfg = config or DEFAULT
     if session is None and cfg.ml_model != MODEL_ASSET:

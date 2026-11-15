@@ -1,27 +1,48 @@
-"""Lumbosacral junction module (lab13): unit tests on synthetic anchors and phantom class maps.
+"""Lumbosacral junction module (lab13): unit tests, network-free except the packaged-model smoke test.
 
-Nothing here needs SPIDER, Sudirman or the ONNX weights. The phantom segmentation is built from its analytic labels
-(as in test_anatomy_ml_sacrum.py), with a thin sacral disc painted below the lowest true disc.
+Synthetic anchors test the drop and rename; a fake scorer tests the decision rules; the phantom segmentation is built
+from its analytic labels (as in test_anatomy_ml_sacrum.py), with a thin sacral disc painted below the lowest disc.
 """
 
 from __future__ import annotations
-
-import json
 
 import numpy as np
 import pytest
 
 from spinescope.anatomy import lumbosacral as L
 from spinescope.anatomy.anchors import Anchors, Disc, Vertebra
-from spinescope.anatomy.calibration import Logistic
 from spinescope.anatomy.ml.grid import plane_grid
 from spinescope.anatomy.ml.labeller import BODY, CANAL, DISC, SegmentedStack
 from spinescope.anatomy.ml.postprocess import anchors_from_segmentation, mid_sagittal
 from spinescope.anatomy.numbering import disc_names
+from spinescope.anatomy.pipeline import _apply_status_caps
 from spinescope.config import DEFAULT
 from spinescope.testing.phantom import ANNULUS, CORD, CORTEX, CSF, MARROW, MODIC1, NUCLEUS, SpinePhantom
 
 _TO_CLASS = {MARROW: BODY, CORTEX: BODY, MODIC1: BODY, ANNULUS: DISC, NUCLEUS: DISC, CSF: CANAL, CORD: CANAL}
+
+
+class _Fixed:
+    """A scorer with fixed P(L5-S1) per candidate (stands in for the packaged CNN)."""
+
+    def __init__(self, probs: list[float], cfg: L.LumbosacralConfig | None = None) -> None:
+        self._p = np.asarray(probs, dtype=np.float64)
+        self.config = cfg or L.DEFAULT_LUMBOSACRAL
+
+    def predict(self, patches: object) -> np.ndarray:
+        return self._p
+
+
+def _cands(n: int) -> list[L.Candidate]:
+    return [L.Candidate(label=f"D{i}", rank=i) for i in range(n)]
+
+
+def _patches(n: int) -> np.ndarray:
+    return np.zeros((n, L.PATCH_MM, L.PATCH_MM), np.float32)
+
+
+def _decide(probs: list[float], cfg: L.LumbosacralConfig | None = None) -> L.LumbosacralDecision:
+    return L.decide(_cands(len(probs)), _patches(len(probs)), _Fixed(probs, cfg))
 
 
 def _disc(z: float) -> Disc:
@@ -31,39 +52,12 @@ def _disc(z: float) -> Disc:
 def _anchors_at(zs: list[float]) -> Anchors:
     """Discs at heights ``zs`` (bottom-up), named by count from the bottom, with bodies between them."""
     a = Anchors(method="test")
-    names = disc_names(len(zs))
-    for name, z in zip(names, zs, strict=True):
+    for name, z in zip(disc_names(len(zs)), zs, strict=True):
         a.discs[name] = _disc(z)
     bodies = [zs[0] - 20.0] + [(zs[i] + zs[i + 1]) / 2 for i in range(len(zs) - 1)] + [zs[-1] + 20.0]
     for i, z in enumerate(bodies):
         a.vertebrae[f"V{i}"] = Vertebra(center=[0.0, 0.0, z])
     return a
-
-
-def _cand(label: str, rank: int, **features: float) -> L.Candidate:
-    base = {name: 0.0 for name in L.FEATURES}
-    base.update(features)
-    return L.Candidate(label=label, rank=rank, features=base)
-
-
-def _linear_model(config: L.LumbosacralConfig | None = None) -> L.LumbosacralModel:
-    """p(L5-S1) = expit(tilt_deg): each candidate's tilt is set to logit(p) in the tests."""
-    w = [1.0 if n == "tilt_deg" else 0.0 for n in L.FEATURES]
-    lg = Logistic(
-        names=L.FEATURES,
-        mean=[0.0] * len(L.FEATURES),
-        scale=[1.0] * len(L.FEATURES),
-        weights=w,
-        bias=0.0,
-    )
-    return L.LumbosacralModel(lg, config or L.DEFAULT_LUMBOSACRAL)
-
-
-def _cands_for(ps: list[float]) -> list[L.Candidate]:
-    out = []
-    for i, p in enumerate(ps):
-        out.append(_cand(f"D{i}", i, tilt_deg=float(np.log(p / (1 - p)))))
-    return out
 
 
 # ------------------------------------------------------------------ dropping sacral discs
@@ -83,12 +77,10 @@ def test_drop_lowest_renames_bodies_and_keeps_one_s1() -> None:
     a = _anchors_at([-80.0, -50.0, -15.0, 20.0])
     L.drop_lowest(a, 1)
     names = {name: round(v.center[2]) for name, v in a.vertebrae.items()}
-    # Bodies: below -50 (S1 after the drop), -50..-15 (L5), -15..20 (L4), above 20 (L3). The old S1 below -80 and the
-    # body between -80 and -50 both count as "below the new lowest disc": the one nearest to it is kept as S1.
-    assert names["S1"] == -65  # nearest body below -50 is the one at -65
-    assert "L5" in names and names["L5"] == -32
-    assert "L4" in names and names["L4"] == 2
-    assert len(a.vertebrae) == len(set(a.vertebrae))
+    # Bodies below -50 (S1 after the drop): the nearest one (at -65) keeps the name; the one at -100 is dropped.
+    assert names["S1"] == -65
+    assert names["L5"] == -32
+    assert names["L4"] == 2
 
 
 def test_drop_zero_or_empty_is_identity() -> None:
@@ -96,8 +88,7 @@ def test_drop_zero_or_empty_is_identity() -> None:
     before = a.disc_labels()
     L.drop_lowest(a, 0)
     assert a.disc_labels() == before
-    empty = Anchors(method="test")
-    assert L.drop_lowest(empty, 2) == {}
+    assert L.drop_lowest(Anchors(method="test"), 2) == {}
 
 
 def test_drop_lowest_follows_conus_level() -> None:
@@ -115,55 +106,105 @@ def test_drop_lowest_follows_conus_level() -> None:
 
 
 def test_decide_keep_when_lowest_is_clearly_l5s1() -> None:
-    dec = L.decide(_cands_for([0.95, 0.05, 0.02]), _linear_model())
+    dec = _decide([0.95, 0.05, 0.02])
     assert dec.status == "keep" and dec.drop == 0
 
 
 def test_decide_drops_sacral_lowest_disc_when_next_is_l5s1() -> None:
-    dec = L.decide(_cands_for([0.05, 0.97, 0.02]), _linear_model())
+    dec = _decide([0.05, 0.97, 0.02])
     assert dec.status == "drop" and dec.drop == 1
     assert dec.to_dict()["p_l5s1"][1] == pytest.approx(0.97, abs=1e-3)
 
 
-def test_decide_unsure_when_second_candidate_is_plausible_but_not_strong() -> None:
-    dec = L.decide(_cands_for([0.2, 0.7, 0.05]), _linear_model())
+def test_decide_drops_two_sacral_discs_when_third_is_l5s1() -> None:
+    dec = _decide([0.01, 0.02, 0.93])
+    assert dec.status == "drop" and dec.drop == 2
+
+
+def test_decide_unsure_when_lower_candidate_is_plausible_but_not_strong() -> None:
+    dec = _decide([0.2, 0.7, 0.05])  # default drop threshold 0.8
     assert dec.status == "unsure" and dec.drop == 0 and dec.warnings
 
 
 def test_decide_unsure_when_no_candidate_is_clearly_l5s1() -> None:
-    assert L.decide(_cands_for([0.3, 0.4, 0.2]), _linear_model()).status == "unsure"
-    assert L.decide(_cands_for([0.4, 0.2]), _linear_model()).status == "unsure"
+    assert _decide([0.3, 0.4, 0.2]).status == "unsure"
+    assert _decide([0.4, 0.2]).status == "unsure"
 
 
 def test_decide_not_assessed_without_model_or_candidates() -> None:
-    assert L.decide(_cands_for([0.9]), None).status == "not_assessed"
-    assert L.decide([], _linear_model()).status == "not_assessed"
+    assert L.decide(_cands(1), _patches(1), None).status == "not_assessed"
+    assert L.decide([], _patches(0), _Fixed([])).status == "not_assessed"
 
 
 def test_drop_threshold_is_configurable() -> None:
-    cfg = L.LumbosacralConfig(drop_min_p=0.99)
-    assert L.decide(_cands_for([0.05, 0.97]), _linear_model(cfg)).status == "unsure"
+    assert _decide([0.05, 0.97], L.LumbosacralConfig(drop_min_p=0.99)).status == "unsure"
 
 
-# ------------------------------------------------------------------ packaged model
+def test_record_has_decision_and_applied_drop() -> None:
+    rec = L.lumbosacral_record(_decide([0.05, 0.97]), 1)
+    assert rec["status"] == "drop" and rec["applied_drop"] == 1 and rec["candidates"] == ["D0", "D1"]
 
 
-def test_model_round_trip_and_feature_guard() -> None:
-    m = _linear_model(L.LumbosacralConfig(drop_min_p=0.8))
-    d = json.loads(json.dumps(m.to_dict()))
-    m2 = L.LumbosacralModel.from_dict(d)
-    assert m2.config.drop_min_p == 0.8
-    assert m2.logistic.weights == m.logistic.weights
-    bad = dict(d, features=list(d["features"])[:-1])
-    with pytest.raises(ValueError):
-        L.LumbosacralModel.from_dict(bad)
+# ------------------------------------------------------------------ packaged model and patches
 
 
-def test_load_model_missing_file_is_none(tmp_path) -> None:  # type: ignore[no-untyped-def]
-    assert L.load_model(str(tmp_path / "absent.json")) is None
+def test_packaged_model_loads_and_scores_patches() -> None:
+    model = L.load_model()
+    assert model is not None, "lumbosacral_v1.json and .onnx must be packaged"
+    assert model.onnx_path.stat().st_size <= 2 * 1024 * 1024
+    assert 0.5 <= model.config.drop_min_p <= 1.0
+    rng = np.random.default_rng(0)
+    p = model.predict(rng.random((3, L.PATCH_MM, L.PATCH_MM)).astype(np.float32))
+    assert p.shape == (3,) and np.all((p > 0) & (p < 1))
 
 
-# ------------------------------------------------------------------ features on a phantom segmentation
+def test_model_missing_files_gives_none(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    assert L.load_model(str(tmp_path)) is None
+
+
+def test_patch_grid_puts_disc_at_the_documented_position(phantom: SpinePhantom) -> None:
+    seg = _phantom_seg(phantom)
+    g = seg.grids[mid_sagittal(seg, DEFAULT).k]  # type: ignore[union-attr]
+    pg = L.patch_grid(g, 10.0, -5.0)
+    assert pg.shape == (L.PATCH_MM, L.PATCH_MM) and pg.res_mm == 1.0
+    i, j = pg.index_of_mm(10.0, -5.0)
+    assert float(i) == pytest.approx(L.PATCH_ABOVE_MM - 0.5, abs=1e-6)
+    assert float(j) == pytest.approx(L.PATCH_ANTERIOR_MM - 0.5, abs=1e-6)
+
+
+def test_candidate_patches_bottom_up_and_normalised(phantom: SpinePhantom) -> None:
+    seg = _phantom_seg(phantom)
+    an = anchors_from_segmentation(seg, DEFAULT)
+    cands, patches = L.candidate_patches(seg, an, DEFAULT)
+    assert len(cands) == min(L.K_CANDIDATES, len(an.discs))
+    assert [c.rank for c in cands] == list(range(len(cands)))
+    assert cands[0].label == an.disc_labels()[-1]
+    assert patches.shape == (len(cands), L.PATCH_MM, L.PATCH_MM)
+    assert patches.min() >= 0.0 and patches.max() <= 1.0 + 1e-6
+
+
+def test_no_discs_gives_no_candidates(phantom: SpinePhantom) -> None:
+    seg = _phantom_seg(phantom)
+    cands, patches = L.candidate_patches(seg, Anchors(method="test"), DEFAULT)
+    assert cands == [] and patches.shape[0] == 0
+
+
+def test_thin_sacral_disc_is_lowest_candidate_and_drop_removes_it(phantom: SpinePhantom) -> None:
+    seg = _phantom_seg(phantom)
+    an = anchors_from_segmentation(seg, DEFAULT)
+    n_true = len(an.discs)
+    _paint_sacral_remnant(seg, an)
+    an2 = anchors_from_segmentation(seg, DEFAULT)
+    assert len(an2.discs) == n_true + 1
+    cands, patches = L.candidate_patches(seg, an2, DEFAULT)
+    remnant_z = float(an2.discs[cands[0].label].center[2])
+    l5s1_label = cands[1].label
+    dec = L.decide(cands, patches, _Fixed([0.0, 0.99, 0.0]))
+    assert dec.status == "drop" and dec.drop == 1
+    mapping = L.drop_lowest(an2, dec.drop)
+    assert all(abs(float(d.center[2]) - remnant_z) > 1.0 for d in an2.discs.values())
+    assert len(an2.discs) == n_true
+    assert mapping[l5s1_label] == "L5-S1"
 
 
 def _phantom_seg(phantom: SpinePhantom) -> SegmentedStack:
@@ -183,56 +224,39 @@ def _phantom_seg(phantom: SpinePhantom) -> SegmentedStack:
 
 
 def _paint_sacral_remnant(seg: SegmentedStack, anchors: Anchors) -> None:
-    """Paint a thin disc 35 mm below the lowest disc, on the mid-sagittal slice (the labeller's job; here analytic)."""
+    """Paint a thin disc 35 mm below the lowest disc on the mid-sagittal slice (the labeller's job; here analytic)."""
     mid = mid_sagittal(seg, DEFAULT)
     assert mid is not None
     k = mid.k
     grid = seg.grids[k]
     low = anchors.discs[anchors.disc_labels()[-1]]
     down, post = (float(v) for v in grid.mm_of(np.asarray(low.center))[:2])
-    row = int(round(float(grid.index_of_mm(down + 35.0, post)[0])))
-    col = int(round(float(grid.index_of_mm(down, post)[1])))
-    rows = slice(row - 2, row + 2)
-    cols = slice(col - 12, col + 13)
-    seg.probs[k, DISC, rows, cols] = 0.95
-    seg.probs[k, BODY, rows, cols] = 0.0
+    row = round(float(grid.index_of_mm(down + 35.0, post)[0]))
+    col = round(float(grid.index_of_mm(down, post)[1]))
+    seg.probs[k, DISC, row - 2 : row + 2, col - 12 : col + 13] = 0.95
+    seg.probs[k, BODY, row - 2 : row + 2, col - 12 : col + 13] = 0.0
 
 
-def test_candidate_features_have_every_feature_and_bottom_order(phantom: SpinePhantom) -> None:
-    seg = _phantom_seg(phantom)
-    an = anchors_from_segmentation(seg, DEFAULT)
-    cands = L.candidate_features(seg, an, DEFAULT)
-    assert len(cands) == min(L.K_CANDIDATES, len(an.discs))
-    assert [c.rank for c in cands] == list(range(len(cands)))
-    assert cands[0].label == an.disc_labels()[-1]
-    for c in cands:
-        assert set(c.features) == set(L.FEATURES)
-        assert all(np.isfinite(v) for v in c.features.values())
-    rows = L.feature_rows(cands)
-    assert rows.shape == (len(cands), len(L.FEATURES))
+# ------------------------------------------------------------------ status caps
 
 
-def test_thin_sacral_disc_is_the_lowest_candidate_and_is_dropped(phantom: SpinePhantom) -> None:
-    seg = _phantom_seg(phantom)
-    an = anchors_from_segmentation(seg, DEFAULT)
-    n_true = len(an.discs)
-    _paint_sacral_remnant(seg, an)
-    an2 = anchors_from_segmentation(seg, DEFAULT)
-    assert len(an2.discs) == n_true + 1
-    cands = L.candidate_features(seg, an2, DEFAULT)
-    remnant = cands[0]
-    l5s1 = cands[1]
-    # The painted disc is thin (4 mm) and sits 35 mm below the true lowest disc: thinner and lower than L5-S1.
-    assert remnant.features["log_height"] < l5s1.features["log_height"]
-    assert remnant.features["spacing_mm"] == pytest.approx(35.0, abs=3.0)
-    assert remnant.label != l5s1.label
-    remnant_z = float(an2.discs[remnant.label].center[2])
-    dropped = L.drop_lowest(an2, 1)
-    assert all(abs(float(d.center[2]) - remnant_z) > 1.0 for d in an2.discs.values())  # the remnant is gone
-    assert len(an2.discs) == n_true
-    assert dropped[l5s1.label] == "L5-S1"  # the true L5-S1 is now the lowest disc
+def test_status_caps_for_the_lumbosacral_decision() -> None:
+    kw = {"sacrum_below": True, "applied": False, "second_extra": False}
+    assert _apply_status_caps("confirmed", **kw, lumbo_status="keep") == "confirmed"
+    assert _apply_status_caps("probable", **kw, lumbo_status="unsure") == "unconfirmed"
+    assert _apply_status_caps("confirmed", **kw, lumbo_status="unsure") == "unconfirmed"
+    assert _apply_status_caps("confirmed", **kw, lumbo_status="drop") == "probable"
+    assert _apply_status_caps("probable", **kw, lumbo_status="not_assessed") == "probable"
+    assert _apply_status_caps("unconfirmed", **kw, lumbo_status="unsure") == "unconfirmed"
 
 
-def test_no_discs_gives_no_candidates(phantom: SpinePhantom) -> None:
-    seg = _phantom_seg(phantom)
-    assert L.candidate_features(seg, Anchors(method="test"), DEFAULT) == []
+def test_pipeline_switch_off_gives_no_lumbosacral_record(phantom_study) -> None:  # type: ignore[no-untyped-def]
+    """``lumbosacral=False`` is the labeller-only "before"; the default records the decision."""
+    from spinescope.anatomy.pipeline import label_spine_details
+
+    off = label_spine_details(phantom_study, backend="ml", calibrate=False, lumbosacral=False)
+    assert "lumbosacral" not in off.anchors.numbering
+    on = label_spine_details(phantom_study, backend="ml", calibrate=False)
+    rec = on.anchors.numbering.get("lumbosacral")
+    assert rec is not None and rec["status"] in ("keep", "drop", "unsure", "not_assessed")
+    assert rec["applied_drop"] == (rec["drop"] if rec["status"] == "drop" else 0)

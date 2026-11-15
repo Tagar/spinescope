@@ -26,7 +26,6 @@ from __future__ import annotations
 
 import json
 import logging
-import math
 from dataclasses import dataclass, field
 from functools import lru_cache
 from importlib import resources
@@ -181,7 +180,9 @@ def patch_grid(grid: PlaneGrid, cdown: float, cpost: float) -> PlaneGrid:
     )
 
 
-def disc_patch(stack: Stack, grid: PlaneGrid, cdown: float, cpost: float, window: tuple[float, float]) -> NDArray[np.float32]:
+def disc_patch(
+    stack: Stack, grid: PlaneGrid, cdown: float, cpost: float, window: tuple[float, float]
+) -> NDArray[np.float32]:
     """Normalised image patch around (cdown, cpost) on slice ``grid.k`` of ``stack``."""
     return normalise(resample_slice(stack, patch_grid(grid, cdown, cpost)), window)
 
@@ -215,7 +216,9 @@ def decide(cands: list[Candidate], patches: NDArray[np.float32], model: Scorer |
     if model is None:
         return LumbosacralDecision("not_assessed", 0, warnings=["lumbosacral model not packaged"])
     if not cands:
-        return LumbosacralDecision("not_assessed", 0, warnings=["no disc candidates for the lumbosacral check"])
+        return LumbosacralDecision(
+            "not_assessed", 0, warnings=["no disc candidates for the lumbosacral check"]
+        )
     probs = model.predict(patches)
     for c, p in zip(cands, probs, strict=True):
         c.p_l5s1 = float(p)
@@ -224,7 +227,7 @@ def decide(cands: list[Candidate], patches: NDArray[np.float32], model: Scorer |
     pb = cands[best].p_l5s1
     ev = [f"P(L5-S1) rank {c.rank} ({c.label}) = {c.p_l5s1:.2f}" for c in cands]
     if best == 0 and pb >= th.keep_min_p:
-        return LumbosacralDecision("keep", 0, cands, ev + ["lowest disc is L5-S1"])
+        return LumbosacralDecision("keep", 0, cands, [*ev, "lowest disc is L5-S1"])
     if best >= 1 and pb >= th.drop_min_p:
         ev.append(f"{best} lowest disc(s) are sacral (S1-S2 remnant or sacral segment): removed")
         return LumbosacralDecision("drop", best, cands, ev)

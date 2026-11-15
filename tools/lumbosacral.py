@@ -274,7 +274,7 @@ def cmd_train(args: argparse.Namespace) -> int:
         "epochs": epochs,
         "batch": batch,
         "seed": SEED,
-        "train_patches": int(len(y)),
+        "train_patches": len(y),
         "train_positive": int(y.sum().item()),
         "train_volumes_excluded_held_out": len(held),
         "loss_history": hist,
@@ -333,7 +333,9 @@ def _sweep(recs: list[dict[str, Any]], drop_min_p: float) -> dict[str, int]:
         if r.get("error") or r.get("drop_truth") is None or not r["probs"]:
             continue
         cands = [L.Candidate(label=str(i), rank=i) for i in range(len(r["probs"]))]
-        dec = L.decide(cands, np.zeros((len(cands), L.PATCH_MM, L.PATCH_MM), np.float32), _Fixed(r["probs"], cfg))
+        dec = L.decide(
+            cands, np.zeros((len(cands), L.PATCH_MM, L.PATCH_MM), np.float32), _Fixed(r["probs"], cfg)
+        )
         truth = int(r["drop_truth"])
         c["n"] += 1
         if dec.status == "drop":
@@ -352,7 +354,6 @@ def cmd_select(args: argparse.Namespace) -> int:
     if not onnx.is_file():
         log.error("no model at %s: run train first", onnx)
         return 1
-    model = L.LumbosacralModel(onnx_path=onnx)
     held = json.loads((out / "heldout.json").read_text(encoding="utf-8"))
     cache = out / "select"
     cache.mkdir(parents=True, exist_ok=True)
@@ -367,14 +368,22 @@ def cmd_select(args: argparse.Namespace) -> int:
 
     best = max(DROP_GRID, key=lambda g: (round(score(sweep[str(g)]), 9), -abs(g - 0.8)))
     cfg = L.LumbosacralConfig(drop_min_p=best)
-    meta = json.loads((out / "train_meta.json").read_text(encoding="utf-8")) if (out / "train_meta.json").is_file() else {}
+    meta = (
+        json.loads((out / "train_meta.json").read_text(encoding="utf-8"))
+        if (out / "train_meta.json").is_file()
+        else {}
+    )
     doc = {
         "version": 1,
         "onnx": L.MODEL_ONNX,
         "patch_mm": L.PATCH_MM,
         "input": "float32 (n, 1, 96, 96), intensity normalised to [0, 1] per volume (ml.grid.normalise)",
         "output": "logit of P(L5-S1); sigmoid applied by the caller",
-        "thresholds": {"drop_min_p": cfg.drop_min_p, "keep_min_p": cfg.keep_min_p, "unsure_min_p": cfg.unsure_min_p},
+        "thresholds": {
+            "drop_min_p": cfg.drop_min_p,
+            "keep_min_p": cfg.keep_min_p,
+            "unsure_min_p": cfg.unsure_min_p,
+        },
         "training": {
             **meta,
             "held_out_volumes": len(held),
@@ -416,8 +425,16 @@ def _summ(sc: Any, anchors: Any) -> dict[str, Any]:
     }
 
 
-def _eval_spider(job: tuple[str, str, str]) -> dict[str, Any]:
+def _both(study: Any, backend: str = "ml") -> tuple[Any, Any]:
+    """(before, after): the default pipeline (calibrated) with the sacral-disc check off, and on."""
     from spinescope.anatomy.pipeline import label_spine_details
+
+    before = label_spine_details(study, backend=backend, calibrate=True, lumbosacral=False)
+    after = label_spine_details(study, backend=backend, calibrate=True, lumbosacral=True)
+    return before, after
+
+
+def _eval_spider(job: tuple[str, str, str]) -> dict[str, Any]:
     from spinescope.study import load_study
 
     name, manu, split = job
@@ -426,22 +443,26 @@ def _eval_spider(job: tuple[str, str, str]) -> dict[str, Any]:
     try:
         study = load_study(str(SPIDER_ROOT / "images" / f"{name}.mha"))
         truth, mx = truth_from_mask(str(SPIDER_ROOT / "masks" / f"{name}.mha"))
-        det = label_spine_details(study, backend="ml", calibrate=False)
-        rec["before"] = _summ(score_anchors(det.unfused, truth, mx), det.unfused)
-        rec["after"] = _summ(score_anchors(det.anchors, truth, mx), det.anchors)
-        rec["lumbosacral"] = det.anchors.numbering.get("lumbosacral")
-        rec["drop_truth"] = _drop_truth(truth, det.unfused)
+        before, after = _both(study)
+        rec["before"] = _summ(score_anchors(before.anchors, truth, mx), before.anchors)
+        rec["after"] = _summ(score_anchors(after.anchors, truth, mx), after.anchors)
+        rec["lumbosacral"] = after.anchors.numbering.get("lumbosacral")
+        rec["drop_truth"] = _drop_truth(truth, before.anchors)
     except Exception as exc:
         rec["error"] = f"{type(exc).__name__}: {str(exc)[:200]}"
     rec["elapsed_s"] = round(time.perf_counter() - t0, 2)
     return rec
 
 
+def _safe(key: str) -> str:
+    return "".join(ch if ch.isalnum() or ch in "-_" else "_" for ch in key)
+
+
 def _drop_truth(truth: list[Any], unfused: Any) -> int | None:
     """Rank from the bottom of the unfused disc matched to the L5-S1 truth, or None."""
     matched = {m.pred: m.truth for m in score_anchors(unfused, truth, None).matches}
-    order = sorted(unfused.discs, key=lambda lab: unfused.discs[lab].center[2])
-    for rank, lab in enumerate(order[::-1]):
+    order = sorted(unfused.discs, key=lambda lab: unfused.discs[lab].center[2])  # bottom-up
+    for rank, lab in enumerate(order):
         if matched.get(lab) == "L5-S1":
             return rank
     return None
@@ -449,7 +470,6 @@ def _drop_truth(truth: list[Any], unfused: Any) -> int | None:
 
 def _eval_sudirman(pid: str) -> dict[str, Any]:
     from spinescope.anatomy._validate_sudirman import score_levels, truth_discs
-    from spinescope.anatomy.pipeline import label_spine_details
     from spinescope.datasets.sudirman import patient_sessions, select_session
 
     rec: dict[str, Any] = {"id": pid, "split": "sudirman", "error": None}
@@ -464,23 +484,76 @@ def _eval_sudirman(pid: str) -> dict[str, Any]:
             rec["error"] = "no session reproduces the label slices"
             return rec
         _sess, study, levels = sel
-        det = label_spine_details(study, backend="ml", calibrate=False)
-        after = score_levels(det.anchors, levels)
-        before = score_levels(det.unfused, levels)
+        b_det, a_det = _both(study)
+        after = score_levels(a_det.anchors, levels)
+        before = score_levels(b_det.anchors, levels)
         rec["after"] = [{"level": r.level, "matched": r.matched, "name_ok": r.name_ok} for r in after]
         rec["before"] = [{"level": r.level, "matched": r.matched, "name_ok": r.name_ok} for r in before]
-        rec["status"] = det.anchors.numbering.get("status")
-        rec["confidence"] = float(det.anchors.numbering.get("confidence", 0.0) or 0.0)
-        rec["lumbosacral"] = det.anchors.numbering.get("lumbosacral")
-        rec["drop_truth"] = _drop_truth(truth_discs(levels), det.unfused)
+        rec["status_before"] = b_det.anchors.numbering.get("status")
+        rec["status"] = a_det.anchors.numbering.get("status")
+        rec["confidence"] = float(a_det.anchors.numbering.get("confidence", 0.0) or 0.0)
+        rec["lumbosacral"] = a_det.anchors.numbering.get("lumbosacral")
+        rec["drop_truth"] = _drop_truth(truth_discs(levels), b_det.anchors)
     except Exception as exc:
         rec["error"] = f"{type(exc).__name__}: {str(exc)[:200]}"
     rec["elapsed_s"] = round(time.perf_counter() - t0, 2)
     return rec
 
 
+def _eval_qx5rt(session: Any) -> dict[str, Any]:
+    """Worker: one qx5rt session, scored level-wise before (labeller v1, unfused) and after the module."""
+    from spinescope.anatomy._validate_qx5rt import score_levels, truth_levels
+    from spinescope.io.volumes import read_volume
+    from spinescope.study import from_stacks
+
+    rec: dict[str, Any] = {
+        "key": session.key,
+        "vendor": session.vendor,
+        "model": session.model,
+        "error": None,
+    }
+    t0 = time.perf_counter()
+    try:
+        stack = read_volume(str(session.t1))
+        truths = truth_levels(session, stack)
+        b_det, a_det = _both(from_stacks([stack]), backend="auto")
+        rec["before"] = [_row(r) for r in score_levels(b_det.anchors, truths, session)]
+        rec["after"] = [_row(r) for r in score_levels(a_det.anchors, truths, session)]
+        rec["status_before"] = b_det.anchors.numbering.get("status")
+        rec["status"] = a_det.anchors.numbering.get("status")
+        rec["lumbosacral"] = a_det.anchors.numbering.get("lumbosacral")
+        rec["drop_truth"] = (
+            None  # the annotated levels stop at L4-L5: the module's drop is judged by the level rows
+        )
+    except Exception as exc:
+        rec["error"] = f"{type(exc).__name__}: {str(exc)[:200]}"
+    rec["elapsed_s"] = round(time.perf_counter() - t0, 2)
+    return rec
+
+
+def _row(r: Any) -> dict[str, Any]:
+    return {
+        "level": r.level,
+        "predicted": r.predicted,
+        "matched": bool(r.matched),
+        "name_ok": bool(r.name_ok),
+        "dist_mm": None if r.dist_mm is None else float(r.dist_mm),
+    }
+
+
 def cmd_evaluate(args: argparse.Namespace) -> int:
     out = Path(args.out)
+    if args.qx5rt:
+        from spinescope.anatomy._validate_qx5rt import discover
+
+        cache = out / "eval_qx5rt"
+        cache.mkdir(parents=True, exist_ok=True)
+        sessions = discover(None)
+        todo = [s for s in sessions if not (cache / f"{_safe(s.key)}.json").is_file()]
+        log.info("qx5rt: %d sessions, %d to run", len(sessions), len(todo))
+        for rec in _run_jobs(_eval_qx5rt, todo, args.jobs):
+            (cache / f"{_safe(rec['key'])}.json").write_text(json.dumps(rec), encoding="utf-8")
+        return 0
     if args.sudirman:
         from spinescope.datasets.sudirman import labelled_patients
 
@@ -537,14 +610,17 @@ def _agg_spider(recs: list[dict[str, Any]], key: str) -> dict[str, Any]:
         "centre_p90_mm": round(float(np.percentile(cerr, 90)), 2) if cerr else None,
         "fully_correct_volumes": fully,
         "fully_correct_share": round(fully / max(len(recs), 1), 3),
-        "volumes_with_pred_below_lowest_truth": sum(1 for r in recs if r[key]["pred_unmatched"]),
+        "volumes_with_unmatched_prediction": sum(1 for r in recs if r[key]["pred_unmatched"]),
         "wrong_volumes": len(wrong),
-        "wrong_but_probable_or_confirmed": sum(1 for r in wrong if r[key]["status"] in ("confirmed", "probable")),
+        "wrong_but_probable_or_confirmed": sum(
+            1 for r in wrong if r[key]["status"] in ("confirmed", "probable")
+        ),
         "status_counts": _count([r[key]["status"] for r in recs]),
     }
 
 
 def _agg_sudirman(recs: list[dict[str, Any]], key: str) -> dict[str, Any]:
+    skey = "status_before" if key == "before" else "status"
     lv = [x for r in recs for x in r[key]]
     matched = [x for x in lv if x["matched"]]
     ok = [x for x in matched if x["name_ok"]]
@@ -561,8 +637,8 @@ def _agg_sudirman(recs: list[dict[str, Any]], key: str) -> dict[str, Any]:
         "fully_correct_patients": full,
         "fully_correct_share": round(full / max(len(recs), 1), 3),
         "wrong_patients": len(wrong),
-        "wrong_but_probable_or_confirmed": sum(1 for r in wrong if r.get("status") in ("confirmed", "probable")),
-        "status_counts": _count([r.get("status") for r in recs]),
+        "wrong_but_probable_or_confirmed": sum(1 for r in wrong if r.get(skey) in ("confirmed", "probable")),
+        "status_counts": _count([r.get(skey) for r in recs]),
     }
 
 
@@ -576,7 +652,11 @@ def _count(xs: list[Any]) -> dict[str, int]:
 def _module_summary(recs: list[dict[str, Any]]) -> dict[str, Any]:
     st = [r["lumbosacral"]["status"] for r in recs if r.get("lumbosacral")]
     applied = [r["lumbosacral"]["applied_drop"] for r in recs if r.get("lumbosacral")]
-    known = [(r.get("drop_truth"), r["lumbosacral"]) for r in recs if r.get("lumbosacral") and r.get("drop_truth") is not None]
+    known = [
+        (r.get("drop_truth"), r["lumbosacral"])
+        for r in recs
+        if r.get("lumbosacral") and r.get("drop_truth") is not None
+    ]
     return {
         "status_counts": _count(st),
         "drops_applied": sum(1 for a in applied if a),
@@ -587,9 +667,39 @@ def _module_summary(recs: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
+def _qx5rt_report(recs: list[dict[str, Any]]) -> dict[str, Any]:
+    def rows(key: str, vendor: str | None = None) -> list[Any]:
+        return [x for r in recs if vendor is None or r["vendor"] == vendor for x in r[key]]
+
+    out: dict[str, Any] = {"sessions": len(recs)}
+    for key in ("before", "after"):
+        out[key] = {"overall": _rows_summary(rows(key))}
+        for v in sorted({r["vendor"] for r in recs}):
+            out[key][f"vendor={v}"] = _rows_summary(rows(key, v))
+    out["module"] = _module_summary(recs)
+    return out
+
+
+def _rows_summary(rs: list[dict[str, Any]]) -> dict[str, Any]:
+    n = len(rs)
+    matched = [x for x in rs if x["matched"]]
+    ok = [x for x in matched if x["name_ok"]]
+    return {
+        "levels": n,
+        "recall_12mm": round(len(matched) / max(n, 1), 3),
+        "label_accuracy_matched": round(len(ok) / max(len(matched), 1), 3),
+        "correct_name_recall": round(len(ok) / max(n, 1), 3),
+    }
+
+
 def cmd_report(args: argparse.Namespace) -> int:
     out = Path(args.out)
     report: dict[str, Any] = {}
+    qx = out / "eval_qx5rt"
+    if qx.is_dir():
+        report["qx5rt"] = _qx5rt_report(
+            [json.loads(p.read_text(encoding="utf-8")) for p in sorted(qx.glob("*.json"))]
+        )
     for split in ("validation",):
         d = out / f"eval_{split}"
         if d.is_dir():
@@ -627,6 +737,9 @@ def main(argv: list[str] | None = None) -> int:
     e = sub.add_parser("evaluate")
     e.add_argument("--split", choices=("training", "validation"), default="validation")
     e.add_argument("--sudirman", action="store_true")
+    e.add_argument(
+        "--qx5rt", action="store_true", help="OSF qx5rt multi-scanner set (CC BY-NC; research use)"
+    )
     e.add_argument("--limit", type=int, default=0)
     e.add_argument("--out", required=True)
     e.add_argument("--jobs", type=int, default=2)

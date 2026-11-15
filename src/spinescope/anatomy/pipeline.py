@@ -35,19 +35,23 @@ from ..geometry import Stack
 from ..study import Study
 from .anchors import Anchors, Disc, Vertebra
 from .calibration import disc_feature_rows, load_calibration, volume_feature_vector
-from .ml.labeller import METHOD as METHOD_ML
-from .ml.labeller import SegmentedStack
 from .column import DiscFit, Segment, chain_lines, conus_tip, endplate_profile, find_lines, fit_disc
 from .fusion import FusionResult, fuse_numbering, fusion_record, relabel_anchors, stack_z_range
 from .lumbosacral import (
+    PATCH_MM,
+    Candidate,
     LumbosacralDecision,
     candidate_patches,
     decide,
     drop_lowest,
-    load_model as load_lumbosacral_model,
     lumbosacral_record,
 )
+from .lumbosacral import (
+    load_model as load_lumbosacral_model,
+)
 from .midline import MidlineChoice, pols_for, refine_midline_axial, select_midline
+from .ml.labeller import METHOD as METHOD_ML
+from .ml.labeller import SegmentedStack
 from .numbering import (
     DEFAULT_STATUS_THRESHOLDS,
     STATUS_CONFIRMED,
@@ -423,9 +427,9 @@ def _lumbosacral_step(
     the decision is ``not_assessed`` and nothing changes.
     """
     model = load_lumbosacral_model()
-    if seg is None or not primary.discs or model is None:
-        cands, patches = [], np.zeros((0, 0, 0), dtype=np.float32)
-    else:
+    cands: list[Candidate] = []
+    patches = np.zeros((0, PATCH_MM, PATCH_MM), dtype=np.float32)
+    if seg is not None and primary.discs and model is not None:
         cands, patches = candidate_patches(seg, primary, cfg)
     dec = decide(cands, patches, model)
     n = dec.drop if dec.status == "drop" else 0
@@ -441,7 +445,13 @@ def _lumbosacral_step(
 
 
 def _finalise(
-    study: Study, primary: Anchors, kind: str, cfg: Config, calibrate: bool, seg: SegmentedStack | None = None
+    study: Study,
+    primary: Anchors,
+    kind: str,
+    cfg: Config,
+    calibrate: bool,
+    seg: SegmentedStack | None = None,
+    lumbosacral: bool = True,
 ) -> LabelDetails:
     """Second series, classical opinion, numbering fusion, relabelling, calibration and status."""
     det = LabelDetails(anchors=primary, backend=kind)
@@ -459,7 +469,7 @@ def _finalise(
     det.unfused = Anchors.from_dict(primary.to_dict())
     lumbo_dec: LumbosacralDecision | None = None
     lumbo_drop = 0
-    if kind == "ml":
+    if kind == "ml" and lumbosacral:
         lumbo_dec, lumbo_drop = _lumbosacral_step(primary, seg, cfg)
     sacrum_below = (
         "S1" in primary.vertebrae and primary.vertebrae["S1"].confidence >= 0.5
@@ -550,7 +560,10 @@ def _finalise(
     rec = fusion_record(fus)
     notes = list(fus.notes)
     if lumbo_dec is not None:
-        notes.append(f"lumbosacral check: {lumbo_dec.status}" + (f" ({lumbo_drop} sacral disc(s) removed)" if lumbo_drop else ""))
+        notes.append(
+            f"lumbosacral check: {lumbo_dec.status}"
+            + (f" ({lumbo_drop} sacral disc(s) removed)" if lumbo_drop else "")
+        )
     if not sacrum_below:
         notes.append(
             "no vertebral bone visible below the lowest disc: the lowest name is not confirmed by bone"
@@ -579,9 +592,18 @@ def _finalise(
 
 
 def label_spine_details(
-    study: Study, config: Config | None = None, *, backend: str = "auto", calibrate: bool = True
+    study: Study,
+    config: Config | None = None,
+    *,
+    backend: str = "auto",
+    calibrate: bool = True,
+    lumbosacral: bool = True,
 ) -> LabelDetails:
-    """As :func:`label_spine`, but also returns the fusion record, raw confidences and calibration features."""
+    """As :func:`label_spine`, but also returns the fusion record, raw confidences and calibration features.
+
+    ``lumbosacral=False`` skips the sacral-disc check (:mod:`.lumbosacral`): the labeller-only numbering, used as
+    the "before" in evaluations. The default check is on.
+    """
     if backend not in BACKENDS:
         raise ValueError(f"unknown labelling backend {backend!r}; available: {', '.join(BACKENDS)}")
     if backend == "auto":
@@ -601,7 +623,7 @@ def label_spine_details(
             )
         else:
             primary = anchors_from_segmentation(seg, cfg)
-        return _finalise(study, primary, "ml", cfg, calibrate, seg=seg)
+        return _finalise(study, primary, "ml", cfg, calibrate, seg=seg, lumbosacral=lumbosacral)
     primary = _label_classical(study, cfg)
     return _finalise(study, primary, "classical", cfg, calibrate)
 

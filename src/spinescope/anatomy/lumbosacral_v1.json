@@ -62,7 +62,7 @@
   "sweep": {
    "0.5": {
     "correct": 52,
-    "drops": 1,
+    "drops": 0,
     "missed_drop": 0,
     "n": 52,
     "unsure": 0,
@@ -70,7 +70,7 @@
    },
    "0.6": {
     "correct": 52,
-    "drops": 1,
+    "drops": 0,
     "missed_drop": 0,
     "n": 52,
     "unsure": 0,
@@ -78,7 +78,7 @@
    },
    "0.7": {
     "correct": 52,
-    "drops": 1,
+    "drops": 0,
     "missed_drop": 0,
     "n": 52,
     "unsure": 0,
@@ -86,7 +86,7 @@
    },
    "0.8": {
     "correct": 52,
-    "drops": 1,
+    "drops": 0,
     "missed_drop": 0,
     "n": 52,
     "unsure": 0,
@@ -94,7 +94,7 @@
    },
    "0.9": {
     "correct": 52,
-    "drops": 1,
+    "drops": 0,
     "missed_drop": 0,
     "n": 52,
     "unsure": 0,
@@ -102,7 +102,7 @@
    },
    "0.95": {
     "correct": 52,
-    "drops": 1,
+    "drops": 0,
     "missed_drop": 0,
     "n": 52,
     "unsure": 0,

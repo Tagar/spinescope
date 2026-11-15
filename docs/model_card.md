@@ -228,6 +228,56 @@ the sacrum class competing with the disc class: v2 adds disc detections below th
 against 4). That hypothesis is not yet tested. A next attempt would need the sacrum labelled from real sacral
 anatomy, or a sacrum-free numbering rule that does not depend on the pseudo-label.
 
+## Lumbosacral check (lab13): `lumbosacral_v1.onnx` (shipped, applied before numbering)
+
+A second network, separate from the labeller, decides whether the lowest disc candidates are the L5-S1 disc or a
+sacral disc (an S1-S2 remnant or sacral segment), and removes sacral discs before the names are counted. Entry point:
+`spinescope.anatomy.lumbosacral` (`candidate_patches`, `decide`, `drop_lowest`). Pipeline: `_lumbosacral_step` in
+`pipeline._finalise`, before fusion. Weights: `src/spinescope/anatomy/lumbosacral_v1.onnx` (448 KB, fp32, one input
+`patch` (n, 1, 96, 96), one output `logit`), thresholds and training record in `lumbosacral_v1.json`. Recipe and report:
+`tools/lumbosacral.py`, `docs/labeling/lab13_lumbosacral.md`.
+
+### Intended use and data
+
+- Same research-only scope as the labeller. Output is a suggestion; the record in `anchors.numbering['lumbosacral']`
+  says what was done.
+- Trained on SPIDER **training** volumes only (308 of 360 for the fit, 52 held out for the threshold). Positives: the L5-S1
+  disc (mask 201, centre jittered by 2 mm, the mid-sagittal slice and its neighbours). Negatives: L4-L5 and L3-L4 discs,
+  the region 33 to 38 mm below L5-S1 (a remnant would be there) and 55 to 65 mm below (sacrum). Patches with less than
+  70 % acquired field of view are skipped. 2,323 patches in total (1,080 positive).
+- Architecture: 2-D CNN, four conv stages (16/16, 32/32, 64/64, 64), batch norm, ReLU, max-pool, flatten (64 x 6 x 6),
+  dropout 0.2, one linear output. AdamW, one-cycle learning rate (max 2e-3), batch 64, 40 epochs, seed 20260, BCE.
+
+### Decision
+
+For the three lowest candidates of the mid-sagittal slice: `keep` when the lowest is the best candidate with
+P(L5-S1) >= 0.5; `drop k` when the best candidate is the k-th from the bottom (k >= 1) with P >= 0.8 (judgement default,
+not a measured optimum; see the report); `unsure` otherwise, which caps the numbering status at `unconfirmed`. A removed
+disc caps the status at `probable`. Without the packaged model the check reports `not_assessed` and nothing changes.
+
+### Results (calibrated default pipeline; before = the same run with the check off; details in docs/labeling/lab13)
+
+| set | before | after | check decisions |
+|---|---|---|---|
+| SPIDER validation (87) | label acc 0.976, fully correct 81 | identical | keep 87 |
+| Sudirman (120 of 515) | label acc 0.906, fully correct 105, wrong 15 (11 probable) | 0.925, 107, wrong 13 (12 probable) | keep 117, drop 3 (all correct), unsure 0 |
+| qx5rt (55 sessions, CC BY-NC) | label acc 0.825 (Siemens 0.60, Philips 0.91) | 0.862 (0.67, 0.94) | keep 50, drop 2 (both correct), unsure 3 (names correct) |
+| robustness, phantom (23) | 0 pass, 17 silent | 0 pass, 17 silent, status capped | unsure 23 (out of distribution) |
+
+### Limitations
+
+- The check removes at most the lowest discs and never adds one. It does not address mid-chain or top-chain errors; those
+  were the remaining errors on SPIDER validation (not sacral) and on Sudirman and qx5rt.
+- The main residual failure is a missed sacral disc: the CNN scores it P(L5-S1) = 1.00 (5 of 120 Sudirman patients, 0 of
+  87 SPIDER validation). The CNN has no reliable notion of "this is a sacral disc" beyond the training negatives.
+- Reliability target not met: wrong numbering stays `probable` on the external sets (12 of 13 Sudirman, 8 of 8 qx5rt).
+  The `unsure` branch rarely fires because the CNN is confident on most inputs.
+- Out of distribution (the phantom, and the qx5rt Philips sessions with P near 0 everywhere) the check abstains. That is
+  the intended direction, not a validation result.
+- Not refitted: the volume calibration (`calibration_v1.json`) predates this check and the lab09 post-processing. The
+  check only caps the status; it does not change the calibrated confidence.
+- No axial cues (iliac crest, transverse processes, sacral ala) are used.
+
 ## Attribution
 
 Model weights derived from the SPIDER dataset (van der Graaf et al., Scientific Data 2024,
