@@ -1,0 +1,12 @@
+spinescope
+Copyright 2026 Ruslan Dautkhanov and spinescope contributors
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+spinescope is research and education software. It is not a medical device and must not be used
+for diagnosis or treatment decisions.
+
+Test and example data, where used, come from public datasets under their own licenses, e.g.
+SPIDER (van der Graaf et al., Scientific Data 2024, doi:10.1038/s41597-024-03090-w;
+dataset doi:10.5281/zenodo.10159290), licensed CC BY 4.0. No such data is redistributed in
+this repository unless stated next to it.

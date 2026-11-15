@@ -1,0 +1,39 @@
+# Python / tooling
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+build/
+dist/
+site/
+
+# Never commit imaging data or outputs derived from real patients.
+*.dcm
+*.DCM
+DICOMDIR
+*.nii
+*.nii.gz
+*.mha
+*.mhd
+*.raw
+*.nrrd
+*.zip
+data/
+out/
+outputs/
+findings/
+*.npz
+# Generated docs images must live in docs/assets and come from public or synthetic data.
+*.png
+!docs/assets/**/*.png
+!src/spinescope/**/assets/*.png
+
+.DS_Store
+.idea/
+.vscode/

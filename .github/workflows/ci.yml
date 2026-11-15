@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv venv && uv pip install -e ".[dev]"
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run mypy
+
+  test:
+    needs: lint
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python: ["3.10", "3.11", "3.12", "3.13"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - run: uv venv && uv pip install -e ".[dev]"
+      - run: uv run pytest --cov=spinescope --cov-report=term-missing --cov-report=xml
+      - uses: actions/setup-node@v4
+        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.12'
+        with:
+          node-version: "20"
+      - name: Viewer JavaScript syntax check
+        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.12'
+        run: uv run pytest -q tests -k viewer
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv venv && uv pip install build twine
+      - run: uv run python -m build
+      - run: uv run twine check dist/*
+      - name: Install the built wheel and smoke-test the CLI
+        run: |
+          uv venv /tmp/wheelenv
+          uv pip install --python /tmp/wheelenv dist/*.whl
+          /tmp/wheelenv/bin/spinescope --help

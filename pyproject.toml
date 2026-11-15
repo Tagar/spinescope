@@ -1,0 +1,102 @@
+[build-system]
+requires = ["hatchling>=1.24"]
+build-backend = "hatchling.build"
+
+[project]
+name = "spinescope"
+dynamic = ["version"]
+description = "Geometry-aware spine MRI analysis toolkit: load any DICOM study, label vertebral levels automatically, cross-reference series, measure, render reading sheets and drive AI-assisted structured reads."
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+requires-python = ">=3.10"
+authors = [{ name = "Ruslan Dautkhanov" }]
+keywords = ["mri", "dicom", "spine", "lumbar", "radiology", "medical-imaging", "ai-agents"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Science/Research",
+  "Intended Audience :: Developers",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Scientific/Engineering :: Medical Science Apps.",
+  "Topic :: Scientific/Engineering :: Image Processing",
+  "Typing :: Typed",
+]
+dependencies = [
+  "numpy>=1.24",
+  "scipy>=1.10",
+  "pydicom>=2.4",
+  "pillow>=10.0",
+  "scikit-image>=0.21",
+]
+
+[project.optional-dependencies]
+# Compressed DICOM transfer syntaxes (JPEG, JPEG-LS, JPEG 2000).
+jpeg = ["pylibjpeg>=2.0", "pylibjpeg-libjpeg>=2.1", "pylibjpeg-openjpeg>=2.1"]
+# NIfTI and MetaImage (.mha/.mhd) volumes, e.g. public research datasets.
+volumes = ["nibabel>=5.0", "SimpleITK>=2.3"]
+# Charts in reports.
+plots = ["matplotlib>=3.7"]
+# Model Context Protocol server so AI assistants can drive the toolkit.
+mcp = ["mcp>=1.2"]
+all = ["spinescope[jpeg,volumes,plots,mcp]"]
+dev = [
+  "spinescope[all]",
+  "pytest>=8",
+  "pytest-cov>=5",
+  "ruff>=0.6",
+  "mypy>=1.10",
+  "build>=1.2",
+  "twine>=5",
+]
+docs = ["mkdocs-material>=9.5", "mkdocstrings[python]>=0.25"]
+
+[project.scripts]
+spinescope = "spinescope.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/Tagar/spinescope"
+Issues = "https://github.com/Tagar/spinescope/issues"
+Documentation = "https://github.com/Tagar/spinescope/tree/main/docs"
+
+[tool.hatch.version]
+path = "src/spinescope/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/spinescope"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src/spinescope", "tests", "docs", "README.md", "LICENSE", "NOTICE", "CHANGELOG.md"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
+markers = [
+  "dataset: needs a public dataset on disk (set SPINESCOPE_DATA); skipped otherwise",
+  "slow: slow tests",
+]
+
+[tool.coverage.run]
+source = ["spinescope"]
+branch = true
+
+[tool.ruff]
+line-length = 110
+target-version = "py310"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "NPY", "RUF"]
+ignore = ["E501", "RUF001", "RUF002", "RUF003"]
+
+[tool.mypy]
+python_version = "3.10"
+packages = ["spinescope"]
+ignore_missing_imports = true
+warn_unused_ignores = true
+check_untyped_defs = true
