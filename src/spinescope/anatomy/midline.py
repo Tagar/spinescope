@@ -1,4 +1,7 @@
-"""Mid-sagittal plane: pick the sagittal slice where the thecal sac is clearest, refine with axials.
+"""Mid-sagittal plane: mirror symmetry of the sagittal slices (default), refined with axials.
+
+The default plane comes from :mod:`spinescope.anatomy.midline_robust`. The earlier method, kept as
+``midline_method="ridge"``: pick the sagittal slice where the thecal sac is clearest.
 
 Sagittal evidence: the canal ridge is longest and widest in the mid-sagittal slice, so the canal
 track score peaks there (lateral slices show only part of the sac, or foramina). The peak is
@@ -17,6 +20,7 @@ from scipy import ndimage as ndi
 from ..config import DEFAULT, Config
 from ..geometry import Stack, sample_plane
 from ..study import Study
+from .midline_robust import estimate_stack_midline
 from .sagittal import CanalTrack, csf_polarities, sagittal_image, track_canal
 
 #: Upper bound on the number of sagittal slices scanned for the canal (evenly spaced when more).
@@ -40,10 +44,45 @@ def _scan_indices(n: int) -> list[int]:
 
 
 def select_midline(stack: Stack, pols: tuple[int, ...], cfg: Config = DEFAULT) -> MidlineChoice | None:
-    """Mid-sagittal plane and the nearest analysed slice from the canal ridge score across slices.
+    """Mid-sagittal plane and the nearest analysed slice.
 
-    The score (canal ridge contrast per slice) peaks on the two slices either side of the midline,
-    not on it: the cord sits inside the sac there and lowers the core contrast. The plane is therefore
+    With ``cfg.midline_method == "symmetry"`` (default) the plane is the mirror-symmetry estimate of
+    :func:`spinescope.anatomy.midline_robust.estimate_stack_midline`; the canal ridge below is then only
+    used when that estimate is unavailable (non-sagittal stack, too few slices). ``"ridge"`` keeps the
+    previous canal-ridge method for comparison.
+    """
+    if cfg.midline_method == "symmetry":
+        choice = _symmetry_choice(stack, pols, cfg)
+        if choice is not None:
+            return choice
+    return _ridge_choice(stack, pols, cfg)
+
+
+def _symmetry_choice(stack: Stack, pols: tuple[int, ...], cfg: Config) -> MidlineChoice | None:
+    """Plane from the mirror-symmetry estimate; the track is taken on the slice nearest to it."""
+    est = estimate_stack_midline(stack, cfg)
+    if est.x_mm is None:
+        return None
+    plane = float(est.x_mm) * float(stack.normal[0])
+    k_near = int(np.argmin(np.abs(stack.positions - plane)))
+    tracks = {p: track_canal(sagittal_image(stack, k_near, cfg.sag_resolution_mm), p, cfg) for p in pols}
+    found = [(p, t) for p, t in tracks.items() if t is not None]
+    pol, track = max(found, key=lambda pt: pt[1].score) if found else (pols[0] if pols else 1, None)
+    return MidlineChoice(
+        slice_index=k_near,
+        polarity=pol,
+        plane_coord=plane,
+        track=track,
+        scores={k: float(w) for k, w in enumerate(est.slice_weights)},
+        evidence=list(est.evidence),
+    )
+
+
+def _ridge_choice(stack: Stack, pols: tuple[int, ...], cfg: Config) -> MidlineChoice | None:
+    """Canal-ridge midline (earlier method, ``midline_method="ridge"``).
+
+    Picks the slice with the strongest canal ridge score across slices. The score (canal ridge contrast
+    per slice) peaks on the two slices either side of the midline, not on it: the cord sits inside the sac there and lowers the core contrast. The plane is therefore
     the score-weighted centroid of the peak neighbourhood (within ``midline_search_mm`` of the best
     slice), which is symmetric about the canal for a symmetric sac.
     """

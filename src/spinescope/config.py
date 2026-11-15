@@ -110,6 +110,18 @@ class Config:
     axial_canal_window_mm: float = 24.0  # axial window around the canal for the CSF-blob midline check
     conus_min_contrast: float = 0.08  # cord-vs-CSF contrast (0..1) on the canal centreline
     disc_match_mm: float = 6.0  # tolerance when matching discs between two sagittal series
+    # Mid-sagittal plane by mirror symmetry (spinescope.anatomy.midline_robust). Mirror pairs of sagittal
+    # slices at x0 +- d are compared; the symmetry axis is the midline. Lengths in mm.
+    # Calibrated on SPIDER training only (see docs/labeling/lab05_midline.md).
+    midline_sym_d_mm: tuple[float, float, float] = (3.0, 20.0, 2.0)  # mirror offsets d: min, max, step
+    midline_grid_mm: float = 1.0  # candidate-plane grid and in-plane resampling step
+    midline_hp_sigma_mm: float = 6.0  # scale of the high-pass (structure-only) similarity
+    midline_patch_mm: float = 40.0  # side of the square patches that each vote for a local symmetry axis
+    midline_patch_step_mm: float = 20.0  # spacing of patch centres (50 % overlap)
+    midline_patch_min_prominence: float = 0.5  # patch votes below this prominence are ignored
+    midline_fit_tukey_mm: float = 3.0  # Tukey scale of the robust x(z) fit
+    midline_slice_weight_mm: float = 10.0  # Gaussian width of the per-slice midline weight
+    midline_method: str = "symmetry"  # "symmetry" (midline_robust) or "ridge" (earlier canal-ridge method)
     # Slice geometry (io). Spacing is judged against the median slice spacing: deviations above the
     # relative tolerance make a series non-uniform, and a spacing of >= gap_factor x median is a gap
     # (missing slice). Judgement defaults: well above DICOM position rounding (1e-3 mm), well below a
