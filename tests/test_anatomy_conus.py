@@ -208,3 +208,31 @@ def test_to_dict_is_plain_and_has_the_contract_keys() -> None:
     json.dumps(d)  # JSON-safe
     assert 0.0 <= d["confidence"] <= 1.0
     assert isinstance(ConusResult(found=False).to_dict(), dict)
+
+
+def test_tips_without_consensus_are_not_located(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Two slice tips 60 mm apart have no consensus (the median lies between them): not located, no NaN position."""
+    from spinescope.anatomy import conus as conus_module
+
+    calls: list[int] = []
+
+    def two_far_tips(probs, grid, img, pol, window, cfg):  # type: ignore[no-untyped-def]
+        calls.append(1)
+        if len(calls) > 2:
+            return None
+        z = 0.0 if len(calls) == 1 else 60.0
+        return conus_module.SliceTip(
+            k=int(grid.k),
+            z=z,
+            xyz=np.array([0.0, 0.0, z]),
+            confidence=0.9,
+            run_mm=20.0,
+            reached_fov_end=False,
+        )
+
+    monkeypatch.setattr(conus_module, "_slice_tip", two_far_tips)
+    ph = SpinePhantom(PhantomSpec())
+    res = conus_from_segmentation(_oracle(ph, "t2"), Anchors.from_truth(ph.truth), contrast="t2")
+    assert not res.found
+    assert res.xyz is None
+    assert any("disagree in z" in w for w in res.warnings)

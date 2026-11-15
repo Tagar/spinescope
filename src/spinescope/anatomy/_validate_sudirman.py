@@ -184,11 +184,12 @@ def _pct(x: list[float], q: float) -> float:
     return float(np.percentile(x, q)) if x else float("nan")
 
 
-def _evaluate_patient(args: tuple[str, list[str], str | None]) -> PatientResult:
+def _evaluate_patient(args: tuple[str, list[str], str | None, int | None]) -> PatientResult:
     """Worker: pick the labelled session, run :func:`label_spine`, score it against the annotated discs."""
     from ..anatomy.pipeline import label_spine
+    from ..config import Config
 
-    patient, sessions, labels_root = args
+    patient, sessions, labels_root, threads = args
     res = PatientResult(patient=patient)
     try:
         sel = select_session(patient, [Path(s) for s in sessions], labels_root)
@@ -197,7 +198,8 @@ def _evaluate_patient(args: tuple[str, list[str], str | None]) -> PatientResult:
             return res
         _sess, study, levels = sel
         res.n_axial_slabs = sum(1 for k in study.stacks if k.startswith("ax_t1"))
-        anchors = label_spine(study)
+        cfg = Config(ml_intra_op_threads=threads) if threads is not None else None
+        anchors = label_spine(study, cfg)
         res.n_predicted = len(anchors.discs)
         res.warnings = list(anchors.warnings)
         rows = score_levels(anchors, levels)
@@ -237,21 +239,24 @@ def evaluate(
     root: str | None = None,
     labels_root: str | None = None,
     workers: int | None = None,
+    threads: int | None = None,
 ) -> Evaluation:
     """Run :func:`label_spine` on each labelled patient (or ``patients``) and score it against the dataset labels.
 
-    Runs in a process pool (``workers`` defaults to the CPU count, capped at 8). The result carries no paths.
+    Runs in a process pool (``workers`` defaults to the CPU count, capped at 8). Each pool worker runs the
+    labeller on one ONNX Runtime thread unless ``threads`` says otherwise (0 = ORT default), so the pool does not
+    oversubscribe the machine. The result carries no paths.
     """
     from ..datasets.sudirman import labelled_patients, patient_sessions
 
     sessions = patient_sessions(root)
     ids = patients if patients is not None else labelled_patients(labels_root)
-    jobs: list[tuple[str, list[str], str | None]] = []
+    jobs: list[tuple[str, list[str], str | None, int | None]] = []
     for pid in ids:
         if pid not in sessions:
             log.warning("labelled patient %s has no DICOM folder; skipped", pid)
             continue
-        jobs.append((pid, [str(s) for s in sessions[pid]], labels_root))
+        jobs.append((pid, [str(s) for s in sessions[pid]], labels_root, threads))
     n = workers or min(8, os.cpu_count() or 1)
     if n <= 1 or len(jobs) <= 1:
         results = [_evaluate_patient(j) for j in jobs]

@@ -517,7 +517,7 @@ def _finalise(
             warn.append(f"second sagittal series {second_stack.key}: no disc chain")
             second = None
     classical: Anchors | None = None
-    if kind == "ml":
+    if kind == "ml" and cfg.classical_second_opinion:
         try:
             classical = _label_classical(study, cfg)
         except Exception as exc:  # the classical opinion is optional: never let it sink the learned labels
@@ -678,13 +678,15 @@ def label_spine_details(
     if backend == "ml" and det.anchors.discs:
         from .vertebrae import attach_geometry  # body, canal and posterior-element geometry (additive)
 
-        attach_geometry(study, det.anchors, cfg)
+        attach_geometry(study, det.anchors, cfg, seg=seg)  # reuses the primary network output
     if det.anchors.discs:
-        _conus_after_labels(study, det.anchors, cfg)
+        _conus_after_labels(study, det.anchors, cfg, seg=seg)
     return det
 
 
-def _conus_after_labels(study: Study, anchors: Anchors, cfg: Config) -> None:
+def _conus_after_labels(
+    study: Study, anchors: Anchors, cfg: Config, *, seg: SegmentedStack | None = None
+) -> None:
     """Locate the conus once the anchors are final (:mod:`.conus`); a failure keeps the labels and warns.
 
     The conus locator is EXPERIMENTAL (uncalibrated; a visual audit on public data could not verify most tips):
@@ -693,7 +695,7 @@ def _conus_after_labels(study: Study, anchors: Anchors, cfg: Config) -> None:
     from .conus import attach_conus
 
     try:
-        attach_conus(study, anchors, cfg)
+        attach_conus(study, anchors, cfg, seg=seg)
     except Exception as exc:  # the conus is additional: it must never sink the labels
         log.warning("conus locator failed: %s", exc)
         anchors.warnings.append(f"conus not located (locator failed: {type(exc).__name__})")
@@ -749,13 +751,38 @@ def _attach_conus(anchors: Anchors, res: StackResult) -> None:
     }
 
 
-def label_spine_cli(path: str) -> dict[str, Any]:
-    """Load a study from ``path`` (DICOM directory or volume file) and return the anchors as a dict.
+def labelling_keys(study: Study) -> list[str]:
+    """Keys of the stacks :func:`label_spine` reads: the primary sagittal, the second sagittal series, and every
+    axial stack (midline refinement and numbering cues). Localizers, coronal and other series are not needed."""
+    keys: list[str] = []
+    primary = study.best("sag")
+    if primary is not None:
+        keys.append(primary.key)
+        second = _second_sagittal(study, primary.key)
+        if second is not None:
+            keys.append(second.key)
+    keys += [st.key for st in study.stacks.values() if st.plane == "ax"]
+    return list(dict.fromkeys(keys))
 
-    Intended for the CLI and the MCP server. Output carries no file paths or patient attributes.
+
+def load_labelling_study(path: str) -> Study:
+    """Load a study from ``path`` with pixels only for the stacks :func:`label_spine` reads.
+
+    A header-only pass classifies the series; then only :func:`labelling_keys` get their voxels read, so peak
+    memory follows the labelled stacks rather than every series in the folder.
     """
     from ..study import load_study
 
-    study = load_study(path)
+    header = load_study(path, load_pixels=False)
+    return load_study(path, keys=labelling_keys(header))
+
+
+def label_spine_cli(path: str) -> dict[str, Any]:
+    """Load a study from ``path`` (DICOM directory or volume file) and return the anchors as a dict.
+
+    Intended for the CLI and the MCP server. Loads only the stacks the labeller reads
+    (:func:`load_labelling_study`). Output carries no file paths or patient attributes.
+    """
+    study = load_labelling_study(path)
     d = label_spine(study).to_dict()
     return d

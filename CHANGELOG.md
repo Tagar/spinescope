@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Labelling speed and memory (`docs/labeling/lab14_perf.md`): one network run per study instead of three, the classical
+  second opinion is opt-in (`Config.classical_second_opinion`), ONNX threads follow `SPINESCOPE_THREADS` and pool
+  workers use one thread each, and `label_spine_cli` reads only the stacks the labeller uses. `import spinescope` no
+  longer loads scipy or pydicom.
 - Lumbosacral check: a packaged patch CNN (`lumbosacral_v1.onnx`, 448 KB) removes sacral disc candidates below L5-S1
   before numbering (`spinescope.anatomy.lumbosacral`, recipe `tools/lumbosacral.py`, report `docs/labeling/lab13_lumbosacral.md`).
   `label_spine_details(..., lumbosacral=False)` turns it off.

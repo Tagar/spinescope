@@ -16,6 +16,7 @@ phantom, so the suite documents the status and turns green (XPASS) as backends i
 from __future__ import annotations
 
 import functools
+from typing import Any
 
 import pytest
 
@@ -63,10 +64,32 @@ def _result(name: str) -> CaseResult:
     return evaluate(build_case(scenario(name)))
 
 
+#: One or two scenarios per family (clean, one sequence, field, FOV, transitional, pathology, deformity, artefact)
+#: run in the default suite. The others are ``slow``: each costs a classical run of the whole stack (about 3 s), and
+#: they all run in CI's full job (``pytest -m ""``), so no scenario is dropped.
+FAST_SCENARIOS = frozenset(
+    {
+        "baseline",
+        "t2_only",
+        "field_3T",
+        "fov_T10_sacrum",
+        "lumbarised_S1",
+        "dark_discs",
+        "scoliosis",
+        "motion_ghosting",
+        "few_slices_7",
+    }
+)
+
+
 def _params() -> list[object]:
     out: list[object] = []
     for sc in SCENARIOS:
-        marks = [pytest.mark.xfail(strict=False, reason=XFAIL[sc.name])] if sc.name in XFAIL else []
+        marks: list[Any] = (
+            [pytest.mark.xfail(strict=False, reason=XFAIL[sc.name])] if sc.name in XFAIL else []
+        )
+        if sc.name not in FAST_SCENARIOS:
+            marks.append(pytest.mark.slow)
         out.append(pytest.param(sc.name, marks=marks, id=sc.name))
     return out
 

@@ -21,6 +21,7 @@ def _roots() -> tuple[Path, Path] | None:
 
 
 @pytest.mark.dataset
+@pytest.mark.slow
 def test_sudirman_labels_score_label_spine_on_a_sample():
     roots = _roots()
     if roots is None:

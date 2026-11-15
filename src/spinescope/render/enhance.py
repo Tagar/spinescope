@@ -19,7 +19,6 @@ from typing import Any
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
 from scipy import ndimage as ndi
-from skimage import restoration
 
 from ..config import DEFAULT, Config
 from ..geometry import Stack, unit
@@ -122,6 +121,8 @@ def denoise(
     ``method``: 'nlm' (non-local means), 'bilateral' or 'tv' (Chambolle total variation). The filters assume
     Gaussian noise; magnitude MR noise is Rician, so they are approximate where SNR is low.
     """
+    from skimage import restoration  # lazy: scikit-image is slow to import
+
     _warn_once()
     x = np.asarray(img, dtype=np.float64)
     s = float(np.percentile(x, 99.5)) or 1.0
