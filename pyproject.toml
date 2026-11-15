@@ -43,7 +43,7 @@ volumes = ["nibabel>=5.0", "SimpleITK>=2.3"]
 # Charts in reports.
 plots = ["matplotlib>=3.7"]
 # Model Context Protocol server so AI assistants can drive the toolkit.
-mcp = ["mcp>=1.2"]
+mcp = ["mcp>=1.2,<2"]  # the server is written against the 1.x FastMCP API
 all = ["spinescope[jpeg,volumes,plots,mcp]"]
 dev = [
   "spinescope[all]",
@@ -58,6 +58,7 @@ docs = ["mkdocs-material>=9.5", "mkdocstrings[python]>=0.25"]
 
 [project.scripts]
 spinescope = "spinescope.cli:main"
+spinescope-mcp = "spinescope.ai.mcp_server:main"
 
 [project.urls]
 Homepage = "https://github.com/Tagar/spinescope"
