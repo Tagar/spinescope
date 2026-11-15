@@ -23,6 +23,13 @@ Volume features (the target is "every matched disc carries the right name"):
 
 Status thresholds (see :mod:`numbering`) are chosen on the training cases: the lowest calibrated value with at
 least the target precision for each status.
+
+Version 2 (``calibration_v2.json``, lab18) adds *numbering signals* to the volume model (:func:`numbering_signals`):
+the lumbosacral CNN's probabilities for the lowest three discs (margin, second disc), the size and spacing of the
+lowest discs, the field-of-view margin below the lowest disc, the vote pattern of the fusion, the S1 body confidence
+and the discs below the conus. They are computed from the labeller's outputs only (no second network). v2 is fitted
+on SPIDER training plus half of the Sudirman patients (``tools/calibrate_labeling.py``, protocol in
+docs/labeling/lab18_reliability.md); v1 stays loadable.
 """
 
 from __future__ import annotations
@@ -60,9 +67,36 @@ VOLUME_FEATURES: tuple[str, ...] = (
 )
 #: Precision targets for the status thresholds (policy, chosen before the validation numbers were
 #: computed; the training base rate of correct numbering is about 0.96, so these are set above it).
-TARGET_PRECISION: dict[str, float] = {STATUS_CONFIRMED: 0.98, STATUS_PROBABLE: 0.9}
+#: Version 1 used 0.90 for probable, below the base rate of correct numbering on the external sets (0.85 to 0.92), so
+#: "probable" admitted almost every study. Version 2 uses 0.97 (lab18, fixed before the held-out sets were scored).
+TARGET_PRECISION_V1: dict[str, float] = {STATUS_CONFIRMED: 0.98, STATUS_PROBABLE: 0.9}
+TARGET_PRECISION: dict[str, float] = {STATUS_CONFIRMED: 0.98, STATUS_PROBABLE: 0.97}
 MIN_VOLUMES_ABOVE = 20
-CALIBRATION_FILE = "calibration_v1.json"
+CALIBRATION_FILE = "calibration_v2.json"  # packaged calibration (lab18); v1 below
+CALIBRATION_FILE_V1 = (
+    "calibration_v1.json"  # lab08 calibration, still loadable (``load_calibration(version=1)``)
+)
+#: Volume features of version 1 (names of the calibration's volume model in v1 files).
+VOLUME_FEATURES_V1: tuple[str, ...] = VOLUME_FEATURES
+#: Numbering signals of version 2 (see :func:`numbering_signals`), in the order of the returned dict.
+SIGNAL_FEATURES: tuple[str, ...] = (
+    "lumbo_p0",
+    "lumbo_margin",
+    "lumbo_p1",
+    "lumbo_available",
+    "h_bottom",
+    "h_second",
+    "gap_bottom_dev",
+    "fov_below_mm",
+    "vote_shift_frac",
+    "p_shift",
+    "n_discs",
+)
+#: Volume features of version 2: the version 1 set plus the two signals selected on the fit set (lab18).
+#: ``lumbo_margin`` (the lowest candidate's P(L5-S1) minus the best of the others) and ``gap_bottom_dev`` (spacing of
+#: the lowest two discs against the study median). Selected by out-of-fold log-loss on SPIDER training plus
+#: Sudirman half A only (docs/labeling/lab18_reliability.md); the other signals are computed and recorded but not used.
+VOLUME_FEATURES_V2: tuple[str, ...] = (*VOLUME_FEATURES, "lumbo_margin", "gap_bottom_dev")
 
 
 def logit(p: float) -> float:
@@ -131,18 +165,98 @@ def volume_feature_vector(
     classical_agree: bool,
 ) -> NDArray[np.float64]:
     """Volume feature vector (order :data:`VOLUME_FEATURES`)."""
-    raws = [logit(v) for v in raw_confidence.values()] or [0.0]
-    return np.array(
-        [
-            logit(p_applied),
-            1.0 if sacrum_below else 0.0,
-            1.0 if second_present else 0.0,
-            float(t1t2_fraction) if second_present else 0.0,
-            1.0 if classical_agree else 0.0,
-            min(raws),
-        ],
-        dtype=np.float64,
+    f = volume_feature_map(
+        p_applied,
+        raw_confidence,
+        sacrum_below=sacrum_below,
+        second_present=second_present,
+        t1t2_fraction=t1t2_fraction,
+        classical_agree=classical_agree,
     )
+    return np.array([f[k] for k in VOLUME_FEATURES], dtype=np.float64)
+
+
+def volume_feature_map(
+    p_applied: float,
+    raw_confidence: dict[str, float],
+    *,
+    sacrum_below: bool,
+    second_present: bool,
+    t1t2_fraction: float,
+    classical_agree: bool,
+) -> dict[str, float]:
+    """The version 1 volume features by name (keys :data:`VOLUME_FEATURES`)."""
+    raws = [logit(v) for v in raw_confidence.values()] or [0.0]
+    return {
+        "logit_offset": logit(p_applied),
+        "sacrum_below": 1.0 if sacrum_below else 0.0,
+        "second_present": 1.0 if second_present else 0.0,
+        "t1t2_frac": float(t1t2_fraction) if second_present else 0.0,
+        "classical_agree": 1.0 if classical_agree else 0.0,
+        "min_logit_raw": min(raws),
+    }
+
+
+def numbering_signals(
+    anchors: Anchors,
+    *,
+    lumbo_p: list[float] | None,
+    votes: list[dict[str, Any]],
+    p_shift: float,
+    coverage_low_z: float | None,
+) -> dict[str, float]:
+    """Version 2 numbering signals of one study, from the labeller's outputs (keys :data:`SIGNAL_FEATURES`).
+
+    Computed on the anchors after the sacral-disc check and before relabelling (the geometry is name-free). Every
+    value is finite; when a source is missing the neutral default is used and ``lumbo_available`` says so.
+
+    * ``lumbo_p0`` / ``lumbo_p1`` / ``lumbo_margin``: P(L5-S1) of the lowest candidate and of the second-lowest, and
+      the margin of the lowest over the best of the others (lumbosacral CNN, lab13). Default 0.5 / 0.0 / 0.0.
+    * ``h_bottom`` / ``h_second``: height of the two lowest discs over the study median height (default 1).
+    * ``gap_bottom_dev``: |log(gap / median gap)| between the two lowest discs (spacing near the bottom; default 0).
+    * ``fov_below_mm``: lowest disc to the lower edge of the sagittal coverage, in mm (0 when unknown).
+    * ``vote_shift_frac``: share of the fusion's cue votes that favour a non-zero offset; ``p_shift``: posterior of
+      any non-zero offset.
+    * ``n_discs``: number of discs after the sacral check.
+
+    Not used (the S1 body and the conus are attached after numbering, so they are not available here): see
+    docs/labeling/lab18_reliability.md.
+    """
+    discs = sorted(anchors.discs.values(), key=lambda d: float(d.center[2]))  # bottom-up
+    n = len(discs)
+    heights = [float(d.height_mm) for d in discs if d.height_mm]
+    med_h = float(np.median(heights)) if heights else 0.0
+    zs = [float(d.center[2]) for d in discs]
+    gaps = [zs[i + 1] - zs[i] for i in range(n - 1)]
+    med_gap = float(np.median(gaps)) if gaps else 0.0
+
+    def h_ratio(d: Any) -> float:
+        return float(d.height_mm) / med_h if (d.height_mm and med_h > 0) else 1.0
+
+    lp = [float(p) for p in (lumbo_p or [])]
+    lumbo_available = 1.0 if lp else 0.0
+    p0 = lp[0] if lp else 0.5
+    p1 = lp[1] if len(lp) > 1 else 0.0
+    upper = max(lp[1:]) if len(lp) > 1 else 0.0
+    margin = (p0 - upper) if lp else 0.0
+
+    gap_dev = abs(math.log(gaps[0] / med_gap)) if n >= 2 and med_gap > 0 and gaps[0] > 0 else 0.0
+    fov = zs[0] - float(coverage_low_z) if (n and coverage_low_z is not None) else 0.0
+    shift_votes = [v for v in votes if int(v.get("best", 0)) != 0]
+    vote_frac = len(shift_votes) / len(votes) if votes else 0.0
+    return {
+        "lumbo_p0": p0,
+        "lumbo_margin": margin,
+        "lumbo_p1": p1,
+        "lumbo_available": lumbo_available,
+        "h_bottom": h_ratio(discs[0]) if discs else 1.0,
+        "h_second": h_ratio(discs[1]) if n > 1 else 1.0,
+        "gap_bottom_dev": gap_dev,
+        "fov_below_mm": float(fov),
+        "vote_shift_frac": float(vote_frac),
+        "p_shift": float(p_shift),
+        "n_discs": float(n),
+    }
 
 
 # ------------------------------------------------------------------ model
@@ -254,16 +368,25 @@ def choose_thresholds(p_volume: NDArray[np.float64], correct: NDArray[np.float64
 
 @dataclass
 class Calibration:
-    """Disc and volume calibrators with the status thresholds. ``source`` names the training data."""
+    """Disc and volume calibrators with the status thresholds. ``source`` names the training data.
+
+    ``version`` 1: the volume model uses :data:`VOLUME_FEATURES_V1`; version 2 (lab18): the volume model may use
+    the numbering signals too. The model's own ``names`` say which features it takes.
+    """
 
     disc: Logistic
     volume: Logistic
     thresholds: dict[str, float]
     source: str = ""
+    version: int = 1
+
+    def volume_vector(self, feats: dict[str, float]) -> NDArray[np.float64]:
+        """The volume model's input for one study, from the named features (see :func:`volume_feature_map`)."""
+        return np.array([float(feats[k]) for k in self.volume.names], dtype=np.float64)
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            "version": 1,
+            "version": self.version,
             "source": self.source,
             "disc": self.disc.to_dict(),
             "volume": self.volume.to_dict(),
@@ -277,20 +400,25 @@ class Calibration:
             volume=Logistic.from_dict(d["volume"]),
             thresholds={k: float(v) for k, v in d["thresholds"].items()},
             source=str(d.get("source", "")),
+            version=int(d.get("version", 1)),
         )
 
     def save(self, path: str | Path) -> None:
         Path(path).write_text(json.dumps(self.to_dict(), indent=1) + "\n", encoding="utf-8")
 
 
-def calibration_path() -> Path:
-    return Path(__file__).with_name(CALIBRATION_FILE)
+def calibration_path(version: int = 2) -> Path:
+    """Packaged calibration file of ``version`` (2 is the default; 1 is the lab08 file)."""
+    return Path(__file__).with_name(CALIBRATION_FILE if version >= 2 else CALIBRATION_FILE_V1)
 
 
-@lru_cache(maxsize=2)
-def load_calibration(path: str | None = None) -> Calibration | None:
-    """The packaged calibration (or the one at ``path``); None when the file is missing."""
-    p = Path(path) if path else calibration_path()
+@lru_cache(maxsize=4)
+def load_calibration(path: str | None = None, version: int | None = None) -> Calibration | None:
+    """The packaged calibration (v2 by default, v1 with ``version=1``), or the file at ``path``.
+
+    None when the file is missing (the caller then uses the uncalibrated fallback).
+    """
+    p = Path(path) if path else calibration_path(2 if version is None else version)
     if not p.is_file():
         return None
     return Calibration.from_dict(json.loads(p.read_text(encoding="utf-8")))
@@ -299,7 +427,12 @@ def load_calibration(path: str | None = None) -> Calibration | None:
 __all__ = [
     "CALIBRATION_FILE",
     "DISC_FEATURES",
+    "SIGNAL_FEATURES",
+    "TARGET_PRECISION",
+    "TARGET_PRECISION_V1",
     "VOLUME_FEATURES",
+    "VOLUME_FEATURES_V1",
+    "VOLUME_FEATURES_V2",
     "Calibration",
     "Logistic",
     "calibration_path",
@@ -307,6 +440,8 @@ __all__ = [
     "disc_feature_rows",
     "load_calibration",
     "logit",
+    "numbering_signals",
     "spacing_deviation",
+    "volume_feature_map",
     "volume_feature_vector",
 ]

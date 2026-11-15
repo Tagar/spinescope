@@ -35,7 +35,13 @@ from ..config import DEFAULT, Config
 from ..geometry import Stack
 from ..study import Study
 from .anchors import Anchors, Disc, Vertebra
-from .calibration import disc_feature_rows, load_calibration, volume_feature_vector
+from .calibration import (
+    disc_feature_rows,
+    load_calibration,
+    numbering_signals,
+    volume_feature_map,
+    volume_feature_vector,
+)
 from .column import DiscFit, Segment, chain_lines, conus_tip, endplate_profile, find_lines, fit_disc
 from .fusion import FusionResult, fuse_numbering, fusion_record, relabel_anchors, stack_z_range
 from .lumbosacral import (
@@ -345,6 +351,9 @@ class LabelDetails:
     raw_numbering_confidence: float = 0.0
     disc_features: dict[str, NDArray[np.float64]] = field(default_factory=dict)
     volume_features: NDArray[np.float64] | None = None
+    #: Version 2 numbering signals (:func:`calibration.numbering_signals`) and every named volume feature.
+    signals: dict[str, float] = field(default_factory=dict)
+    volume_feature_dict: dict[str, float] = field(default_factory=dict)
     fusion: FusionResult | None = None
     calibrated: bool = False
     unfused: Anchors | None = None  # the primary's anchors before the numbering was fused (for evaluation)
@@ -531,6 +540,27 @@ def _finalise(
         t1t2_fraction=fus.t1t2_fraction,
         classical_agree=bool(fus.classical and fus.classical["agrees"]),
     )
+    # Version 2 numbering signals, on the labeller's lowest discs after the sacral check (before relabelling). The
+    # lumbosacral probabilities are aligned with the discs that remain (the candidates above a drop are gone).
+    lumbo_p = lumbo_dec.probs[lumbo_drop:] if lumbo_dec is not None and lumbo_dec.candidates else None
+    det.signals = numbering_signals(
+        primary,
+        lumbo_p=lumbo_p,
+        votes=fus.votes,
+        p_shift=float(1.0 - fus.posterior.get(0, 1.0)),
+        coverage_low_z=z_cov[0],
+    )
+    det.volume_feature_dict = {
+        **volume_feature_map(
+            fus.p_applied,
+            det.raw_disc_confidence,
+            sacrum_below=sacrum_below,
+            second_present=second_present,
+            t1t2_fraction=fus.t1t2_fraction,
+            classical_agree=bool(fus.classical and fus.classical["agrees"]),
+        ),
+        **det.signals,
+    }
 
     cal = load_calibration() if (calibrate and kind == "ml") else None
     fallback = fus.p_applied * (1.0 if sacrum_below else 0.9)
@@ -544,7 +574,7 @@ def _finalise(
                 f"confidence {float(p):.2f} calibrated (raw model probability {det.raw_disc_confidence[lab]:.2f})"
             )
             d.confidence = float(p)
-        conf_num = float(cal.volume.predict(det.volume_features)[0])
+        conf_num = float(cal.volume.predict(cal.volume_vector(det.volume_feature_dict))[0])
         thresholds = cal.thresholds
     else:
         conf_num = float(fallback)
