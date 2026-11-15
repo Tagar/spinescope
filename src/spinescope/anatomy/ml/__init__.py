@@ -5,7 +5,14 @@ Install the runtime with ``pip install 'spinescope[ml]'``. Training lives in ``t
 """
 
 from .grid import PlaneGrid, intensity_window, normalise, plane_grid, resample_slice
-from .labeller import CLASSES, label_spine_ml, load_session, model_path, segment_stack
+from .labeller import (
+    CLASSES,
+    label_spine_ml,
+    label_spine_ml_segmented,
+    load_session,
+    model_path,
+    segment_stack,
+)
 from .postprocess import anchors_from_segmentation
 
 __all__ = [
@@ -14,6 +21,7 @@ __all__ = [
     "anchors_from_segmentation",
     "intensity_window",
     "label_spine_ml",
+    "label_spine_ml_segmented",
     "load_session",
     "model_path",
     "normalise",

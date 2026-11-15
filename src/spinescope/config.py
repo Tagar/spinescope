@@ -257,6 +257,50 @@ class Config:
     # Use the 3-D normal too. Off: on the independent Sudirman axial-slab normals it is worse (3.3 vs 2.5 deg
     # median), while SPIDER's own normals are 3-D masks, so the SPIDER gain is partly definitional.
     ml_disc_normal_3d: bool = False
+    # ---- anatomy: applicability (spinescope.anatomy.ood: when NOT to label). Judgement defaults from anatomy
+    # texts, checked on SPIDER training only (docs/labeling/lab12_ood.md). Lengths in mm, unitless otherwise.
+    # Lumbar discs are ~8-12 mm high; thoracic and cervical discs ~4-6 mm.
+    ood_lumbar_disc_min_mm: float = 7.0
+    # Disc-to-disc spacing (centre to centre): cervical ~18-21 mm (body ~14 + disc ~5), thoracic ~26-30 mm,
+    # lumbar ~34-40 mm (body ~26-30 + disc ~8-12).
+    ood_cervical_spacing_max_mm: float = 22.0
+    ood_lumbar_spacing_min_mm: float = 30.0
+    # A sagittal stack needs at least this many slices and this z extent to be usable for labelling.
+    # Bone below the lowest disc (mm, along z) needed to call the sacrum in view: one lumbar body (~25-30 mm) plus the
+    # first sacral segment. A 25-30 mm body is the L5 body, not S1, so less than this does not confirm the numbering.
+    ood_sacrum_min_mm: float = 45.0
+    ood_min_sag_slices: int = 3
+    ood_min_sag_extent_mm: float = 40.0
+    # Field of view must extend this far beyond the outermost disc for another body to be in view
+    # (the shortest vertebral body, config.body_height_mm[0]).
+    ood_fov_margin_mm: float = 18.0
+    # Off-distribution cue (contrast, field strength, voxel shape, output entropy): multiplies the
+    # confidences by this factor per cue, never below the floor. Judgement default, not calibrated.
+    ood_offdist_factor: float = 0.6
+    ood_factor_floor: float = 0.3
+    # Thoracic discs above T10 (T10-T11 and higher) without a landmark named in the series descriptions
+    # are counted from the sacrum only: a missed disc anywhere below shifts them all. Confidence cap.
+    ood_thoracic_cap: float = 0.3
+    # Field strengths below this (tesla) have no training data: SPIDER is 1.5 T and 3 T.
+    ood_low_field_t: float = 1.0
+    # Voxels with all three sides at or below this size, and slice thickness within a factor 1.25 of the
+    # in-plane pixel size, are treated as 3-D isotropic (SPIDER T2 SPACE is 0.47 x 0.47 x 0.9 mm, not isotropic).
+    ood_isotropic_mm: float = 1.2
+    # Foreground pixels: network probability of any anatomy class above this. Normalised entropy of the
+    # class distribution over those pixels above ood_entropy_max means the network is unsure (0 = certain).
+    # Calibrated on SPIDER training: the 99th percentile of real studies is 0.17 (see docs/labeling/lab12_ood.md).
+    ood_fg_prob: float = 0.3
+    ood_entropy_max: float = 0.2
+    # A vertebral body lying between two adjacent discs longer than this (mm) means a disc between them was missed.
+    # Calibrated on SPIDER training (mid-sagittal network bodies: median 30 mm, 99th percentile 41 mm, 2-body
+    # merges ~55-65 mm): see docs/labeling/lab12_ood.md.
+    ood_long_body_mm: float = 45.0
+    # Labelling needs at least this many discs in view (one disc is not a chain to count).
+    ood_min_discs: int = 2
+    # Canal is searched within this distance (mm) of each disc level on the mid-sagittal slice; a spine has canal at
+    # every level, so the fraction of levels with canal must reach ood_canal_fraction_min.
+    ood_canal_tol_mm: float = 10.0
+    ood_canal_fraction_min: float = 0.5
 
 
 DEFAULT = Config()

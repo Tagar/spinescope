@@ -124,6 +124,18 @@ def label_spine_ml(study: Study, config: Config | None = None, *, session: Any =
     ``session`` is an optional ONNX Runtime session; by default the packaged weights named by
     ``Config.ml_model`` (``labeller_v1.onnx``). A file must exist in ``ml/assets`` for any other name.
     """
+
+    anchors, _seg = label_spine_ml_segmented(study, config, session=session)
+    return anchors
+
+
+def label_spine_ml_segmented(
+    study: Study, config: Config | None = None, *, session: Any = None
+) -> tuple[Anchors, SegmentedStack | None]:
+    """As :func:`label_spine_ml`, also returning the network output used (None when there is no sagittal).
+
+    The applicability check (:mod:`spinescope.anatomy.ood`) needs the probabilities for its entropy and canal cues.
+    """
     from .postprocess import anchors_from_segmentation
 
     cfg = config or DEFAULT
@@ -131,13 +143,16 @@ def label_spine_ml(study: Study, config: Config | None = None, *, session: Any =
         session = load_session(model_path(cfg.ml_model))
     stack = study.best("sag")
     if stack is None:
-        return Anchors(
-            method=METHOD,
-            warnings=["no sagittal series: spine anatomy cannot be labelled"],
-            numbering={"method": "none", "confidence": 0.0, "notes": "no sagittal"},
+        return (
+            Anchors(
+                method=METHOD,
+                warnings=["no sagittal series: spine anatomy cannot be labelled"],
+                numbering={"method": "none", "confidence": 0.0, "notes": "no sagittal"},
+            ),
+            None,
         )
     seg = segment_stack(stack, cfg, session=session)
-    return anchors_from_segmentation(seg, cfg)
+    return anchors_from_segmentation(seg, cfg), seg
 
 
 __all__ = [
@@ -146,6 +161,7 @@ __all__ = [
     "MODEL_ASSET",
     "SegmentedStack",
     "label_spine_ml",
+    "label_spine_ml_segmented",
     "load_session",
     "model_path",
     "run_network",
