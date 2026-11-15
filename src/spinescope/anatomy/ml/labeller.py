@@ -6,10 +6,10 @@ Pipeline (all geometry in LPS mm, from :mod:`.grid`):
 2. Resample every slice onto a fixed 1 mm grid (rows superior->inferior, columns anterior->posterior)
    and normalise intensities per volume.
 3. Run the network: background / vertebral body / disc / spinal canal probabilities per slice.
-4. Mid-sagittal plane: the slice with the largest canal area, refined by a parabola through the canal
-   area of its neighbours.
-5. On that plane, disc instances are connected components of the disc class; each gives a centre, a
-   normal (principal axis, superior), anterior/posterior margins at mid-height and a height.
+4. Mid-sagittal plane: the slice where the cumulative canal area reaches half its total (the canal median).
+5. On that plane, disc instances are 8-connected components of the disc class; each gives a height,
+   anterior/posterior margins at mid-height, and a centre and normal from the 3-D disc pooled over nearby
+   slices (the normal stays on the mid-plane unless ``Config.ml_disc_normal_3d``).
 6. Numbering from the bottom: the lowest disc is L5-S1; vertebral bodies are named by the number of
    discs below them. Confidence is lower when no body is visible below the lowest disc.
 

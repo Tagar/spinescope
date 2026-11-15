@@ -38,36 +38,39 @@ def canal_areas_mm2(seg: SegmentedStack, cfg: Config = DEFAULT) -> NDArray[np.fl
 
 
 def mid_sagittal(seg: SegmentedStack, cfg: Config = DEFAULT) -> MidSagittal | None:
-    """Mid-sagittal slice from the canal area across slices; None if no canal is segmented."""
+    """Mid-sagittal slice: the slice that splits the canal's area in half; None if no canal is segmented.
+
+    The canal's median x (LPS) is the x that splits its voxels in half, and the voxels of a slice number
+    in proportion to its canal area. So the plane is the slice where the cumulative canal area reaches half
+    its total (the lab09 training split: median error 0 mm, 0.8% of volumes beyond 5 mm). The earlier
+    estimate, the area peak refined by a parabola, sat 1.2 mm off the median and was beyond 5 mm on 1.7%.
+    Confidence still reads the peak: how much the canal area drops away from it.
+    """
     area = canal_areas_mm2(seg, cfg)
     if area.size == 0 or float(np.max(area)) <= 0.0:
         return None
     stack = seg.stack
-    pos = np.asarray(stack.positions, dtype=np.float64)  # plane coordinate along the stack normal
-    k = int(np.argmax(area))
-    x = float(pos[k])
-    if 0 < k < len(area) - 1 and area[k - 1] > 0 and area[k + 1] > 0 and pos[k + 1] != pos[k - 1]:
-        xs = pos[k - 1 : k + 2]
-        ys = area[k - 1 : k + 2]
-        a, b, _c = np.polyfit(xs - pos[k], ys, 2)
-        if a < 0:  # concave: a true peak
-            vertex = -b / (2 * a)
-            x = float(pos[k] + np.clip(vertex, xs[0] - pos[k], xs[-1] - pos[k]))
+    k_peak = int(np.argmax(area))
+    cum = np.cumsum(area)
+    k = min(int(np.searchsorted(cum, cum[-1] / 2.0)), len(area) - 1)
     # Confidence: how much the canal area drops away from the peak (slices 2+ steps away).
-    far = np.abs(np.arange(len(area)) - k) >= 2
-    conf_shape = float(np.clip(1.0 - area[far].mean() / area[k], 0.0, 1.0)) if far.any() else 0.5
-    normal = np.asarray(stack.normal, dtype=np.float64)
-    point = stack.ipp[k] + (x - pos[k]) * normal
+    far = np.abs(np.arange(len(area)) - k_peak) >= 2
+    conf_shape = float(np.clip(1.0 - area[far].mean() / area[k_peak], 0.0, 1.0)) if far.any() else 0.5
+    point = np.asarray(stack.ipp[k], dtype=np.float64)
     ev = (
-        f"canal area peak {area[k]:.0f} mm2 on slice {k} of {len(area)}; "
-        f"plane refined to x={point[0]:.1f} mm (LPS)"
+        f"canal area splits in half at slice {k} of {len(area)} (peak {area[k_peak]:.0f} mm2 on slice "
+        f"{k_peak}); plane at x={point[0]:.1f} mm (LPS)"
     )
     return MidSagittal(k=k, x_lps=float(point[0]), confidence=conf_shape, evidence=ev)
 
 
 def _components(mask: NDArray[np.bool_], grid: PlaneGrid, min_area_mm2: float) -> list[NDArray[np.intp]]:
-    """Index arrays (rows, cols) of each connected component with at least ``min_area_mm2``."""
-    lab, n = ndimage.label(mask)
+    """Index arrays (rows, cols) of each connected component with at least ``min_area_mm2``.
+
+    8-connectivity: a disc that the network splits along a one-pixel diagonal seam is one disc. With
+    4-connectivity such a seam left a fragment that was named as an extra level (a numbering shift).
+    """
+    lab, n = ndimage.label(mask, structure=np.ones((3, 3), dtype=bool))
     out: list[NDArray[np.intp]] = []
     px = grid.res_mm**2
     for lid in range(1, n + 1):
@@ -136,6 +139,13 @@ def extract_discs(seg: SegmentedStack, k: int, cfg: Config = DEFAULT) -> tuple[l
         if aspect < cfg.ml_disc_min_aspect:
             warns.append(f"component of {idx.shape[1]} px rejected: not disc-shaped (aspect {aspect:.2f})")
             continue
+        tilt = float(np.degrees(np.arccos(np.clip(abs(disc.normal[2]), 0.0, 1.0))))
+        if tilt > cfg.ml_disc_max_tilt_deg:
+            # A sagittal strip (e.g. a sacral or osteophyte fragment) has a horizontal normal.
+            warns.append(
+                f"component of {idx.shape[1]} px rejected: normal tilted {tilt:.0f} deg from the axis"
+            )
+            continue
         if not (lo_h <= height <= hi_h):
             disc.confidence *= 0.5
             disc.evidence.append(
@@ -193,6 +203,122 @@ def discs_near_midline(seg: SegmentedStack, k: int, cfg: Config = DEFAULT) -> tu
     return kept, warns
 
 
+def _disc_3d(
+    seg: SegmentedStack, k: int, centre_lps: NDArray[np.float64], height_mm: float, cfg: Config = DEFAULT
+) -> tuple[NDArray[np.float64], NDArray[np.float64], int] | None:
+    """3-D centroid and principal normal of the disc near ``centre_lps``, from every slice within reach.
+
+    Sagittal slices are parallel, so the disc pixels of each slice that fall in a window around the
+    mid-plane centre (``height_mm`` + 3 mm in height, ``ml_disc_3d_ap_half_mm`` in AP) are pooled over the
+    slices within ``ml_disc_3d_half_width_mm`` of plane ``k``. The pooled voxels match the 3-D truth
+    definition (centroid and principal axis of the whole disc). Returns (centre LPS, unit normal with
+    positive z, number of slices used), or None when fewer than three slices contain the disc.
+    """
+    thr = cfg.ml_prob_threshold
+    down_c, post_c = seg.grids[k].mm_of(centre_lps)
+    pos = np.asarray(seg.stack.positions, dtype=np.float64)
+    half_h = height_mm / 2.0 + 3.0
+    pts: list[NDArray[np.float64]] = []
+    for kk, g in enumerate(seg.grids):
+        if abs(pos[kk] - pos[k]) > cfg.ml_disc_3d_half_width_mm:
+            continue
+        ii, jj = np.nonzero(seg.probs[kk, DISC] > thr)
+        if ii.size == 0:
+            continue
+        dn, pn = g.mm_of_index(ii, jj)
+        sel = (np.abs(dn - down_c) <= half_h) & (np.abs(pn - post_c) <= cfg.ml_disc_3d_ap_half_mm)
+        if np.any(sel):
+            pts.append(g.to_lps(dn[sel], pn[sel]))
+    if len(pts) < 3:
+        return None
+    allp = np.concatenate(pts, axis=0)
+    cen = allp.mean(axis=0)
+    _w, vecs = np.linalg.eigh(np.cov((allp - cen).T))
+    nrm = vecs[:, 0]  # eigh: ascending eigenvalues, so the thinnest direction is the disc normal
+    if nrm[2] < 0:
+        nrm = -nrm
+    return cen, nrm / np.linalg.norm(nrm), len(pts)
+
+
+def refine_disc_3d(seg: SegmentedStack, k: int, disc: Disc, cfg: Config = DEFAULT) -> Disc:
+    """Replace a disc's mid-plane centre by the 3-D centroid, and its normal too when ``ml_disc_normal_3d``.
+
+    The 3-D centroid is the default because it removes a systematic offset of the mid-plane centre
+    (see :class:`~spinescope.config.Config`). The 3-D normal is off by default: it agrees better with
+    SPIDER's own 3-D mask normals but worse with the independent Sudirman axial-slab normals (see
+    ``docs/labeling/lab09_errors.md``). The anterior and posterior margins stay on the mid-sagittal plane.
+    Returns ``disc`` unchanged when the disc is not seen on enough slices.
+    """
+    height = float(disc.height_mm) if disc.height_mm else cfg.disc_height_mm[0]
+    got = _disc_3d(seg, k, np.asarray(disc.center, dtype=np.float64), height, cfg)
+    if got is None:
+        return disc
+    cen, nrm, n_sl = got
+    shift = float(np.linalg.norm(cen - np.asarray(disc.center)))
+    turn = float(np.degrees(np.arccos(np.clip(abs(float(np.dot(nrm, disc.normal))), 0.0, 1.0))))
+    disc.center = [float(v) for v in cen]
+    if cfg.ml_disc_normal_3d:
+        disc.normal = [float(v) for v in nrm]
+        what = "centre and normal"
+    else:
+        what = "centre"
+    disc.evidence.append(
+        f"{what} from the 3-D disc over {n_sl} slices "
+        f"(mid-plane centre moved {shift:.1f} mm, 3-D normal would turn {turn:.1f} deg)"
+    )
+    return disc
+
+
+def drop_duplicate_discs(discs: list[Disc], cfg: Config = DEFAULT) -> tuple[list[Disc], list[str]]:
+    """Merge discs whose sagittal centres (y, z) lie within half the smallest level spacing of a more
+    confident disc. Run after the 3-D refinement: two mid-plane estimates of one disc, one from the
+    mid-sagittal slice and one from a neighbour, can differ by more than the threshold before refinement
+    and fall within it after, and a duplicate pushes every level above it up by one.
+    Returns (kept discs in their input order, warnings).
+    """
+    min_sep = cfg.level_spacing_mm[0] / 2.0
+    order = sorted(range(len(discs)), key=lambda i: -discs[i].confidence)
+    kept_idx: list[int] = []
+    warns: list[str] = []
+    for i in order:
+        ci = np.asarray(discs[i].center)[[1, 2]]
+        dup = next(
+            (j for j in kept_idx if np.linalg.norm(ci - np.asarray(discs[j].center)[[1, 2]]) < min_sep),
+            None,
+        )
+        if dup is None:
+            kept_idx.append(i)
+        else:
+            warns.append(
+                f"duplicate disc at z={discs[i].center[2]:.0f} mm merged into the disc at "
+                f"z={discs[dup].center[2]:.0f} mm (centres within {min_sep:.0f} mm)"
+            )
+    kept = [discs[i] for i in sorted(kept_idx)]
+    return kept, warns
+
+
+def drop_caudal_outliers(discs: list[Disc], cfg: Config = DEFAULT) -> tuple[list[Disc], list[str]]:
+    """Drop lowest discs that lie more than the largest level spacing below the next disc.
+
+    ``discs`` must be sorted bottom-up (ascending centre z). A disc that far below the rest of the column is not a lumbar disc (sacral or osteophyte false
+    positive): it would otherwise take the L5-S1 name and shift every level above it by one.
+    Returns (kept discs, warnings).
+    """
+    out = list(discs)
+    warns: list[str] = []
+    max_gap = cfg.level_spacing_mm[1]
+    while len(out) > 1:
+        gap = out[1].center[2] - out[0].center[2]
+        if gap <= max_gap:
+            break
+        d = out.pop(0)
+        warns.append(
+            f"lowest disc at z={d.center[2]:.0f} mm dropped: {gap:.0f} mm below the next disc "
+            f"(more than {max_gap:.0f} mm, not a level spacing)"
+        )
+    return out, warns
+
+
 def anchors_from_segmentation(seg: SegmentedStack, cfg: Config = DEFAULT) -> Anchors:
     """Mid-sagittal discs, bodies and numbering from a :class:`SegmentedStack`."""
     anchors = Anchors(method=METHOD, source_stack=seg.stack.key)
@@ -210,6 +336,12 @@ def anchors_from_segmentation(seg: SegmentedStack, cfg: Config = DEFAULT) -> Anc
         anchors.numbering = {"method": "none", "confidence": 0.0, "notes": "no disc"}
         return anchors
     # Bottom-up: discs sorted by centre z, ascending (inferior first).
+    discs.sort(key=lambda d: d.center[2])
+    discs, caudal_warns = drop_caudal_outliers(discs, cfg)
+    anchors.warnings.extend(caudal_warns)
+    discs = [refine_disc_3d(seg, mid.k, d, cfg) for d in discs]
+    discs, dup_warns = drop_duplicate_discs(discs, cfg)
+    anchors.warnings.extend(dup_warns)
     discs.sort(key=lambda d: d.center[2])
     names = disc_names(len(discs))
     labelled: dict[str, Disc] = {}
@@ -256,7 +388,9 @@ __all__ = [
     "anchors_from_segmentation",
     "canal_areas_mm2",
     "discs_near_midline",
+    "drop_caudal_outliers",
     "extract_bodies",
     "extract_discs",
     "mid_sagittal",
+    "refine_disc_3d",
 ]
