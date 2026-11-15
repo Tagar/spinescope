@@ -8,6 +8,7 @@ added as well. Errors carry JSON paths such as ``$.levels["L4-L5"].disc.pfirrman
 from __future__ import annotations
 
 import difflib
+import hashlib
 import json
 import logging
 import os
@@ -197,6 +198,11 @@ def _jsonschema_errors(doc: Any, schema: dict[str, Any]) -> list[tuple[str, str]
     return out
 
 
+def _image_label(image: str) -> str:
+    """Opaque label for a cited image path (a file name can carry identifying text)."""
+    return "image " + hashlib.sha256(image.encode("utf-8")).hexdigest()[:8]
+
+
 def _check_references(doc: dict[str, Any], base: Path | None, warnings: list[str]) -> None:
     """Non-fatal check: evidence images that cannot be found. One warning per image path."""
     cited: dict[str, list[str]] = {}
@@ -211,7 +217,7 @@ def _check_references(doc: dict[str, Any], base: Path | None, warnings: list[str
             candidates.insert(0, base / image)
         if not any(c.exists() for c in candidates):
             warnings.append(
-                f"evidence image not found: {image} (cited {len(places)} time(s), first at {places[0]})"
+                f"evidence image not found: {_image_label(image)} (cited {len(places)} time(s), first at {places[0]})"
             )
 
 
@@ -293,7 +299,7 @@ def validate(source: str | Path | dict[str, Any], schema: dict[str, Any] | None 
         if doc.get("schema_version") != SCHEMA_VERSION:  # pragma: no cover - enforced by schema
             res.errors.append(ValidationIssue("$.schema_version", f"must be {SCHEMA_VERSION!r}"))
         if base is not None and res.reader and os.path.splitext(label)[0] != res.reader:
-            res.warnings.append(f'file name {label} differs from reader "{res.reader}"')
+            res.warnings.append(f'the file name differs from reader "{res.reader}"')
         _check_references(doc, base, res.warnings)
     res.warnings = sorted(set(res.warnings))
     res.ok = not res.errors

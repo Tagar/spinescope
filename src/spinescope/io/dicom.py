@@ -33,6 +33,7 @@ from pydicom.uid import UID
 
 from ..config import DEFAULT, Config
 from ..geometry import Stack, unit
+from ..privacy import public_text
 from ..series import apply_display_ops
 
 log = logging.getLogger(__name__)
@@ -288,7 +289,7 @@ def _refs_from_file(path: str) -> tuple[list[SliceRef], str | None, Counter[str]
     try:
         ds = pydicom.dcmread(path, stop_before_pixels=True)
     except Exception as e:
-        log.debug("skip unreadable file: %s", e)
+        log.debug("skip unreadable file: %s", type(e).__name__)
         return [], "unreadable", dropped
     modality = str(_get(ds, "Modality", "") or "").upper()
     sop = _sop_class(ds)
@@ -304,7 +305,7 @@ def _refs_from_file(path: str) -> tuple[list[SliceRef], str | None, Counter[str]
     try:
         refs = _build_refs(ds, path, photometric, dropped)
     except Exception as e:  # malformed header: ignore the file, never crash the scan
-        log.debug("skip malformed file: %s", e)
+        log.debug("skip malformed file: %s", type(e).__name__)
         return [], "malformed", Counter()
     if refs:
         return refs, None, dropped
@@ -688,7 +689,7 @@ def _study_table(groups: dict[str, list[SliceRef]]) -> list[tuple[StudyInfo, str
     rows: list[tuple[StudyInfo, str]] = []
     for uid, items in groups.items():
         series = sorted({r.series_uid for r in items})
-        descs = sorted({str(r.header.get("SeriesDescription", "")) for r in items} - {""})
+        descs = sorted({public_text(r.header.get("SeriesDescription", "")) for r in items} - {""})
         info = StudyInfo(
             index=0,
             study_id=_short_hash(uid),
@@ -777,7 +778,7 @@ def read_dicom(
     scan = scan_dicom(root)
     if not scan.refs:
         raise FileNotFoundError(
-            f"no DICOM images with plane geometry found under {root}{_ignored_note(scan)}"
+            f"no DICOM images with plane geometry found in the given path{_ignored_note(scan)}"
         )
     groups = _group_studies(scan.refs)
     table = _study_table(groups)
@@ -816,6 +817,14 @@ def read_dicom(
         warnings.append(msg)
     stacks = build_stacks(groups[uid], load_pixels=False, config=config)
     for msg in _geometry_warnings(scan, stacks):
+        log.warning(msg)
+        warnings.append(msg)
+    derived = [st for st in stacks if "DERIVED" in str(st.meta.get("dicom", {}).get("ImageType", "")).upper()]
+    if derived:  # pixels are never read for text: annotations burned into derived images stay in the pixels
+        msg = (
+            f"{len(derived)} series are marked DERIVED (exports or screenshots can carry burned-in names or "
+            "annotations); spinescope does not read text in pixels, so check them before sharing any output"
+        )
         log.warning(msg)
         warnings.append(msg)
     return DicomRead(

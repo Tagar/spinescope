@@ -197,7 +197,7 @@ def read_volume(path: str, *, key: str = "", meta: dict[str, Any] | None = None)
     """
     arr, spacing, origin, direction = _read_any(path)
     if np.ndim(arr) != 3:
-        raise ValueError(f"{os.path.basename(path)}: expected a 3-D volume, got {np.ndim(arr)}-D")
+        raise ValueError(f"expected a 3-D volume, got {np.ndim(arr)}-D (the file name is not shown)")
     arr = np.asarray(arr, dtype=np.float32)  # [k, j, i]
     choice, a_r, a_c, perm = _stack_layout(spacing, direction)
     slice_axis = choice.axis

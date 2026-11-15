@@ -16,6 +16,7 @@ if TYPE_CHECKING:
 
 
 def _cmd_inspect(args: argparse.Namespace) -> int:
+    from .privacy import public_text
     from .study import load_study
 
     if getattr(args, "label", False):
@@ -34,7 +35,7 @@ def _cmd_inspect(args: argparse.Namespace) -> int:
                     "spacing": s.spacing,
                     "plane": s.plane,
                     "obliquity_deg": round(s.obliquity, 2),
-                    "description": s.description,
+                    "description": public_text(s.description),
                     "role": s.meta.get("role", {}),
                 }
                 for k, s in study.stacks.items()
@@ -341,7 +342,15 @@ def main(argv: Sequence[str] | None = None) -> int:
     if raw[:1] == ["benchmark"]:  # forwarded verbatim: its own options, help and exit codes
         return _cmd_benchmark(raw[1:])
     args = build_parser().parse_args(raw)
-    return int(args.func(args))
+    try:
+        return int(args.func(args))
+    except Exception as exc:  # errors may quote the input path: show the type and the message without it
+        msg = str(exc)
+        path = getattr(args, "path", None)
+        if path:
+            msg = msg.replace(str(path), "<input path>")
+        print(f"spinescope: {type(exc).__name__}: {msg}", file=sys.stderr)
+        return 2
 
 
 if __name__ == "__main__":

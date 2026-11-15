@@ -32,6 +32,7 @@ from ..anatomy.summary import (
 from ..config import DEFAULT, Config
 from ..geometry import Stack
 from ..io.dicom import KEEP_TAGS
+from ..privacy import public_text
 from ..render.frame import direction_letter
 from ..report.instructions import reader_instructions
 from ..report.schema import ITEM_SECTIONS, global_group_names, level_group_names
@@ -167,7 +168,7 @@ def series_table(study: Study) -> list[dict[str, Any]]:
         rows.append(
             {
                 "key": key,
-                "description": "" if desc is None else str(desc),
+                "description": public_text(desc),
                 "plane": st.plane,
                 "contrast": role.get("contrast", "unknown"),
                 "fat_suppressed": bool(role.get("fat_suppressed")),

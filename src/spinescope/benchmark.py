@@ -22,6 +22,7 @@ import json
 import logging
 import math
 import os
+import re
 import sys
 import time
 from collections.abc import Callable, Iterable, Sequence
@@ -406,9 +407,14 @@ def _compute(job: dict[str, Any]) -> dict[str, Any]:
             rec["truth"] = _truth_json(case.truth, case.phantom.truth.get("midline_x"))
             rec["anchors"], rec["elapsed_s"] = _label(case.study, backend)
     except Exception as exc:  # one failing case is a counted result, not a crash of the run
-        rec["error"] = f"{type(exc).__name__}: {str(exc)[:160]}"
+        rec["error"] = f"{type(exc).__name__}: {error_text(exc)}"
         log.debug("case failed: %s", rec["error"])
     return rec
+
+
+def error_text(exc: BaseException) -> str:
+    """Exception message for a result file: path-like tokens (dataset locations) are replaced, length is capped."""
+    return re.sub(r"\S*[/\\]\S*", "<path>", str(exc))[:160]
 
 
 def _cache_file(job: dict[str, Any], cache: Path, fp: str) -> Path:

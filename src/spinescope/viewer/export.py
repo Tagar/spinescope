@@ -21,6 +21,7 @@ from numpy.typing import NDArray
 from ..anatomy.anchors import Anchors
 from ..config import DEFAULT, Config
 from ..geometry import Stack, unit
+from ..privacy import public_text
 from ..study import Study
 from .reformat import CONTRAST_RANK, Reformat, plan_reformats
 
@@ -111,7 +112,7 @@ def stack_record(key: str, st: Stack) -> dict[str, Any]:
     role = st.meta.get("role", {})
     rec: dict[str, Any] = {
         "key": key,
-        "label": st.description or key,
+        "label": public_text(st.description) or key,
         "plane": st.plane,
         "contrast": str(role.get("contrast", "")),
         "localizer": bool(role.get("localizer", False)),
@@ -141,7 +142,7 @@ def reformat_record(ref: Reformat) -> dict[str, Any]:
     """Geometry only: the browser resamples the source's voxels (see ``reformat.py``)."""
     rec: dict[str, Any] = {
         "key": ref.key,
-        "label": ref.description,
+        "label": public_text(ref.description),
         "plane": ref.plane,
         "contrast": ref.contrast,
         "localizer": False,

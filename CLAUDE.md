@@ -11,7 +11,9 @@ Read DESIGN.md first. Key rules:
    per-study offsets or thresholds in absolute signal units. Defaults go in `spinescope/config.py`, in mm
    or relative units, with a source comment.
 3. **Privacy**: never put DICOM attributes outside `KEEP_TAGS` into outputs; never serialize `meta`
-   keys that start with `_`; never write file paths of input data into outputs.
+   keys that start with `_`; never write file paths of input data into outputs. Free text in
+   KEEP_TAGS (descriptions, protocol names) goes through `spinescope.privacy.public_text` before any output; the
+   canary test (`tests/test_privacy_canaries.py`) must pass. See docs/privacy.md.
 4. **Quality bar**: type hints on public functions, short docstrings, `logging` instead of `print` in
    library code, deterministic results (seeded RNG), unit tests for every public function (phantom-based),
    `ruff check`, `ruff format`, `mypy` and `pytest` all clean before you finish.

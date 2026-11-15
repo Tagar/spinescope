@@ -99,7 +99,8 @@ def test_markdown_writes_file_when_path_given(tmp_path: Path) -> None:
 def test_markdown_never_shows_full_image_paths(tmp_path: Path) -> None:
     md = render_markdown(_consensus(tmp_path))
     assert str(tmp_path) not in md
-    assert "sag_t2.png [sag_t2 k=12]" in md
+    assert "sag_t2.png" not in md  # evidence images are opaque labels, never file names
+    assert "[sag_t2 k=12]" in md
 
 
 def test_html_is_self_contained_and_embeds_thumbnails(tmp_path: Path) -> None:
@@ -113,13 +114,14 @@ def test_html_is_self_contained_and_embeds_thumbnails(tmp_path: Path) -> None:
 def test_html_embed_images_false_has_no_thumbnails(tmp_path: Path) -> None:
     html = render_html(_consensus(tmp_path), embed_images=False)
     assert "data:image/png" not in html
-    assert "sag_t2.png" in html  # still named
+    assert "sag_t2.png" not in html
+    assert "image " in html  # opaque label
 
 
 def test_html_missing_images_do_not_fail(tmp_path: Path) -> None:
     html = render_html(_consensus(tmp_path, with_images=False))
     assert "data:image/png" not in html
-    assert "sag_t2.png" in html
+    assert "sag_t2.png" not in html
     assert "<table>" in html
 
 

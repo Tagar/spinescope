@@ -57,6 +57,9 @@ show the patient's left on the right of the screen (radiological convention).
 spinescope keeps only an allowlist of technical DICOM attributes (`spinescope.io.KEEP_TAGS`); patient
 names, IDs, dates, institutions and physicians never enter its data model or outputs. Still treat
 every output derived from a real patient's images as sensitive, and never commit patient data.
+Free-text series descriptions are reduced to protocol vocabulary in outputs, burned-in pixel text is not removed.
+Threat model, trade-offs and the canary test: [docs/privacy.md](docs/privacy.md). Report privacy problems per
+[SECURITY.md](SECURITY.md).
 
 ## License
 
