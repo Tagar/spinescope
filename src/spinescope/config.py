@@ -695,6 +695,48 @@ class Config:
     ligamentum_csf_frac: float = 0.6
     # Upper bound on any ligamentum or epidural-fat confidence. Unvalidated; see docs/analysis/ligamentum.md.
     ligamentum_max_confidence: float = 0.3
+    # ---- paraspinal muscles (analysis/muscles.py). Lateral limits are in units of the body half width (from the level's
+    # body geometry, or the correspondence default), AP limits in units of the body half depth, posterior positive
+    # from the body centre. Judgement from lumbar anatomy (multifidus medial to the erector, erector posterior to the
+    # psoas, psoas lateral to the body); no published segmentation of these windows exists. Checked on overlays.
+    muscles_mf_lat_frac: tuple[float, float] = (
+        0.2,
+        1.0,
+    )  # multifidus: between the midline and the facet/lamina line
+    muscles_es_lat_frac: tuple[float, float] = (1.0, 2.4)  # erector spinae: lateral to the multifidus
+    muscles_ps_lat_frac: tuple[float, float] = (
+        1.0,
+        2.3,
+    )  # psoas: lateral to the body, anterior to the posterior elements
+    muscles_mf_ap_frac: tuple[float, float] = (
+        2.0,
+        3.5,
+    )  # multifidus: behind the canal (canal centre ~1.7 half depths)
+    muscles_es_ap_frac: tuple[float, float] = (1.5, 3.5)  # erector spinae: from the canal level backwards
+    muscles_ps_ap_frac: tuple[float, float] = (-0.8, 0.8)  # psoas: the middle of the body, not behind it
+    # Subcutaneous fat ring (mm inside the skin) excluded from muscle windows and used for the fat reference.
+    # Judgement: subcutaneous lumbar fat is commonly 10 to 15 mm deep at the back.
+    muscles_subcut_ring_mm: float = 12.0
+    # Body outline: tissue is smoothed signal above this fraction of the way from the air floor (5th percentile of the
+    # slice) to the tissue level (90th percentile). Relative, so scanner units do not matter. Judgement; checked on overlays.
+    muscles_body_threshold_rel: float = 0.25
+    # Lean reference: psoas pixels below this fraction of the subcutaneous fat level (0.6 is judgement).
+    muscles_lean_fraction: float = 0.6
+    # Psoas reference is used only if at most this share of its core is fat-bright (else erector spinae).
+    muscles_psoas_fat_max_share: float = 0.5
+    # Kjaer et al. 2007 (BMC Med 5:2, doi 10.1186/1741-7015-5-2), multifidus visual grades: 0 = 0-10 % fat,
+    # 1 = 10-50 %, 2 = >50 %. Boundary convention used here: 50 % exactly is grade 1.
+    # The paper's ranges overlap at exactly 10 %; here a fat fraction of 10 % exactly is grade 1 (grade 0 is < 10 %).
+    muscles_kjaer_bounds: tuple[float, float] = (0.10, 0.50)
+    # Oblique slab: above this angle to the disc normal the cut is too oblique; confidence is lowered (as the
+    # correspondence module's slab tolerance, see CorrespondenceConfig.tilt_tol_deg).
+    muscles_oblique_tilt_max_deg: float = 12.0
+    # Left/right asymmetry (% of the mean of both sides) above which a flag is raised. Judgement, not validated.
+    muscles_asymmetry_flag_pct: float = 20.0
+    # Smallest ROI (pixels) that is measured; below it the value is not assessed.
+    muscles_min_roi_pixels: int = 150
+    # Upper bound on confidence for muscle outputs: experimental until the Sudirman check (docs/analysis/muscles.md).
+    muscles_max_confidence: float = 0.5
 
 
 DEFAULT = Config()

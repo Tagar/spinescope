@@ -233,6 +233,12 @@ class PhantomSpec:
     lf: dict[str, tuple[str, float]] = field(default_factory=dict)
     # Midline dorsal epidural fat (mm, between the dura and the ligamentum) at every level; 0 = none.
     epidural_fat_mm: float = 0.0
+    # ---- paraspinal detail (dx13 muscles). Off by default: the default phantom is unchanged.
+    # paraspinal_detail adds a medial multifidus ellipse (labelled MUSCLE, inside the erector ellipse) so tests have a
+    # multifidus to segment. multifidus_fat: side ('L' patient left, 'R') -> fat fraction of that multifidus, drawn as
+    # a lateral band of fat signal (realised fraction is measured from the labels in the tests). Cartoon only.
+    paraspinal_detail: bool = False
+    multifidus_fat: dict[str, float] = field(default_factory=dict)
 
 
 def _segment_distance(pts: np.ndarray, a: np.ndarray, b: np.ndarray) -> np.ndarray:
@@ -554,6 +560,9 @@ class SpinePhantom:
         for sx in (-1.0, 1.0):
             m = ((pts[:, 0] - sx * 32) / 20.0) ** 2 + ((pts[:, 1] - (y_canal + 22)) / 24.0) ** 2 <= 1.0
             lab[m & (ex <= 0.82)] = MUSCLE
+        if sp.paraspinal_detail or sp.multifidus_fat:
+            for _side, (_sx, m) in self._multifidus(pts, y_canal).items():
+                lab[m & (ex <= 0.82)] = MUSCLE
         below_l1 = pts[:, 2] < self.bodies["L1"]["center"][2]
         y_body = np.interp(pts[:, 2], cz[::-1, 2], cz[::-1, 1]) - sp.canal_offset
         for sx in (-1.0, 1.0):
@@ -747,6 +756,14 @@ class SpinePhantom:
         hd = v["height_mm"] / 2
         return (lr <= 9.0) & (ap <= 9.0) & (up <= hd), (lr <= 12.0) & (ap <= 12.0) & (up <= hd + 3.0)
 
+    def _multifidus(self, pts: np.ndarray, y_canal: np.ndarray) -> dict[str, tuple[float, np.ndarray]]:
+        """Medial multifidus ellipse per side: {'R'|'L': (sx, mask)}; sx = +1 patient left (+x), -1 patient right."""
+        out: dict[str, tuple[float, np.ndarray]] = {}
+        for sx, side in ((-1.0, "R"), (1.0, "L")):
+            m = ((pts[:, 0] - sx * 12.0) / 9.0) ** 2 + ((pts[:, 1] - (y_canal + 26.0)) / 20.0) ** 2 <= 1.0
+            out[side] = (sx, m)
+        return out
+
     def _bias(self, pts: np.ndarray) -> np.ndarray:
         """Surface-coil sensitivity: brighter near a posterior coil, falling off with depth (multiplicative)."""
         ref = self.bodies["L3"]["center"]
@@ -804,6 +821,14 @@ class SpinePhantom:
                 near = (np.abs(q @ dv["normal"]) < self.spec.disc_height) & (labels == NUCLEUS)
                 ann = table[ANNULUS]
                 img[near] = ann + (table[NUCLEUS] - ann) * f
+        if pts is not None and self.spec.multifidus_fat and not self.realistic:
+            cz = self.canal_line
+            y_canal = np.interp(pts[:, 2], cz[::-1, 2], cz[::-1, 1])
+            for _side, (sx, m) in self._multifidus(pts, y_canal).items():
+                frac = self.spec.multifidus_fat.get(_side, 0.0)
+                if frac > 0.0:
+                    u = sx * (pts[:, 0] - sx * 12.0) / 9.0  # 0 at the medial edge... 1 at the lateral edge
+                    img[m & (u > 1.0 - 2.0 * frac)] = table[FAT]
         if pts is not None and self.realistic:
             from . import realistic as _re
 
