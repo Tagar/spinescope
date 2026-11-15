@@ -367,7 +367,8 @@ def test_spine_read_states_the_abstain_policy_and_verify_rule():
     assert "`probable`: use the level names" in text
     assert "`unconfirmed`: positions only" in text
     assert "`verify_labels`" in text
-    assert "whenever the status is `probable` or `unconfirmed`" in text
+    assert "can only LOWER the status" in text  # an AI review never raises trust (lab24)
+    assert "Only a human review can raise it" in text
     assert "numbering status" in text and "applicability" in text and "experimental" in text
 
 
