@@ -56,6 +56,7 @@ P1_MIN_DIRECTIONS = 2
 BOOT = 1000
 SEED = 0
 SIDE_NONE = None
+_SIDE_CODE = {"left": "L", "lt": "L", "right": "R", "rt": "R"}
 
 
 def _truth(labels: Sequence[Any]) -> dict[tuple[str, str], bool]:
@@ -66,13 +67,16 @@ def _truth(labels: Sequence[Any]) -> dict[tuple[str, str], bool]:
     for lab in labels:
         if lab.field != "stenosis" or lab.zone != "foraminal" or lab.level is None:
             continue
+        side = _SIDE_CODE.get(
+            str(lab.side or "").lower()
+        )  # the parser says left/right; the analysis uses L/R
         if lab.value is True and not lab.negated:
-            if lab.side in foramina.SIDES:
-                pos.add((lab.level, lab.side))
+            if side is not None:
+                pos.add((lab.level, side))
             else:
                 unsided_pos.add(lab.level)
         elif lab.negated or lab.value is False:
-            neg.add((lab.level, lab.side if lab.side in foramina.SIDES else None))
+            neg.add((lab.level, side))
     out: dict[tuple[str, str], bool] = {}
     for lv in {lv for lv, _ in pos | neg}:
         for side in foramina.SIDES:
@@ -217,6 +221,9 @@ def _flatten(recs: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], dict[str
     for rec in recs:
         if rec.get("error"):
             counts["case_errors"] += 1
+            kinds = counts.setdefault("case_error_types", {})
+            kind = str(rec["error"]).split(":")[0]
+            kinds[kind] = kinds.get(kind, 0) + 1
             continue
         truth = rec.get("truth", {})
         discs = set(rec.get("discs", []))

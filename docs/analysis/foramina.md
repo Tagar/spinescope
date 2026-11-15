@@ -152,7 +152,26 @@ will be scored after the fact; any further point is labelled exploratory.
 * Sudirman's reports name foramina rarely, and their wording is free text parsed by rules (see `datasets/report_labels.py`). A
   missing or wrong report label is a truth error, and a true stenosis the report did not write down is a false negative in this table.
 
-## 8. Results
+## 8. Results (pre-registered run; numbers from `tools/eval_foramina.py`, outputs kept under /tmp, not committed)
 
-Results are appended after the pre-registered run (section 6). See the commit history for the run date and the outputs under
-`/tmp/spinescope-dx07_foramina/` (not committed: they derive from the public datasets).
+**Sudirman (weak labels), counts only.** All 515 patients with a session were labelled (anchors cached). 6718 (disc, side)
+rows: 2932 assessed (44 %), 3786 not assessed: 3540 "centre not fat-bright", 229 "window outside the field of view",
+17 coverage (no T1 plane in the 10-25 mm window). Report truth: 9 (disc, side) truth pairs; **5 scored pairs** (5 with an assessed
+foramen and a truth). **Zero explicit negatives.** Under the guard in section 6.2, no sensitivity, specificity, PPV, NPV or AUC
+is reported: the sample cannot support any of them. The validation does not confirm or reject P1 or P2.
+
+Note on the first Sudirman run: a side-name bug (`left`/`right` from the parser against `L`/`R`) gave 0 scored pairs. It was
+fixed before the reported run; the rule itself did not change.
+
+**SPIDER training (geometry sanity, pre-registered criterion 6.3).** 179 cases; 21 failed to load (`FileNotFoundError`, a missing
+T1 file, recorded). 2212 rows: 1440 assessed, 772 not assessed (724 centre not fat-bright, 48 window outside the field of view).
+Median foraminal height by disc against the Hasegawa normal mean: L1-L2 8.9 mm (normal 20.3); L2-L3 8.4 (21.8); L3-L4 8.3 (22.2);
+L4-L5 9.8 (20.5); L5-S1 11.4 (21.7); no normal for the thoracolumbar discs (T12-L1 9.2, T11-T12 9.2).
+**Criterion failed at every tabulated level** (medians are about half the normal means, far beyond 2 SD). Pre-registered
+handling: reported as a negative result. Nothing was re-tuned. The likely causes, not tested: the pedicle border is taken as the
+first fat-to-dark crossing from the centre, which on T1 may stop at the root or disc rather than the pedicle; the 4.8 mm to 5 mm
+slice spacing; and the centre search, which climbs toward fat.
+
+**Consequence.** The foramen module ships as an **experimental** analysis: flags are capped at 0.3 confidence, rows carry the
+failure reasons, and the height and grade outputs must not be read as foraminal measurements until the border definition is
+checked against an annotated foramen. Lee-style perineural grades remain a proxy (section 4).
