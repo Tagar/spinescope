@@ -23,9 +23,9 @@ from __future__ import annotations
 
 import argparse
 import csv
+import functools
 import hashlib
 import html
-import functools
 import importlib
 import json
 import logging
