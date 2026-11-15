@@ -86,6 +86,30 @@ class Config:
     # Smoothing scales as fractions of the image side (resolution-independent), e.g. bias field.
     smooth_frac: float = 0.006
     bias_sigma_frac: float = 0.2  # surface-coil field is smooth over about a fifth of the field of view
+    # Automatic anatomy (spinescope.anatomy). Mid-sagittal 2-D analysis on a regular mm grid.
+    sag_resolution_mm: float = 1.0  # resampling grid of the mid-sagittal image (isotropic, fast)
+    canal_half_width_mm: float = 5.0  # half-width of the core in the mid-sagittal plane (sac AP ~10-15 mm)
+    canal_flank_offset_mm: float = 5.0  # flank windows sit this far beyond the core edge (outside the sac)
+    canal_max_slope: float = 1.5  # max |dA/dS| of the canal centreline (mm/mm, ~56 deg from vertical)
+    canal_min_contrast: float = 0.05  # ridge contrast (0..1 units) below which tissue is not CSF-like
+    canal_ap_fraction: tuple[float, float] = (0.45, 0.9)  # canal search band as a fraction of the AP field
+    canal_min_length_mm: float = 25.0  # shortest canal track accepted as the spinal canal
+    body_axis_offset_mm: tuple[float, float] = (18.0, 34.0)  # canal centre -> body centre, searched
+    endplate_sigma_mm: float = 1.0  # smoothing of the dark endplate lines along the spine axis
+    line_penalty: float = 0.2  # DP cost per endplate line (keeps spurious lines out of the chain)
+    gap_penalty: float = 1.0  # DP cost of an interval that is neither a disc nor a vertebral body
+    gap_mm: tuple[float, float] = (36.0, 72.0)  # interval length treated as a missed endplate
+    endplate_search_mm: float = (
+        5.0  # half-width of the first search for an endplate around its chain position
+    )
+    endplate_min_contrast: float = 0.12  # endplate darkness (fraction of the image range) per AP sample
+    disc_margin_min_mm: float = 12.0  # AP extent of followed endplates needed to measure disc margins
+    sacrum_min_visible_mm: float = 9.0  # body visible below the lowest disc needed to call it S1
+    midline_axial_tol_mm: float = 4.0  # max disagreement between sagittal and axial midline estimates
+    midline_search_mm: float = 10.0  # slices within this distance of the canal-ridge peak set the midline
+    axial_canal_window_mm: float = 24.0  # axial window around the canal for the CSF-blob midline check
+    conus_min_contrast: float = 0.08  # cord-vs-CSF contrast (0..1) on the canal centreline
+    disc_match_mm: float = 6.0  # tolerance when matching discs between two sagittal series
 
 
 DEFAULT = Config()
