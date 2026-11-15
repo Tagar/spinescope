@@ -231,3 +231,12 @@ def test_findings_fields_are_written_with_evidence(herniated_study_and_anchors) 
     assert contour["evidence"] and contour["evidence"][0]["image"] == "figs/sag.png"
     assert obj["disc"]["herniation_location"]["value"] == "central"
     assert obj["disc"]["herniation_size_mm"]["value"] >= 2.5
+
+
+def test_focal_calls_are_capped_at_the_configured_confidence(herniated_study_and_anchors) -> None:
+    """Protrusion/extrusion calls are not validated, so their confidence never exceeds the cap."""
+    study, anchors = herniated_study_and_anchors
+    row = _disc_rows(run("herniation", study, anchors, DEFAULT))[HERNIATED]
+    assert row["contour"] in ("protrusion", "extrusion")
+    assert row["confidence"] <= DEFAULT.herniation_class_max_confidence
+    assert "axial" in row["reason"]

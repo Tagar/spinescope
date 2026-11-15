@@ -577,6 +577,10 @@ class Config:
     herniation_corner_max_ap_mm: float = 8.0
     # The boundary between disc and thecal sac needs contrast above this many noise sigmas to be located. Engineering.
     herniation_min_contrast_sigma: float = 3.0
+    # Upper bound on the confidence of a protrusion / extrusion call (sagittal only). On SPIDER validation the
+    # herniation rule was not supported (AUC 0.64, 95% CI 0.38-0.86, 8 positives; docs/analysis/herniation.md), so a
+    # focal call is a prompt to check the axial images, not a finding. Bulge calls keep their own confidence.
+    herniation_class_max_confidence: float = 0.35
 
 
 DEFAULT = Config()

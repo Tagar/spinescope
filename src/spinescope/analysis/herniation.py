@@ -490,6 +490,16 @@ def analyze(study: Study, anchors: Anchors, config: Config | None = None) -> Res
             e_any=max(m.e_adj for _o, m in measured),
             confidence=_confidence(prim, corners, len(measured)),
         )
+        if row["contour"] in ("protrusion", "extrusion"):
+            row["confidence"] = round(min(float(row["confidence"]), cfg.herniation_class_max_confidence), 3)
+            row["reason"] = "; ".join(
+                x
+                for x in (
+                    str(row.get("reason") or ""),
+                    "focal (protrusion/extrusion) calls are not validated on public data: check the axial images",
+                )
+                if x
+            )
         res.rows.append(row)
         if first is not None:
             res.figures[f"sag_{lab}"] = _sag_figure(
