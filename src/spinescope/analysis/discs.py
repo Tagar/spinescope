@@ -12,7 +12,7 @@ Method, per disc and sagittal slice (no fixed slice numbers, no per-study consta
    position is then refined to the disc-side half-maximum crossing of that dark line, so the boundary
    lies on the disc side of the cortex. Using the strongest gradient instead places it about a
    millimetre beyond the disc on each side, which is the bias the prototype showed. Columns where the
-   dark line is not clearly darker than the disc (relative contrast below ``endplate_min_contrast``)
+   dark line is not clearly darker than the disc (relative contrast below ``disc_endplate_min_contrast``)
    are dropped.
 4. Heights are anterior, middle and posterior thirds of the traced AP extent, in mm along the normal.
 5. Nucleus = central box, annulus = rest of the disc minus a rim at each endplate. Signal is
@@ -209,7 +209,7 @@ def _trace_side(
     cfg: Config,
 ) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
     """Endplate height and dark-line contrast per AP column for one side of the disc."""
-    search = (side * h >= cfg.endplate_min_h_mm) & (side * h <= cfg.endplate_search_mm)
+    search = (side * h >= cfg.endplate_min_h_mm) & (side * h <= cfg.disc_endplate_search_mm)
     sel = np.nonzero(search)[0]
     edge = np.full(len(cols_idx), np.nan)
     contrast = np.zeros(len(cols_idx))
@@ -259,9 +259,9 @@ def trace_disc(
     if s_post <= s_ant:
         s_ant, s_post = -abs(s_ant), abs(s_post)
 
-    grid = cfg.grid_mm
+    grid = cfg.disc_grid_mm
     s_grid = np.arange(s_ant - 4.0, s_post + cfg.csf_search_mm[1] + 1.0 + grid / 2, grid)
-    H = cfg.endplate_search_mm + 1.0
+    H = cfg.disc_endplate_search_mm + 1.0
     h_grid = np.arange(-H, H + grid / 2, grid)
     img = _sample_grid(stack, k, origin, u, n, s_grid, h_grid)
     img = img - (background(stack) if floor is None else floor)
@@ -277,8 +277,8 @@ def trace_disc(
     if cols_idx.size:
         te, tc = _trace_side(sm, h_grid, cols_idx, +1, scale, cfg)
         be, bc = _trace_side(sm, h_grid, cols_idx, -1, scale, cfg)
-        ok_t = tc >= cfg.endplate_min_contrast
-        ok_b = bc >= cfg.endplate_min_contrast
+        ok_t = tc >= cfg.disc_endplate_min_contrast
+        ok_b = bc >= cfg.disc_endplate_min_contrast
         top_idx[cols_idx] = np.where(ok_t, te, np.nan)
         bot_idx[cols_idx] = np.where(ok_b, be, np.nan)
         top_c[cols_idx], bot_c[cols_idx] = tc, bc
@@ -372,7 +372,7 @@ def _csf_reference(tr: DiscTrace, cfg: Config) -> tuple[float, NDArray[np.bool_]
     if not region.any():
         return float("nan"), None, None
     filled = np.where(np.isfinite(tr.img), tr.img, 0.0)
-    sm = ndi.gaussian_filter(filled, sigma=1.0 / cfg.grid_mm)
+    sm = ndi.gaussian_filter(filled, sigma=1.0 / cfg.disc_grid_mm)
     if not np.isfinite(tr.img[region]).any():
         return float("nan"), None, None
     pk = int(np.argmax(np.where(region, sm, -np.inf)))
@@ -445,15 +445,15 @@ def _hiz_candidates(
     if not np.isfinite(nuc_mean) or nuc_mean <= 0 or not masks["post_annulus"].any():
         return []
     img = np.where(np.isfinite(tr.img), tr.img, 0.0)
-    sm = ndi.gaussian_filter(img, sigma=0.5 / cfg.grid_mm)
+    sm = ndi.gaussian_filter(img, sigma=0.5 / cfg.disc_grid_mm)
     region = masks["post_annulus"] & (sm >= cfg.hiz_nucleus_ratio * nuc_mean)
     if csf_bright is not None:
-        iters = max(1, round(cfg.hiz_csf_exclusion_mm / cfg.grid_mm))
+        iters = max(1, round(cfg.hiz_csf_exclusion_mm / cfg.disc_grid_mm))
         near_csf = ndi.binary_dilation(csf_bright, iterations=iters)
     else:
         near_csf = np.zeros(region.shape, dtype=bool)
     lab, nlab = ndi.label(region)
-    cell = cfg.grid_mm * cfg.grid_mm
+    cell = cfg.disc_grid_mm * cfg.disc_grid_mm
     out: list[dict[str, Any]] = []
     S, H = np.meshgrid(tr.s, tr.h)
     ann_mean = float(np.nanmean(tr.img[masks["annulus"]])) if masks["annulus"].any() else float("nan")
@@ -611,8 +611,8 @@ def _strip_figure(
     cfg: Config,
 ) -> NDArray[np.uint8] | None:
     """Disc crops in each disc's frame (reference slice): one row per available contrast."""
-    s = np.arange(-FIG_S_MM, FIG_S_MM + cfg.grid_mm / 2, cfg.grid_mm)
-    h = np.arange(-FIG_H_MM, FIG_H_MM + cfg.grid_mm / 2, cfg.grid_mm)
+    s = np.arange(-FIG_S_MM, FIG_S_MM + cfg.disc_grid_mm / 2, cfg.disc_grid_mm)
+    h = np.arange(-FIG_H_MM, FIG_H_MM + cfg.disc_grid_mm / 2, cfg.disc_grid_mm)
     labels = [lab for lab in traces]
     if not labels:
         return None

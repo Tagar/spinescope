@@ -126,6 +126,13 @@ class Config:
     disc_ap_default_mm: float = 34.0
     # Columns excluded at the AP margins of the disc (margins are curved and partial-volumed).
     disc_inset_mm: float = 2.0
+    # Sampling step of the straightened disc grid (discs analysis).
+    disc_grid_mm: float = 0.5
+    # Discs analysis endplate search along the normal from the disc centre: up to half the maximum disc
+    # height (18 mm / 2) plus margin for the cortex.
+    disc_endplate_search_mm: float = 13.0
+    # Discs analysis: dark endplate line must be this much darker than the disc next to it (relative).
+    disc_endplate_min_contrast: float = 0.15
     # Endplate search along the normal from the disc centre: from half the minimum disc height (4 mm / 2)
     # to half the maximum disc height (18 mm / 2) plus margin for the cortex.
     endplate_min_h_mm: float = 2.0
