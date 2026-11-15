@@ -88,10 +88,6 @@ REALISTIC_XFAIL_LABELLED: dict[str, str] = {
         "learned labeller on the realistic phantom: silent_error: recall 1.00, precision 0.80, "
         "label accuracy 0.75, centre p90 1.7 mm, numbering confidence 0.94 "
     ),
-    "fov_L1_coccyx": (
-        "learned labeller on the realistic phantom: silent_error: recall 1.00, precision 0.62, "
-        "label accuracy 0.60, centre p90 1.4 mm, numbering confidence 0.54 "
-    ),
     "lumbarised_S1": (
         "learned labeller on the realistic phantom: unsure: recall 1.00, precision 0.64, label "
         "accuracy 0.00, centre p90 3.2 mm, numbering confidence 0.25 "

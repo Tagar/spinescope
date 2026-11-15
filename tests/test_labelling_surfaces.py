@@ -166,7 +166,7 @@ def test_label_prints_table_and_writes_anchors_and_overlay(root, tmp_path, capsy
     text = capsys.readouterr().out
     assert rc == 0
     doc = json.loads(out_json.read_text(encoding="utf-8"))
-    assert doc["schema_version"] == "1.1"
+    assert doc["schema_version"] == "1.2"
     status = doc["numbering"]["status"]
     assert banner_word(status) in text  # the banner matches the written numbering status
     assert "Policy:" in text and "applicability:" in text and "conus:" in text
@@ -189,7 +189,7 @@ def test_label_json_is_the_anchors_document(root, capsys):
     rc = main(["label", root, "--backend", "classical", "--json"])
     assert rc == 0
     doc = json.loads(capsys.readouterr().out)
-    assert doc["schema_version"] == "1.1" and doc["discs"]
+    assert doc["schema_version"] == "1.2" and doc["discs"]
     assert "labelling" not in doc  # the file form is pure anchors; the summary is in the table
     _assert_no_phi(json.dumps(doc), root)
 
@@ -247,7 +247,7 @@ def sid(tools, root) -> str:
 
 def test_get_anchors_has_status_summary_and_new_fields(tools, sid, root):
     doc = tools.get_anchors(sid)
-    assert doc["schema_version"] == "1.1"
+    assert doc["schema_version"] == "1.2"
     assert doc["labelling"]["status"] in STATUSES
     assert doc["labelling"]["policy"] == ABSTAIN_POLICY[doc["labelling"]["status"]]
     assert "LEVELS" in doc["summary"] and "Policy:" in doc["summary"]

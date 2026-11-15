@@ -47,12 +47,12 @@ def classical_doc(phantom_study) -> dict[str, Any]:
     return json.loads(label_spine(phantom_study, backend="classical").to_json())
 
 
-def test_schema_is_draft_2020_12_and_declares_version_1_1():
+def test_schema_is_draft_2020_12_and_declares_version_1_2():
     schema = load_schema()
     jsonschema.Draft202012Validator.check_schema(schema)
     assert schema["$schema"] == "https://json-schema.org/draft/2020-12/schema"
-    assert SCHEMA_VERSION == "1.1"
-    assert set(schema["properties"]["schema_version"]["enum"]) == {"1.0", "1.1"}
+    assert SCHEMA_VERSION == "1.2"
+    assert set(schema["properties"]["schema_version"]["enum"]) == {"1.0", "1.1", "1.2"}
 
 
 def test_learned_labeller_output_validates(learned_doc):

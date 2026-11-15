@@ -252,7 +252,7 @@ def test_geometry_round_trips_through_json_and_old_documents_load():
     d["vertebrae"]["L5"].pop("body")
     loaded = Anchors.from_dict(d)
     assert loaded.canal is None and loaded.vertebrae["L5"].body is None
-    assert Anchors().schema_version == "1.1"
+    assert Anchors().schema_version == "1.2"
 
 
 def test_hook_on_phantom_study_serialises(phantom_study):
@@ -262,7 +262,7 @@ def test_hook_on_phantom_study_serialises(phantom_study):
     a = label_spine_ml(phantom_study)
     attach_geometry(phantom_study, a)
     d = Anchors.from_json(a.to_json())
-    assert d.schema_version == "1.1"
+    assert d.schema_version == "1.2"
     if a.canal is not None:
         assert isinstance(a.canal["points"], list)
     for v in a.vertebrae.values():

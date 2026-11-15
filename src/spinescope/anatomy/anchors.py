@@ -20,7 +20,8 @@ from .numbering import VERTEBRA_NAMES
 
 #: 1.1 adds the optional geometry fields ``Vertebra.body``, ``Anchors.canal`` and ``Anchors.posterior_elements``
 #: (lab15). Readers of 1.0 documents still load: the new fields default to None.
-SCHEMA_VERSION = "1.1"
+#: 1.2 adds ``Anchors.alignment`` (lab30): the lateral curve record under ``alignment['coronal']``. Optional.
+SCHEMA_VERSION = "1.2"
 
 #: Canonical order of the labels we may emit, superior -> inferior.
 VERTEBRA_ORDER = (
@@ -128,6 +129,8 @@ class Anchors:
     canal: dict[str, Any] | None = None
     #: Optional posterior-element approximations (lamina proxy, spinous tip) with their ``limits``. Unvalidated.
     posterior_elements: dict[str, Any] | None = None
+    #: Spine alignment in the coronal plane (lab30): ``{"coronal": LateralCurve.to_dict()}``. Empty when not measured.
+    alignment: dict[str, Any] = field(default_factory=dict)
     numbering: dict[str, Any] = field(
         default_factory=dict
     )  # {"method": ..., "confidence": ..., "notes": ...}
