@@ -25,7 +25,9 @@ from .download import (
     fetch_dataset,
 )
 from .extract import UnsafeArchiveError, safe_extract_zip
+from .gradings import DiscGrading, load_spider_gradings, spider_subset_cases
 from .registry import REGISTRY, DatasetSpec, FileSpec, data_dir, get_spec
+from .report_labels import load_sudirman_report_labels, parse_report
 from .spider import SpiderStudy, load_spider_studies, load_spider_study, spider_root
 
 __all__ = [
@@ -33,6 +35,7 @@ __all__ = [
     "REGISTRY",
     "ChecksumError",
     "DatasetSpec",
+    "DiscGrading",
     "DownloadError",
     "DownloadTooLarge",
     "FileSpec",
@@ -43,10 +46,14 @@ __all__ = [
     "fetch",
     "fetch_dataset",
     "get_spec",
+    "load_spider_gradings",
     "load_spider_studies",
     "load_spider_study",
+    "load_sudirman_report_labels",
+    "parse_report",
     "safe_extract_zip",
     "spider_root",
+    "spider_subset_cases",
 ]
 
 

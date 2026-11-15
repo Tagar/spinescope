@@ -526,6 +526,39 @@ class SpineTools:
         tasks = reading_tasks(self._study(study_id), self._anchors_for(study_id), config=self._cfg)
         return [t.to_dict() for t in tasks]
 
+    def analyze(self, study_id: str, only: list[str] | None = None) -> dict[str, Any]:
+        """Run the registered measurement analyses (discs, endplates, ...) on the study's levels. ``only`` names a
+        subset (default: all). Returns per analysis: rows, flags (with confidence), warnings, figure names and the
+        numbering status. With the server's output folder set, figure PNGs and CSV/JSON files are saved there and
+        their paths returned. Measurements and suggestions only, never a diagnosis."""
+        from ..analysis.base import available, run
+
+        study = self._study(study_id)
+        known = set(available())
+        names = list(only) if only else sorted(known)
+        unknown = sorted(set(names) - known)
+        if unknown:
+            raise ToolError(f"unknown analyses: {', '.join(unknown)}; available: {', '.join(sorted(known))}")
+        anchors = self._anchors_for(study_id)
+        from ..anatomy.summary import status_of
+
+        analyses: dict[str, Any] = {}
+        for name in names:
+            res = run(name, study, anchors, self._cfg)
+            entry = res.to_dict()
+            saved: list[str] = []
+            if self._out is not None:
+                outdir = self._out / study_id / "analysis"
+                saved = [str(p) for p in res.save(outdir)]
+            entry["saved_to"] = saved
+            analyses[name] = entry
+        return {
+            "study_id": study_id,
+            "numbering": status_of(anchors),
+            "levels": anchors.disc_labels(),
+            "analyses": analyses,
+        }
+
     def validate_findings(self, findings: str) -> dict[str, Any]:
         """Validate one findings document (JSON text) against the schema. Returns ok, errors and warnings."""
         try:
@@ -612,6 +645,7 @@ _TOOL_NAMES = (
     "tasks",
     "validate_findings",
     "merge_findings",
+    "analyze",
 )
 
 

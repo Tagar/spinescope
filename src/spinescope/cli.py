@@ -284,6 +284,38 @@ def _cmd_benchmark(argv: Sequence[str]) -> int:
     return benchmark_main(argv)
 
 
+def _cmd_analyze(args: argparse.Namespace) -> int:
+    """Run the registered analyses on the labelled levels; JSON to stdout, figures and CSVs to --out."""
+    import os
+
+    from .analysis.base import available, run
+    from .anatomy import label_spine
+    from .study import load_study
+
+    names = available() if not args.only else [n.strip() for n in args.only.split(",") if n.strip()]
+    unknown = sorted(set(names) - set(available()))
+    if unknown:
+        raise ValueError(f"unknown analyses: {', '.join(unknown)}; available: {', '.join(available())}")
+    study = load_study(args.path)
+    anchors = label_spine(study)
+    out: dict[str, object] = {
+        "numbering": anchors.numbering.get("status", ""),
+        "levels": anchors.disc_labels(),
+    }
+    results: dict[str, object] = {}
+    for name in names:
+        res = run(name, study, anchors)
+        entry = res.to_dict()
+        if args.out:
+            saved = res.save(args.out)
+            entry["saved"] = [os.path.basename(p) for p in saved]  # names only: never the output folder
+        results[name] = entry
+    out["analyses"] = results
+    json.dump(out, sys.stdout, indent=1, default=str)  # Result.to_dict() has already mapped NaN to null
+    print()
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="spinescope", description=__doc__)
     p.add_argument("--version", action="version", version=f"spinescope {__version__}")
@@ -383,6 +415,16 @@ def build_parser() -> argparse.ArgumentParser:
         "--source", choices=("ai_reader", "human"), default="ai_reader", help="kind of reader, for confidence"
     )
     s.set_defaults(func=_cmd_verify_labels)
+
+    s = sub.add_parser(
+        "analyze",
+        help="run the registered analyses (discs, endplates, ...) on the labelled levels: JSON to stdout, "
+        "figures and CSV/JSON files to --out",
+    )
+    s.add_argument("path", help="DICOM directory or volume file")
+    s.add_argument("--only", help="comma-separated analysis names (default: all registered)")
+    s.add_argument("--out", help="write each analysis' CSV, JSON and figure PNGs here")
+    s.set_defaults(func=_cmd_analyze)
 
     s = sub.add_parser("mcp", help="run the MCP server on stdio (for AI assistants)")
     s.add_argument("--output-dir", help="also save rendered PNGs here")
