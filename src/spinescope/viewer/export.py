@@ -10,6 +10,7 @@ the numeric acquisition parameters listed in ``ACQ_KEYS``; ``meta`` keys startin
 from __future__ import annotations
 
 import base64
+import json
 import logging
 import zlib
 from typing import Any
@@ -32,6 +33,8 @@ INFO_KEYS = ("Manufacturer", "ManufacturerModelName", "MagneticFieldStrength")
 #: Numeric acquisition parameters per series.
 ACQ_KEYS = ("RepetitionTime", "EchoTime", "InversionTime", "FlipAngle", "SliceThickness")
 PLANE_ORDER = {"sag": 0, "cor": 1, "ax": 2}
+#: Who the page records as the author of reviewer corrections (provenance ``who``).
+REVIEWER = "viewer user"
 
 
 def _r(x: Any, nd: int = 9) -> list[float]:
@@ -169,6 +172,24 @@ def reformat_record(ref: Reformat) -> dict[str, Any]:
     return rec
 
 
+def label_policy(config: Config = DEFAULT) -> dict[str, Any]:
+    """Thresholds and provenance settings the page uses for labels (mirrors Config, names in camelCase)."""
+    return {
+        "who": REVIEWER,
+        "confHigh": float(config.viewer_conf_high),
+        "confLow": float(config.viewer_conf_low),
+        "confHuman": float(config.review_confidence_human),
+        "confAi": float(config.review_confidence_ai),
+    }
+
+
+def anchors_record(anchors: Anchors | None) -> dict[str, Any] | None:
+    """``Anchors.to_dict()`` as plain JSON types (numpy scalars converted), or None without anchors."""
+    if anchors is None:
+        return None
+    return json.loads(json.dumps(anchors.to_dict(), default=float))
+
+
 def disc_records(anchors: Anchors | None) -> list[dict[str, Any]]:
     """Disc labels, centres (LPS mm), superior-pointing unit normals and confidences, superior first."""
     if anchors is None:
@@ -251,4 +272,6 @@ def build_payload(
         "panes": _pick_default_panes(study, refs, keys),
         "series": series,
         "discs": disc_records(anchors),
+        "anchors": anchors_record(anchors),
+        "policy": label_policy(config),
     }
