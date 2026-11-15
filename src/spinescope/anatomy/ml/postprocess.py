@@ -384,8 +384,12 @@ def drop_caudal_outliers(discs: list[Disc], cfg: Config = DEFAULT) -> tuple[list
     return out, warns
 
 
-def anchors_from_segmentation(seg: SegmentedStack, cfg: Config = DEFAULT) -> Anchors:
-    """Mid-sagittal discs, bodies and numbering from a :class:`SegmentedStack`."""
+def anchors_from_segmentation(seg: SegmentedStack, cfg: Config = DEFAULT, *, plane_shift: int = 0) -> Anchors:
+    """Mid-sagittal discs, bodies and numbering from a :class:`SegmentedStack`.
+
+    ``plane_shift`` moves the analysed plane by that many slices from the canal-median plane (clipped to the stack).
+    It is 0 for the labeller; the test-time augmentation variants use +1 and -1 (lab35, :mod:`.tta`).
+    """
     anchors = Anchors(method=METHOD, source_stack=seg.stack.key)
     anchors.warnings.extend(seg.evidence)
     mid = mid_sagittal(seg, cfg)
@@ -393,6 +397,14 @@ def anchors_from_segmentation(seg: SegmentedStack, cfg: Config = DEFAULT) -> Anc
         anchors.warnings.append(f"{seg.stack.key}: no spinal canal segmented; spine anatomy not labelled")
         anchors.numbering = {"method": "none", "confidence": 0.0, "notes": "no canal"}
         return anchors
+    if plane_shift:
+        k_new = min(max(mid.k + int(plane_shift), 0), len(seg.grids) - 1)
+        mid = MidSagittal(
+            k=k_new,
+            x_lps=float(seg.stack.ipp[k_new][0]),
+            confidence=mid.confidence,
+            evidence=f"{mid.evidence}; analysed plane moved {k_new - mid.k:+d} slice(s) (test-time augmentation)",
+        )
     anchors.midline_x = mid.x_lps
     discs, warns = discs_near_midline(seg, mid.k, cfg)
     anchors.warnings.extend(warns)

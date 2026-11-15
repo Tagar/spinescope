@@ -315,6 +315,20 @@ class Config:
     # (lab08) and costs about half of a single-study run (the midline symmetry search). Turning it on changes the
     # calibration inputs: refit with tools/calibrate_labeling.py (docs/labeling/lab14_perf.md).
     classical_second_opinion: bool = False
+    # Test-time augmentation of the learned labeller (anatomy/ml/tta.py; lab35). Off by default: the agreement of label
+    # variants is an extra uncertainty signal for the numbering status, at about ``ml_tta_variants`` extra network passes
+    # (the plane variants reuse the network output). Shipped only if it helps (docs/labeling/lab35_uncertainty.md).
+    ml_tta: bool = False
+    ml_tta_variants: int = (
+        4  # first N of TTA_ORDER: rot +4 deg, rot -4 deg, gamma, plane +1 slice (judgement default)
+    )
+    ml_tta_rotation_deg: float = (
+        4.0  # in-plane rotation of the rotation variants (the brief: 3-5 deg, sagittal MRI)
+    )
+    ml_tta_gamma: float = (
+        0.8  # intensity power of the contrast variant, on the normalised slices (judgement default)
+    )
+    ml_tta_resolution_mm: float = 1.2  # grid of the resolution variant; the network was trained on 1.0 mm
     # ---- anatomy: applicability (spinescope.anatomy.ood: when NOT to label). Judgement defaults from anatomy
     # texts, checked on SPIDER training only (docs/labeling/lab12_ood.md). Lengths in mm, unitless otherwise.
     # Lumbar discs are ~8-12 mm high; thoracic and cervical discs ~4-6 mm.
