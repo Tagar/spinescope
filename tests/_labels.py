@@ -4,7 +4,7 @@ Labelling is deterministic, and many tests label the same phantom again: the sam
 or a fresh render of the same phantom spec in another module. This wrapper runs the pipeline once per distinct
 (study content, backend, config) and returns a deep copy, so a test that edits its anchors cannot leak into
 another test. The key is a digest of the voxels, geometry and metadata of every stack, not object identity.
-Exceptions are not cached.
+:func:`label_spine_ml` is memoised the same way (default session only). Exceptions are not cached.
 """
 
 from __future__ import annotations
@@ -17,11 +17,13 @@ import numpy as np
 
 from spinescope.anatomy import Anchors
 from spinescope.anatomy import label_spine as _label_spine
+from spinescope.anatomy.ml import label_spine_ml as _label_spine_ml
 from spinescope.config import Config
 from spinescope.study import Study
 
 _MAX_ENTRIES = 64
 _MEMO: OrderedDict[tuple[str, str, Config | None], Anchors] = OrderedDict()
+_MEMO_ML: OrderedDict[tuple[str, Config | None], Anchors] = OrderedDict()
 
 
 def study_digest(study: Study) -> str:
@@ -54,6 +56,21 @@ def label_spine(study: Study, config: Config | None = None, *, backend: str = "a
     return copy.deepcopy(hit)
 
 
+def label_spine_ml(study: Study, config: Config | None = None) -> Anchors:
+    """:func:`spinescope.anatomy.ml.label_spine_ml` with the packaged weights, memoised per study content and config."""
+    key = (study_digest(study), config)
+    hit = _MEMO_ML.get(key)
+    if hit is None:
+        hit = _label_spine_ml(study, config)
+        _MEMO_ML[key] = hit
+        while len(_MEMO_ML) > _MAX_ENTRIES:
+            _MEMO_ML.popitem(last=False)
+    else:
+        _MEMO_ML.move_to_end(key)
+    return copy.deepcopy(hit)
+
+
 def clear() -> None:
     """Forget every memoised result (for tests that need a cold pipeline)."""
     _MEMO.clear()
+    _MEMO_ML.clear()

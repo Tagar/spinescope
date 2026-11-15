@@ -364,7 +364,7 @@ def test_verdict_vocabulary() -> None:
     "fails; real-data behaviour is covered by the SPIDER acceptance run",
 )
 def test_lumbar_phantom_is_labelled_without_caps() -> None:
-    from spinescope.anatomy import label_spine
+    from _labels import label_spine
 
     case = build_case(_scenario("baseline"))
     a = label_spine(case.study)
@@ -379,7 +379,7 @@ def test_lumbar_phantom_is_labelled_without_caps() -> None:
 
 @requires_ml
 def test_strong_non_spine_metadata_is_not_labelled() -> None:
-    from spinescope.anatomy import label_spine
+    from _labels import label_spine
 
     case = build_case(_scenario("baseline"))
     case.study.best("sag").meta["dicom"]["BodyPartExamined"] = "BRAIN"
@@ -393,7 +393,7 @@ def test_strong_non_spine_metadata_is_not_labelled() -> None:
 
 @requires_ml
 def test_strong_thoracic_metadata_does_not_override_lumbar_anatomy() -> None:
-    from spinescope.anatomy import label_spine
+    from _labels import label_spine
 
     case = build_case(_scenario("baseline"))
     case.study.best("sag").meta["dicom"]["BodyPartExamined"] = "TSPINE"
@@ -405,7 +405,7 @@ def test_strong_thoracic_metadata_does_not_override_lumbar_anatomy() -> None:
 
 @requires_ml
 def test_brain_like_image_is_not_spine() -> None:
-    from spinescope.anatomy import label_spine
+    from _labels import label_spine
 
     study = from_stacks([_sag_stack(_brain_like())])
     a = label_spine(study)
@@ -416,7 +416,7 @@ def test_brain_like_image_is_not_spine() -> None:
 
 @requires_ml
 def test_phantom_crop_without_spine_is_not_labelled() -> None:
-    from spinescope.anatomy import label_spine
+    from _labels import label_spine
 
     ph = SpinePhantom(PhantomSpec())
     c = ph.bodies["L3"]["center"]
@@ -432,7 +432,7 @@ def test_phantom_crop_without_spine_is_not_labelled() -> None:
 @requires_ml
 @pytest.mark.parametrize("seed", [0, 1])
 def test_random_structures_are_not_confident(seed: int) -> None:
-    from spinescope.anatomy import label_spine
+    from _labels import label_spine
 
     a = label_spine(from_stacks([_sag_stack(_random_structures(seed))]))
     # Random blobs must never yield confident lumbar labels: not labelled, or the numbering is not confirmed.
@@ -461,7 +461,7 @@ def test_random_structures_are_not_confident(seed: int) -> None:
     ],
 )
 def test_non_lumbar_phantom_variants_are_not_labelled(name: str, spec: dict, protocol: Protocol) -> None:
-    from spinescope.anatomy import label_spine
+    from _labels import label_spine
 
     a = label_spine(build_case(Scenario(name, "x", name, spec=spec, protocol=protocol)).study)
     assert a.applicability["labelled"] is False, a.applicability.get("reasons")
@@ -471,7 +471,7 @@ def test_non_lumbar_phantom_variants_are_not_labelled(name: str, spec: dict, pro
 
 @requires_ml
 def test_fov_without_sacrum_is_not_confirmed() -> None:
-    from spinescope.anatomy import label_spine
+    from _labels import label_spine
 
     a = label_spine(
         build_case(
@@ -483,7 +483,7 @@ def test_fov_without_sacrum_is_not_confirmed() -> None:
 
 @requires_ml
 def test_fov_starting_at_l2_reports_top_level_and_coverage() -> None:
-    from spinescope.anatomy import label_spine
+    from _labels import label_spine
 
     a = label_spine(build_case(_scenario("fov_L2_S1")).study)
     cov = a.applicability["coverage"]
@@ -498,7 +498,7 @@ def test_fov_starting_at_l2_reports_top_level_and_coverage() -> None:
 )
 @requires_ml
 def test_thoracolumbar_fov_caps_thoracic_discs_above_t10() -> None:
-    from spinescope.anatomy import label_spine
+    from _labels import label_spine
 
     a = label_spine(build_case(_scenario("fov_T10_sacrum")).study)
     ap = a.applicability
@@ -513,7 +513,7 @@ def test_thoracolumbar_fov_caps_thoracic_discs_above_t10() -> None:
     ("name", "cue"), [("stir_only", "STIR"), ("pd_only", "PD"), ("iso_1mm_3d", "3-D isotropic")]
 )
 def test_untrained_inputs_are_warned_and_lowered(name: str, cue: str) -> None:
-    from spinescope.anatomy import label_spine
+    from _labels import label_spine
 
     a = label_spine(build_case(_scenario(name)).study)
     assert any(cue in w for w in a.warnings), a.warnings
@@ -522,7 +522,7 @@ def test_untrained_inputs_are_warned_and_lowered(name: str, cue: str) -> None:
 
 @requires_ml
 def test_low_field_and_postcontrast_and_dixon_are_warned() -> None:
-    from spinescope.anatomy import label_spine
+    from _labels import label_spine
 
     case = build_case(_scenario("baseline"))
     sag = case.study.best("sag")
@@ -558,7 +558,7 @@ def test_classical_backend_records_applicability_without_network_cues() -> None:
 
 @requires_ml
 def test_applicability_record_has_no_patient_attributes(phantom_dir: dict) -> None:
-    from spinescope.anatomy import label_spine
+    from _labels import label_spine
 
     study = load_study(phantom_dir["root"])
     a = label_spine(study)
@@ -574,6 +574,7 @@ def _spider_ready() -> bool:
 
 
 @requires_ml
+@pytest.mark.slow
 @pytest.mark.skipif(not _spider_ready(), reason="SPIDER not found under $SPINESCOPE_DATA/spider")
 def test_spider_validation_sample_is_not_rejected() -> None:
     """Regression guard: a few SPIDER validation studies are lumbar and must stay labelled."""

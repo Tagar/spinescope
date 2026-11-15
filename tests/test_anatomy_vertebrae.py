@@ -252,7 +252,7 @@ def test_geometry_round_trips_through_json_and_old_documents_load():
 
 def test_hook_on_phantom_study_serialises(phantom_study):
     """The labeller runs on the phantom (out of distribution, so only the code path is checked, not the numbers)."""
-    from spinescope.anatomy.ml import label_spine_ml
+    from _labels import label_spine_ml
 
     a = label_spine_ml(phantom_study)
     attach_geometry(phantom_study, a)

@@ -20,6 +20,7 @@ pytest.importorskip("onnxruntime")
 def clean_env(monkeypatch: pytest.MonkeyPatch) -> pytest.MonkeyPatch:
     monkeypatch.delenv(labeller.THREADS_ENV, raising=False)
     monkeypatch.setattr(labeller, "in_worker_process", lambda: False)
+    monkeypatch.setattr(labeller, "_PROCESS_INTRA_OP", None)
     return monkeypatch
 
 
@@ -38,6 +39,15 @@ def test_env_zero_is_an_explicit_ort_default(clean_env: pytest.MonkeyPatch) -> N
     assert resolve_threads() == (0, 1)  # no pool cap when the user asked for ORT's default
 
 
+def test_set_intra_op_threads_beats_env_and_loses_to_config(clean_env: pytest.MonkeyPatch) -> None:
+    clean_env.setenv(labeller.THREADS_ENV, "3")
+    labeller.set_intra_op_threads(5)
+    assert resolve_threads() == (5, 0)
+    assert resolve_threads(Config(ml_intra_op_threads=2)) == (2, 0)
+    with pytest.raises(ValueError):
+        labeller.set_intra_op_threads(-1)
+
+
 def test_explicit_config_beats_env(clean_env: pytest.MonkeyPatch) -> None:
     clean_env.setenv(labeller.THREADS_ENV, "3")
     assert resolve_threads(Config(ml_intra_op_threads=2, ml_inter_op_threads=1)) == (2, 1)
@@ -54,7 +64,8 @@ def test_in_worker_process_is_false_in_the_test_process() -> None:
     assert labeller.in_worker_process() is (multiprocessing.parent_process() is not None)
 
 
-def test_real_pool_worker_detects_itself() -> None:
+def test_real_pool_worker_detects_itself(clean_env: pytest.MonkeyPatch) -> None:
+    # spawn copies the environment, so the env variable is removed first (it would otherwise win over the pool cap).
     with get_context("spawn").Pool(1) as pool:
         intra, inter = pool.apply(resolve_threads, ())
     assert (intra, inter) == (1, 1)
