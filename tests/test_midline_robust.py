@@ -210,7 +210,7 @@ def test_x_at_without_knots_is_constant():
 def test_label_spine_midline_uses_symmetry_estimate():
     ph = SpinePhantom(PhantomSpec(s1_top=(8.0, 45.0, -85.0)))
     study = from_stacks([_sag(ph), _sag(ph, "t1")])  # type: ignore[list-item]
-    anc = label_spine(study)
+    anc = label_spine(study, backend="classical")
     assert anc.midline_x is not None
     assert abs(anc.midline_x - 8.0) <= 1.5
 
