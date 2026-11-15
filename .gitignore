@@ -25,6 +25,7 @@ DICOMDIR
 *.nrrd
 *.zip
 data/
+!src/spinescope/data/
 out/
 outputs/
 findings/
