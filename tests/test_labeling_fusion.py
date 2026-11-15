@@ -9,7 +9,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from spinescope.anatomy import label_spine
+from _labels import label_spine
 from spinescope.anatomy.anchors import Anchors, Disc, Vertebra
 from spinescope.anatomy.calibration import (
     DISC_FEATURES,

@@ -585,13 +585,38 @@ def _attach_conus(anchors: Anchors, res: StackResult) -> None:
     }
 
 
-def label_spine_cli(path: str) -> dict[str, Any]:
-    """Load a study from ``path`` (DICOM directory or volume file) and return the anchors as a dict.
+def labelling_keys(study: Study) -> list[str]:
+    """Keys of the stacks :func:`label_spine` reads: the primary sagittal, the second sagittal series, and every
+    axial stack (midline refinement and numbering cues). Localizers, coronal and other series are not needed."""
+    keys: list[str] = []
+    primary = study.best("sag")
+    if primary is not None:
+        keys.append(primary.key)
+        second = _second_sagittal(study, primary.key)
+        if second is not None:
+            keys.append(second.key)
+    keys += [st.key for st in study.stacks.values() if st.plane == "ax"]
+    return list(dict.fromkeys(keys))
 
-    Intended for the CLI and the MCP server. Output carries no file paths or patient attributes.
+
+def load_labelling_study(path: str) -> Study:
+    """Load a study from ``path`` with pixels only for the stacks :func:`label_spine` reads.
+
+    A header-only pass classifies the series; then only :func:`labelling_keys` get their voxels read, so peak
+    memory follows the labelled stacks rather than every series in the folder.
     """
     from ..study import load_study
 
-    study = load_study(path)
+    header = load_study(path, load_pixels=False)
+    return load_study(path, keys=labelling_keys(header))
+
+
+def label_spine_cli(path: str) -> dict[str, Any]:
+    """Load a study from ``path`` (DICOM directory or volume file) and return the anchors as a dict.
+
+    Intended for the CLI and the MCP server. Loads only the stacks the labeller reads
+    (:func:`load_labelling_study`). Output carries no file paths or patient attributes.
+    """
+    study = load_labelling_study(path)
     d = label_spine(study).to_dict()
     return d

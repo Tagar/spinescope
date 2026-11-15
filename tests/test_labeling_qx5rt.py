@@ -153,6 +153,7 @@ def _complete_release() -> Path | None:
 
 
 @pytest.mark.dataset
+@pytest.mark.slow
 def test_qx5rt_labeller_on_the_ge_session_and_a_sample_runs_and_scores() -> None:
     root = _complete_release()
     if root is None:

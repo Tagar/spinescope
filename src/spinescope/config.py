@@ -257,6 +257,12 @@ class Config:
     # Use the 3-D normal too. Off: on the independent Sudirman axial-slab normals it is worse (3.3 vs 2.5 deg
     # median), while SPIDER's own normals are 3-D masks, so the SPIDER gain is partly definitional.
     ml_disc_normal_3d: bool = False
+    # ONNX Runtime threads for the learned labeller (0 = ORT default, all cores). Inside a multiprocessing
+    # child the default becomes 1 thread (see spinescope.anatomy.ml.labeller.resolve_threads); the environment
+    # variable SPINESCOPE_THREADS sets the intra-op count when these are 0. Judgement default: a single
+    # labelled study is latency-bound on a laptop, pools are throughput-bound.
+    ml_intra_op_threads: int = 0
+    ml_inter_op_threads: int = 0
 
 
 DEFAULT = Config()

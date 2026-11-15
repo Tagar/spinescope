@@ -13,8 +13,8 @@ import tempfile
 import numpy as np
 import pytest
 
+from _labels import label_spine
 from spinescope import load_study
-from spinescope.anatomy import label_spine
 from spinescope.anatomy.midline_robust import (
     MidlineEstimate,
     estimate_midsagittal,

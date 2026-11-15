@@ -20,6 +20,7 @@ def _spider_root() -> Path | None:
 
 
 @pytest.mark.dataset
+@pytest.mark.slow
 def test_spider_validation_sample_runs_and_scores():
     root = _spider_root()
     if root is None:

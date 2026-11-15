@@ -82,10 +82,11 @@ include = ["src/spinescope", "tests", "docs", "README.md", "LICENSE", "NOTICE", 
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-ra --strict-markers"
+# Default run (`pytest`) skips `slow` tests so it stays fast; CI's full job runs everything with `-m ""`.
+addopts = "-ra --strict-markers -m 'not slow'"
 markers = [
   "dataset: needs a public dataset on disk (set SPINESCOPE_DATA); skipped otherwise",
-  "slow: slow tests",
+  "slow: heavy (multi-volume dataset runs or minutes of labelling); excluded by default, run with -m slow or -m ''",
 ]
 
 [tool.coverage.run]

@@ -54,7 +54,7 @@ def encode_volume(vol: NDArray[np.float32]) -> dict[str, Any]:
     q = np.clip(np.round((v - vmin) / scale), 0, 65535).astype("<u2")
     b = q.reshape(-1).view(np.uint8).reshape(-1, 2)
     shuffled = np.concatenate([b[:, 0], b[:, 1]]).tobytes()  # all low bytes, then all high bytes
-    comp = zlib.compress(shuffled, 9)
+    comp = zlib.compress(shuffled, 6)  # level 6: about 9x faster than 9, output about 1% larger
     return {
         "n": int(v.shape[0]),
         "rows": int(v.shape[1]),

@@ -57,6 +57,7 @@ from spinescope.anatomy._validate import (
     truth_from_phantom,
 )
 from spinescope.anatomy.anchors import Anchors
+from spinescope.anatomy.ml.labeller import THREADS_ENV
 
 log = logging.getLogger("eval_labeling")
 
@@ -743,6 +744,13 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--case", action="append", default=[], help="restrict to these case names (repeatable)")
     p.add_argument("--subsample", type=int, default=None, help="evaluate an evenly spaced subset of N cases")
     p.add_argument("--jobs", type=int, default=max(1, min(8, os.cpu_count() or 1)))
+    p.add_argument(
+        "--threads",
+        type=int,
+        default=None,
+        help="ONNX Runtime threads per labelling process (default: SPINESCOPE_THREADS, else 1 per pool worker "
+        "and ORT's default when --jobs 1; 0 = ORT default)",
+    )
     p.add_argument("--gallery-n", type=int, default=30, help="worst cases to render (0 = none)")
     p.add_argument("--out", required=True, help="output folder (keep it outside the repository)")
     p.add_argument("--cache", default="/tmp/spinescope-lab01_eval/cache", help="prediction cache folder")
@@ -754,6 +762,9 @@ def main(argv: list[str] | None = None) -> int:
     repo = PKG_DIR.parents[1]
     if Path(args.out).resolve().is_relative_to(repo):
         raise SystemExit("refusing to write outputs inside the repository; use a folder under /tmp")
+    if args.threads is not None:
+        # Inherited by the pool workers (spawn copies the environment): one knob for the whole run.
+        os.environ[THREADS_ENV] = str(args.threads)
     return run(args)
 
 

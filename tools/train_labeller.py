@@ -563,7 +563,7 @@ def cmd_evaluate(args: argparse.Namespace) -> None:
     rows = rows_for(root, args.subset)
     if args.limit:
         rows = rows[: args.limit]
-    session = load_session_for(args.model)
+    session = load_session_for(args.model, args.threads)
     per_vol: list[dict[str, Any]] = []
     scores = []
     sac_rows: list[dict[str, Any]] = []
@@ -668,18 +668,15 @@ def cmd_evaluate(args: argparse.Namespace) -> None:
     )
 
 
-def load_session_for(path: str | None) -> Any:
-    """ONNX session for ``evaluate``: a file path, or the packaged default when None (4 intra-op threads)."""
-    import onnxruntime as ort
+def load_session_for(path: str | None, threads: int | None = None) -> Any:
+    """ONNX session for ``evaluate``: a file path, or the packaged default when None.
 
-    from spinescope.anatomy.ml import model_path
+    Threads follow :func:`spinescope.anatomy.ml.load_session` (``threads`` None: ``SPINESCOPE_THREADS`` or ORT's
+    default, one thread inside a multiprocessing child); pass 0 for ORT's default explicitly.
+    """
+    from spinescope.anatomy.ml import load_session
 
-    opts = ort.SessionOptions()
-    opts.intra_op_num_threads = 4
-    opts.log_severity_level = 3
-    return ort.InferenceSession(
-        str(path) if path else str(model_path()), sess_options=opts, providers=["CPUExecutionProvider"]
-    )
+    return load_session(path, intra_op_threads=threads)
 
 
 def sacrum_metrics(rows: list[dict[str, Any]], min_area_mm2: float) -> dict[str, Any]:
@@ -750,6 +747,12 @@ def main(argv: list[str] | None = None) -> None:
     e.add_argument("--subset", default="validation")
     e.add_argument("--model", default=None, help="ONNX file (default: packaged labeller_v2.onnx)")
     e.add_argument("--limit", type=int, default=0)
+    e.add_argument(
+        "--threads",
+        type=int,
+        default=None,
+        help="ONNX Runtime intra-op threads (default: SPINESCOPE_THREADS or ORT default; 0 = ORT default)",
+    )
     args = ap.parse_args(argv)
     if args.cmd == "train":
         cmd_train(args)

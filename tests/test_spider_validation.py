@@ -30,6 +30,7 @@ N_STUDIES = 10
 
 pytestmark = [
     pytest.mark.dataset,
+    pytest.mark.slow,
     pytest.mark.skipif(spider_root() is None, reason="SPIDER not found under $SPINESCOPE_DATA/spider"),
 ]
 

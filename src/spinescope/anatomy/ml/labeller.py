@@ -20,8 +20,10 @@ The network is optional: this module needs the ``ml`` extra (onnxruntime) and ne
 from __future__ import annotations
 
 import logging
+import multiprocessing
+import os
+import threading
 from dataclasses import dataclass, field
-from functools import lru_cache
 from importlib import resources
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -42,6 +44,7 @@ log = logging.getLogger(__name__)
 
 METHOD = "label_spine_ml/1 learned 2-D U-Net (SPIDER-trained, ONNX Runtime), mid-sagittal discs, sacrum-up numbering"
 MODEL_ASSET = "labeller_v1.onnx"
+THREADS_ENV = "SPINESCOPE_THREADS"  # ONNX Runtime intra-op threads for the labeller (overrides the default)
 # Classes of the shipped model. A 5-class candidate (sacrum channel, index SACRUM) is supported when its file is named via
 # Config.ml_model; see docs/model_card.md.
 CLASSES = ("background", "vertebral body", "disc", "spinal canal")
@@ -65,50 +68,115 @@ def model_path(name: str = MODEL_ASSET) -> Path:
     return Path(str(resources.files("spinescope.anatomy.ml") / "assets" / name))
 
 
-@lru_cache(maxsize=4)
-def _session_for(path: str) -> ort.InferenceSession:
-    try:
-        import onnxruntime as ort
-    except ImportError as exc:  # pragma: no cover - exercised when the extra is missing
-        raise ImportError("label_spine_ml needs onnxruntime: pip install 'spinescope[ml]'") from exc
-    if not Path(path).is_file():
-        raise FileNotFoundError(f"labeller weights not found: {path}")
-    opts = ort.SessionOptions()
-    opts.log_severity_level = 3
-    return ort.InferenceSession(path, sess_options=opts, providers=["CPUExecutionProvider"])
+_SESSION_LOCK = threading.Lock()
+_SESSIONS: dict[tuple[str, int, int], ort.InferenceSession] = {}
+_SESSIONS_MAX = 4  # distinct (weights, thread) combinations kept alive per process
 
 
-def load_session(path: str | Path | None = None) -> ort.InferenceSession:
-    """ONNX Runtime session for the labeller (the packaged weights unless ``path`` is given). Cached."""
-    return _session_for(str(path) if path is not None else str(model_path()))
+def in_worker_process() -> bool:
+    """True inside a ``multiprocessing`` child (a pool worker, or a ``spawn``ed child of one)."""
+    return multiprocessing.parent_process() is not None
+
+
+def resolve_threads(config: Config | None = None) -> tuple[int, int]:
+    """ONNX Runtime ``(intra_op, inter_op)`` thread counts; 0 means ORT's default (all cores).
+
+    Precedence: an explicit non-zero ``Config.ml_intra_op_threads`` / ``ml_inter_op_threads`` wins; then the
+    environment variable ``SPINESCOPE_THREADS`` (intra-op; ``0`` means ORT's default); then, inside a
+    multiprocessing child, one thread, so N pool workers do not oversubscribe the machine. Otherwise 0.
+    """
+    cfg = config or DEFAULT
+    intra, inter = cfg.ml_intra_op_threads, cfg.ml_inter_op_threads
+    if intra <= 0:
+        env = os.environ.get(THREADS_ENV, "").strip()
+        if env.isdigit():  # "0" is an explicit ORT default: no pool cap either
+            intra = int(env)
+        elif in_worker_process():
+            intra = 1
+    if inter <= 0 and in_worker_process():
+        inter = 1
+    return max(intra, 0), max(inter, 0)
+
+
+def _session_for(path: str, intra: int, inter: int) -> ort.InferenceSession:
+    key = (path, intra, inter)
+    with _SESSION_LOCK:
+        sess = _SESSIONS.get(key)
+        if sess is not None:
+            return sess
+        try:
+            import onnxruntime as ort
+        except ImportError as exc:  # pragma: no cover - exercised when the extra is missing
+            raise ImportError("label_spine_ml needs onnxruntime: pip install 'spinescope[ml]'") from exc
+        if not Path(path).is_file():
+            raise FileNotFoundError(f"labeller weights not found: {path}")
+        opts = ort.SessionOptions()
+        opts.log_severity_level = 3
+        if intra > 0:
+            opts.intra_op_num_threads = intra
+        if inter > 0:
+            opts.inter_op_num_threads = inter
+        sess = ort.InferenceSession(path, sess_options=opts, providers=["CPUExecutionProvider"])
+        if len(_SESSIONS) >= _SESSIONS_MAX:
+            _SESSIONS.pop(next(iter(_SESSIONS)))
+        _SESSIONS[key] = sess
+        return sess
+
+
+def load_session(
+    path: str | Path | None = None,
+    *,
+    config: Config | None = None,
+    intra_op_threads: int | None = None,
+    inter_op_threads: int | None = None,
+) -> ort.InferenceSession:
+    """ONNX Runtime session for the labeller (the packaged weights unless ``path`` is given).
+
+    Cached per process and thread setting, and safe to call from several threads. Thread counts default to
+    :func:`resolve_threads`; pass explicit counts to override (0 = ORT default).
+    """
+    intra, inter = resolve_threads(config)
+    if intra_op_threads is not None:
+        intra = max(intra_op_threads, 0)
+    if inter_op_threads is not None:
+        inter = max(inter_op_threads, 0)
+    return _session_for(str(path) if path is not None else str(model_path()), intra, inter)
 
 
 def run_network(
-    session: ort.InferenceSession, images: NDArray[np.float32], batch: int = 8
+    session: ort.InferenceSession, images: NDArray[np.float32], batch: int = 1
 ) -> NDArray[np.float32]:
     """Softmax class probabilities for normalised slices ``(n, rows, cols)`` -> ``(n, classes, rows, cols)``.
 
     The class count is taken from the network output, so 4-class (v1) and 5-class (v2) weights both work.
+    Slices run ``batch`` at a time (default 1: on the CPU a batch of 8 full-resolution slices was ~1.9x slower and
+    needed ~250 MB more peak memory for the same output; measured on a 120-slice SPACE stack, lab14_perf).
+    The output is written in place (no list of batches to concatenate).
     """
     name = session.get_inputs()[0].name
-    out: list[NDArray[np.float32]] = []
-    for lo in range(0, images.shape[0], batch):
-        x = np.ascontiguousarray(images[lo : lo + batch, None], dtype=np.float32)
-        logits = np.asarray(session.run(None, {name: x})[0], dtype=np.float32)
-        logits -= logits.max(axis=1, keepdims=True)
-        e = np.exp(logits)
-        out.append((e / e.sum(axis=1, keepdims=True)).astype(np.float32))
-    if not out:
+    if images.shape[0] == 0:
         n_out = int(session.get_outputs()[0].shape[1] or N_CLASSES)
         return np.zeros((0, n_out, *images.shape[1:]), dtype=np.float32)
-    return np.concatenate(out, axis=0)
+    probs: NDArray[np.float32] | None = None
+    step = max(1, int(batch))
+    for lo in range(0, images.shape[0], step):
+        x = np.ascontiguousarray(images[lo : lo + step, None], dtype=np.float32)
+        logits = np.asarray(session.run(None, {name: x})[0], dtype=np.float32)
+        logits -= logits.max(axis=1, keepdims=True)
+        np.exp(logits, out=logits)
+        logits /= logits.sum(axis=1, keepdims=True)
+        if probs is None:
+            probs = np.empty((images.shape[0], logits.shape[1], *logits.shape[2:]), dtype=np.float32)
+        probs[lo : lo + logits.shape[0]] = logits
+    assert probs is not None
+    return probs
 
 
 def segment_stack(
     stack: Stack, cfg: Config = DEFAULT, session: ort.InferenceSession | None = None
 ) -> SegmentedStack:
     """Resample every slice of ``stack`` on the fixed-mm grid and run the network on all of them."""
-    sess = session if session is not None else load_session()
+    sess = session if session is not None else load_session(config=cfg)
     res = cfg.ml_resolution_mm
     grids = [plane_grid(stack, k, res) for k in range(stack.n)]
     window = intensity_window(stack.vol, cfg.ml_intensity_pct, cfg.background_frac)
@@ -128,7 +196,7 @@ def label_spine_ml(study: Study, config: Config | None = None, *, session: Any =
 
     cfg = config or DEFAULT
     if session is None and cfg.ml_model != MODEL_ASSET:
-        session = load_session(model_path(cfg.ml_model))
+        session = load_session(model_path(cfg.ml_model), config=cfg)
     stack = study.best("sag")
     if stack is None:
         return Anchors(
@@ -145,9 +213,11 @@ __all__ = [
     "METHOD",
     "MODEL_ASSET",
     "SegmentedStack",
+    "in_worker_process",
     "label_spine_ml",
     "load_session",
     "model_path",
+    "resolve_threads",
     "run_network",
     "segment_stack",
 ]
