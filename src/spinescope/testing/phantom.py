@@ -218,6 +218,12 @@ class PhantomSpec:
     # along that body's anterior-posterior axis. Positive = posterior (retrolisthesis), negative = anterior
     # (anterolisthesis). The disc at the slip level takes half the shift (it shears between the two bodies).
     slip: dict[str, float] = field(default_factory=dict)
+    # ---- facet joints (realistic phantom only; the cartoon phantom draws no facets). Off by default: the joint
+    # sits at facet_lateral_mm (both sides) and is healthy (no fluid) unless it has an effusion.
+    facet_lateral_mm: float = 19.0  # facet joint centre, mm lateral to the midline
+    facet_effusion: dict[str, tuple[str, float]] = field(
+        default_factory=dict
+    )  # disc -> ('L'|'R', fluid extent mm along the AP axis of the joint): CSF-like fluid in the joint
 
 
 def _segment_distance(pts: np.ndarray, a: np.ndarray, b: np.ndarray) -> np.ndarray:
@@ -421,6 +427,8 @@ class SpinePhantom:
             "transitional": sp.transitional,
             "findings": findings,
         }
+        if self.realistic:
+            self.truth["facets"] = self._facet_truth()
         if self._slip_truth:
             self.truth["listhesis"] = {k: dict(v) for k, v in self._slip_truth.items()}
         if sp.transitional == "sacralised_l5":
@@ -429,6 +437,20 @@ class SpinePhantom:
             self.truth["discs"][disc_names[-1]]["anatomical"] = (
                 "S1-S2"  # the full disc below the lumbarised S1
             )
+
+    def _facet_truth(self) -> dict[str, Any]:
+        """Facet joint centres (LPS mm) and the injected effusion extent per disc and side (realistic phantom)."""
+        sp = self.spec
+        out: dict[str, Any] = {}
+        for d, v in self.discs.items():
+            eff = sp.facet_effusion.get(d)
+            per: dict[str, Any] = {}
+            for side, sgn in (("L", 1.0), ("R", -1.0)):
+                c = v["center"] + sgn * sp.facet_lateral_mm * v["lat"] + (sp.canal_offset + 1.0) * v["ap"]
+                width = float(eff[1]) if eff is not None and eff[0] == side else 0.0
+                per[side] = {"center": [float(x) for x in c], "effusion_mm": width}
+            out[d] = per
+        return out
 
     def _apply_slip(self) -> None:
         """Translate the column above each slipped disc in AP (listhesis). Rigid for the column above, half shift at the disc."""
