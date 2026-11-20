@@ -146,6 +146,28 @@ note saying the name is not confirmed. Fields without image evidence appear unde
 docstring for the rules and negation handling). `parse_report`, `aggregate_levels`, `coverage_summary`. Only derived
 labels are returned; unparsed clauses are kept as generalised templates (levels and numbers replaced), never raw text.
 
+## Findings in the viewer
+
+`spinescope viewer STUDY OUT --findings` (or `--findings analyze.json`) shows the findings panel. It is generic: an
+analysis appears there without any viewer change, if it writes these fields (`viewer/findings_view.py` has the
+details):
+
+- **flags** are findings. Each needs a level: `level`, or `adjacent_disc`, `disc` or `vertebra` (in that order). `kind`
+  names the finding (colour and filter). `value`, `grade`, `class`, `pattern`, `contour` or `direction` gives its value
+  (a number or short text). `confidence` is a number in [0, 1] or high/medium/low. `side`, `note` (text) and
+  `structure` (the filter group; default: the analysis name) are optional.
+- **rows** are findings only when they carry a `finding` key (the row's kind) and a `level`; other rows are
+  measurements and stay out of the panel.
+- **position**: an optional `position` (or `center`) in LPS mm. Without it the viewer uses the centre of the level from
+  the anchors (disc or vertebra). A finding with no position is listed but cannot be jumped to.
+- **experimental**: `experimental: true` on a flag, or `meta["status"] == "experimental"`, or `meta["<prefix>_status"]
+  == "experimental"` for kinds that start with `<prefix>`. Experimental findings get a badge and a dashed marker.
+- **validation**: `validation` text on a flag, or `meta["validation"]` (text, or a dict keyed by kind). Absent means
+  "not reported".
+
+Level names are shown without a status suffix; the page shows the numbering status from the labels. Only these
+fields are copied into the page; a results file with other keys does not change it.
+
 ## Commands
 
 ```sh

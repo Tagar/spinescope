@@ -27,4 +27,11 @@ title says "Synthetic lumbar phantom (no patient data)".
 | `02_shift_applied.jpg` | after "Shift all labels up 1" with a reason; still not confirmed |
 | `03_add_disc_placed.jpg` | the missed L5-S1 placed by a click on the sagittal pane |
 | `04_confirmed.jpg` | after "Confirm levels" |
+| `05_findings_panel.jpg` | the findings panel (right) with a disc contour finding selected: the table, the level status and the three planes moved to the level, markers on the slices |
+| `06_findings_experimental.jpg` | the same panel with an experimental Modic-type suggestion selected: its note under the row, the `experimental` badge and the dashed marker convention |
+
+The findings screenshots come from the phantom with planted pathology (`tools/viewer_screenshots.py`: a degenerated
+L4-L5 disc, a Modic-1-like marrow change under the left inferior L4-L5 endplate, a 5 mm central L5-S1 herniation).
+Every finding shown is an analysis output on that phantom, not a check against ground truth. The page title says
+"Synthetic lumbar phantom (no patient data)".
 

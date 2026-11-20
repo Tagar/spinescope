@@ -13,6 +13,7 @@ import base64
 import json
 import logging
 import zlib
+from collections.abc import Mapping
 from typing import Any
 
 import numpy as np
@@ -23,6 +24,7 @@ from ..config import DEFAULT, Config
 from ..geometry import Stack, unit
 from ..privacy import public_text
 from ..study import Study
+from .findings_view import collect as collect_findings
 from .reformat import CONTRAST_RANK, Reformat, plan_reformats
 
 log = logging.getLogger(__name__)
@@ -238,8 +240,14 @@ def build_payload(
     *,
     title: str,
     config: Config = DEFAULT,
+    findings: Mapping[str, Any] | None = None,
+    findings_notes: list[str] | None = None,
 ) -> dict[str, Any]:
-    """The complete viewer payload (JSON-able). Raises ``ValueError`` for a study with no stacks."""
+    """The complete viewer payload (JSON-able). Raises ``ValueError`` for a study with no stacks.
+
+    ``findings`` maps analysis name to a ``Result`` (or its dict form) and adds the findings panel
+    (:mod:`spinescope.viewer.findings_view`); without it the page has no panel and ``findings`` is None.
+    """
     if len(study) == 0:
         raise ValueError("study has no stacks to show")
     refs = plan_reformats(study, config=config)
@@ -275,4 +283,7 @@ def build_payload(
         "discs": disc_records(anchors),
         "anchors": anchors_record(anchors),
         "policy": label_policy(config),
+        "findings": None
+        if findings is None
+        else collect_findings(findings, anchors, warnings=findings_notes),
     }

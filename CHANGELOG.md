@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Findings panel in the offline viewer (dx18, `docs/analysis/README.md`, "Findings in the viewer"):
+  `spinescope viewer STUDY OUT --findings` runs the registered analyses on the labels (or `--findings FILE` loads the
+  JSON of `spinescope analyze --out`). A table per level with value, confidence, experimental badge and validation
+  status, a structure filter, a row click or Enter moves all planes to the level, markers on the planes (colour by
+  kind, opacity by confidence, dashed when experimental), and level names with their numbering status. Only the
+  documented fields reach the page (`viewer/findings_view.py`; the canary scan covers it). Keyboard: `F` opens the
+  panel, arrows and Enter in the table. Browser smoke test with Playwright when a Chromium is available.
+
 - Labelling integration review (lab37, `docs/labeling/pipeline.md`): one map of the pipeline stage order and of every
   place that changes the numbering status. Fixes: a human answer to the verification packet no longer sets `confirmed`
   on its own (it is `probable`, as a human correction without a confirm; the import already downgraded it); the
