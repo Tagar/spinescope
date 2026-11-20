@@ -35,7 +35,7 @@ from PIL import Image as PILImage
 from ..anatomy.anchors import Anchors
 from ..anatomy.correspondence import level_map, level_slices
 from ..anatomy.pipeline import label_spine
-from ..anatomy.summary import labelling_summary, summary_lines
+from ..anatomy.summary import labelling_summary, status_of, summary_lines
 from ..anatomy.verify import AnswerError, apply_answer, build_packet
 from ..config import DEFAULT, Config
 from ..geometry import Stack
@@ -53,6 +53,15 @@ from ..report.validate import validate
 from ..study import Study, load_study
 from ..viewer import build_viewer
 from .briefs import brief, reading_tasks, series_table
+from .reading import (
+    REVIEW_POLICY,
+    measured_findings,
+    render_sheet,
+    review_errors,
+    review_to_findings,
+    sheet_file_name,
+    write_review_outputs,
+)
 
 log = logging.getLogger(__name__)
 
@@ -117,6 +126,8 @@ class SpineTools:
         self._studies: OrderedDict[str, Study] = OrderedDict()
         self._anchors: dict[str, Anchors] = {}  # working copy: the labeller output after any verification
         self._auto: dict[str, Anchors] = {}  # pristine labeller output, what a verification packet shows
+        self._results: dict[str, dict[str, Any]] = {}  # analysis results per study (see _measured_for)
+        self._measured: dict[str, dict[str, Any]] = {}  # measured findings per study, cached with the results
         self._out = Path(os.fspath(output_dir)) if output_dir is not None else None
         self._counter = 0
 
@@ -139,6 +150,23 @@ class SpineTools:
 
     def _anchors_cached(self, study_id: str) -> Anchors | None:
         return self._anchors.get(study_id)
+
+    def _measured_for(self, study_id: str) -> tuple[dict[str, Any], dict[str, Any]]:
+        """Measured findings and the analysis results of a study, computed once and cached. Changing the anchors
+        (a label review) drops the cache."""
+        if study_id not in self._measured:
+            from ..analysis.base import run_all
+
+            study = self._study(study_id)
+            anchors = self._anchors_for(study_id)
+            results = run_all(study, anchors, self._cfg)
+            self._results[study_id] = results
+            self._measured[study_id] = measured_findings(results, anchors)
+        return self._measured[study_id], self._results[study_id]
+
+    def _drop_measured(self, study_id: str) -> None:
+        self._measured.pop(study_id, None)
+        self._results.pop(study_id, None)
 
     def _stack(self, study_id: str, key: str) -> Stack:
         st = self._study(study_id)
@@ -205,6 +233,7 @@ class SpineTools:
             old, _ = self._studies.popitem(last=False)
             self._anchors.pop(old, None)
             self._auto.pop(old, None)
+            self._drop_measured(old)
         return {
             "study_id": study_id,
             "info": _public_info(study),
@@ -249,6 +278,7 @@ class SpineTools:
         except AnswerError as exc:
             raise ToolError(f"answer rejected: {exc}") from None
         self._anchors[study_id] = new
+        self._drop_measured(study_id)
         return {
             "disc_labels": new.disc_labels(),
             "numbering": new.numbering,
@@ -537,9 +567,108 @@ class SpineTools:
 
     def tasks(self, study_id: str) -> list[dict[str, Any]]:
         """Independent reader scopes (per level, per structure, holistic, and the adversarial verifier) with
-        complete prompts. Run the first three concurrently; run the verifier after merge_findings."""
-        tasks = reading_tasks(self._study(study_id), self._anchors_for(study_id), config=self._cfg)
+        complete prompts. Each disc level with measured findings also gets a review task (confirm or reject each
+        measured value on its sheet). Run the first three concurrently; run the verifier after merge_findings."""
+        measured, _ = self._measured_for(study_id)
+        tasks = reading_tasks(
+            self._study(study_id), self._anchors_for(study_id), config=self._cfg, measured=measured
+        )
         return [t.to_dict() for t in tasks]
+
+    def list_findings(self, study_id: str, level: str | None = None) -> dict[str, Any]:
+        """Measured findings per disc level: value, confidence (capped by the numbering status), validation status
+        and the note that states it, notes, and the reading sheet that shows the value (``sheet``, call reading_sheet
+        with the level and field). Measurements only, never a diagnosis. Fields with no sheet are listed under
+        ``_skipped``. Pass ``level`` to list one level."""
+        measured, results = self._measured_for(study_id)
+        anchors = self._anchors_for(study_id)
+        if level is not None and level not in measured:
+            names = ", ".join(sorted(measured)) or "none"
+            raise ToolError(f"no measured findings at level {level!r}; levels with findings: {names}")
+        levels: dict[str, Any] = {}
+        for lab, obj in measured.items():
+            if level is not None and lab != level:
+                continue
+            body: dict[str, Any] = {}
+            for group, fields in obj.items():
+                if group.startswith("_"):
+                    body[group] = fields
+                    continue
+                body[group] = {
+                    name: {
+                        "value": fld["value"],
+                        "confidence": fld["confidence"],
+                        "status": fld["status"],
+                        "status_note": fld["status_note"],
+                        "doc": fld["doc"],
+                        "notes": fld["notes"],
+                        "sheet": sheet_file_name(lab, group, name),
+                    }
+                    for name, fld in fields.items()
+                }
+            levels[lab] = body
+        return {
+            "study_id": study_id,
+            "numbering": status_of(anchors),
+            "review_policy": REVIEW_POLICY,
+            "levels": levels,
+            "analyses": {name: list(r.warnings) for name, r in sorted(results.items()) if r.warnings},
+        }
+
+    def reading_sheet(self, study_id: str, level: str, field: str, show_value: bool = True) -> RenderResult:
+        """Reading sheet of one measured field: the mm-ruled crops of the sequences side by side at the measured slice,
+        the anchored disc line, and a banner with the level, its numbering status, the field, the measured value
+        (unless show_value is false: a blind read) and the validation status. field is group.name, for example
+        disc.pfirrmann. Evidence, not a measurement: check the number against it."""
+        measured, _ = self._measured_for(study_id)
+        group, _, name = field.partition(".")
+        try:
+            measured[level][group][name]
+        except (KeyError, TypeError):
+            raise ToolError(
+                f"no measured field {field!r} at level {level!r}; list_findings shows the measured fields"
+            ) from None
+        study = self._study(study_id)
+        anchors = self._anchors_for(study_id)
+        img = render_sheet(
+            study, anchors, measured, level, group, name, show_value=show_value, config=self._cfg
+        )
+        meta = {
+            "level": level,
+            "field": field,
+            "shows_value": bool(show_value),
+            "numbering": status_of(anchors),
+        }
+        return self._emit(study_id, f"sheet_{level}_{field}", png_bytes(img), meta)
+
+    def submit_reader_answer(self, study_id: str, answer_json: str) -> dict[str, Any]:
+        """Submit a review of the measured findings (JSON text: kind "review", reader, checks with path, verdict
+        confirm|reject|unclear, confidence, evidence and notes; value only with reject). It is validated against the
+        measured fields and the findings schema. Returns the converted reader findings (usable by merge_findings) and
+        the counts. An AI review can only lower trust: a confirm keeps the measured confidence, and nothing here is a
+        human confirmation. With the output folder set, the findings file is saved there."""
+        measured, _ = self._measured_for(study_id)
+        try:
+            doc = json.loads(answer_json)
+        except ValueError:
+            return {"ok": False, "errors": ["not valid JSON"]}
+        errs = review_errors(doc, measured, status=status_of(self._anchors_for(study_id)))
+        if errs:
+            return {"ok": False, "errors": errs}
+        converted = review_to_findings(doc, measured)
+        verdicts = [chk["verdict"] for chk in doc["checks"]]
+        saved = None
+        if self._out is not None:
+            saved = str(write_review_outputs(doc, measured, self._out / study_id / "reader_answers"))
+        return {
+            "ok": True,
+            "reader": converted["reader"],
+            "counts": {v: verdicts.count(v) for v in ("confirm", "reject", "unclear")},
+            "rejected": [chk["path"] for chk in doc["checks"] if chk["verdict"] == "reject"],
+            "findings": converted,
+            "saved_to": saved,
+            "policy": REVIEW_POLICY,
+        }
 
     def analyze(self, study_id: str, only: list[str] | None = None) -> dict[str, Any]:
         """Run the registered measurement analyses (discs, endplates, ...) on the study's levels and return the
@@ -685,6 +814,9 @@ _TOOL_NAMES = (
     "validate_findings",
     "merge_findings",
     "analyze",
+    "list_findings",
+    "reading_sheet",
+    "submit_reader_answer",
 )
 
 
@@ -720,7 +852,9 @@ def build_server(tools: SpineTools | None = None) -> Any:
         instructions=(
             "Spine MRI tools for research and education (not diagnosis). Open a study with open_study, then "
             "use brief() before reading, get_anchors() for levels, render and measure tools for images and "
-            "numbers, and merge_findings() for reader consensus. Results never contain patient identifiers "
+            "numbers, list_findings() and reading_sheet() to check a measured value on its sheet (its validation "
+            "status says how far it can be trusted), submit_reader_answer() for a review (it can only lower trust), "
+            "and merge_findings() for reader consensus. Results never contain patient identifiers "
             "or file paths; the study_id is the only handle."
         ),
     )

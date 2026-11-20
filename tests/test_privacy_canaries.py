@@ -321,6 +321,21 @@ def _surface_mcp(root: str, tmp: Path) -> Blobs:
     fb.write_text(json.dumps(findings("reader_b", levels={"L4-L5": {"disc": l45_disc(4)}})))
     record("merge_findings", tools.merge_findings([str(fa), str(fb)], outdir=str(tmp / "merged")))
     record("analyze", tools.analyze(sid, only=["discs", "endplates"]))
+    lf = tools.list_findings(sid)
+    record("list_findings", lf)
+    first = next(
+        (
+            (lab, f"{g}.{next(iter(b))}")
+            for lab, obj in lf["levels"].items()
+            for g, b in obj.items()
+            if b and not g.startswith("_")
+        ),
+        None,
+    )
+    if first is not None:
+        record("reading_sheet", tools.reading_sheet(sid, first[0], first[1]))
+        record("reading_sheet_blind", tools.reading_sheet(sid, first[0], first[1], show_value=False))
+    record("submit_reader_answer", tools.submit_reader_answer(sid, json.dumps(findings("reader_c"))))
     blobs.update({f"mcp.files/{k}": v for k, v in _files(tmp / "png_out").items()})
     blobs.update({f"mcp.merged/{k}": v for k, v in _files(tmp / "merged").items()})
     blobs.update({f"mcp.mcp_viewer/{k}": v for k, v in _files(tmp / "mcp_viewer").items()})
@@ -514,6 +529,9 @@ def test_every_mcp_tool_is_covered() -> None:
         "validate_findings",
         "merge_findings",
         "analyze",
+        "list_findings",
+        "reading_sheet",
+        "submit_reader_answer",
     }
     assert set(_TOOL_NAMES) == covered
 

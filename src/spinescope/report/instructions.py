@@ -127,3 +127,66 @@ def reader_instructions(reader_name: str = "reader_a") -> str:
         json.dumps(_example(reader_name), indent=2, ensure_ascii=False),
     ]
     return "\n".join(lines) + "\n"
+
+
+#: The review answer: one verdict per measured field, converted to a findings file by ``ai.reading``.
+_REVIEW_RULES = """Rules
+1. One check per measured field listed in your scope. Do not add fields that are not listed. A field you do not check
+   is left out, and then it is simply not reviewed. Never write a level name you were not given.
+2. verdict: confirm = the reading sheet shows what the measured value says; reject = the sheet does not; unclear = you
+   cannot tell from the sheet. Use unclear rather than guess.
+3. reject: add "value" only when you can read a different value of the same field on the sheet, using the allowed
+   values listed below. Without an alternative, leave "value" out.
+4. confidence: how sure you are of your verdict, low, medium or high. Use low for single-slice, blurred or
+   oblique-only sheets.
+5. evidence: at least one entry per check, the sheet PNG you looked at: {"image": path, "series": stack key,
+   "slices": [indices shown]}.
+6. notes: one line of reasoning, or an empty string.
+7. Trust rule: an AI review can only lower trust. A confirm does not raise a confidence, and nothing you write
+   makes a finding confirmed by a human. Do not present your verdict as a clinical opinion.
+8. Do not write patient names, identifiers, dates, institutions or input file paths into the file.
+9. Output JSON only, in one file named after your reader name. Check it with the spinescope review command or the
+   submit_reader_answer tool, and fix every error before you stop.
+"""
+
+
+def review_instructions(reader_name: str, level: str, fields: list[tuple[str, str]]) -> str:
+    """Plain-text answer format for a reviewer of the measured findings of one disc level.
+
+    ``fields`` are the (group, name) pairs being reviewed. The allowed values of each field come from the schema,
+    so a reject alternative is checked the same way a reader's own value is.
+    """
+    specs = {(f.group, f.name): f for f in level_fields()}
+    lines = [
+        f"You are reviewing the measured findings of disc level {level} of one spine MRI study against their reading "
+        "sheets. Research use: check each measurement on the image; do not diagnose.",
+        "",
+        f"Reader name: {reader_name}. Write ONE JSON file named {reader_name}.json.",
+        f'Top-level keys: "kind": "review", "reader": "{reader_name}", "checks": [one object per field].',
+        "Each check: path (the canonical path from the scope), verdict (confirm, reject or unclear), confidence, "
+        "evidence (list), notes, and value only for reject.",
+        "",
+        _REVIEW_RULES,
+        "Allowed alternative values for reject (only if you use value):",
+    ]
+    for group, name in fields:
+        spec = specs.get((group, name))
+        allowed = _allowed_text(spec) if spec is not None else "text, or null"
+        lines.append(f"  {group}.{name}: {allowed}")
+    example = {
+        "kind": "review",
+        "reader": reader_name,
+        "checks": [
+            {
+                "path": f'levels["{level}"].{fields[0][0]}.{fields[0][1]}'
+                if fields
+                else f'levels["{level}"]',
+                "verdict": "unclear",
+                "confidence": "low",
+                "evidence": [{"image": "out/sheets/example.png", "series": "sag_t2", "slices": [12]}],
+                "notes": "example only",
+            }
+        ],
+    }
+    lines += ["", "Example of the shape (placeholder values, not a read):", json.dumps(example, indent=2)]
+    return "\n".join(lines) + "\n"

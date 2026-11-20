@@ -133,6 +133,13 @@ prediction and a grade):
 Kappa and similar agreement statistics are reported next to published inter-reader values where a source is cited;
 none are quoted in these docs yet.
 
+## Reading sheets and validation status
+
+Each registered field also gets a reading sheet (one PNG per level and field, `docs/ai_reader.md`). A reader sees the
+field's validation status next to the value. A field is experimental unless its status is recorded in
+`spinescope.ai.reading.FIELD_STATUS`, which points to the page that holds the numbers. Record a status there when a page
+states a validation.
+
 ## Reports
 
 `spinescope.analysis.findings.level_findings(results, level, anchors, figures=...)` returns the schema's per-level

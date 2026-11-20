@@ -11,7 +11,7 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1] / "plugins" / "claude-code"
 PLUGIN = ROOT / "spinescope"
-SKILLS = ("spine-read", "spine-viewer", "spine-inspect")
+SKILLS = ("spine-read", "spine-findings", "spine-viewer", "spine-inspect")
 
 
 def test_plugin_manifest_and_marketplace_parse():
@@ -41,6 +41,14 @@ def test_spine_read_states_the_concurrency_cap_and_disclaimer():
     assert "at most **4 at a time**" in text
     assert "not a diagnosis" in text
     assert "Never upload patient data anywhere" in text
+
+
+def test_findings_skill_states_validation_status_and_wording_rules():
+    text = (PLUGIN / "skills" / "spine-findings" / "SKILL.md").read_text(encoding="utf-8")
+    for word in ("validated", "partly_validated", "experimental", "not assessable", "consider correlation"):
+        assert word in text
+    assert "only lower trust" in text
+    assert "not a diagnosis" in text
 
 
 def test_mcp_registration_matches_console_script():

@@ -818,5 +818,10 @@ class Config:
     # agreement -16.6 to +25.9 points on Sudirman) and the Kjaer grade is likely over-counted (docs/analysis/muscles.md).
     muscles_max_confidence: float = 0.3
 
+    # ---- reading sheets (dx19_ai_reader; render/reading_sheet.py) ----
+    # Sequences side by side on one reading sheet: the field's own series first, then the other sagittal series
+    # (T2, T1, STIR). Design choice for legibility on a laptop screen, not tuned on any data.
+    reading_sheet_panels: int = 3
+
 
 DEFAULT = Config()
