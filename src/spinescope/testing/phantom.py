@@ -38,6 +38,9 @@ AIR, SOFT, FAT, MUSCLE, MARROW, CORTEX, ANNULUS, NUCLEUS, CSF, CORD, VESSEL, MOD
 OEDEMA, HARDWARE, SCHMORL, BLOOM = range(13, 17)
 # Added for the realistic anatomy (``realism="realistic"``); the cartoon never produces these labels.
 DURA, LIGAMENT, FACET, BOWEL, LIVER, KIDNEY, NERVE, REMNANT = range(17, 25)
+# Added for the marrow analyses (dx12): focal marrow lesions, basivertebral vein, diffusely T1-dark marrow.
+# Cartoon only; the default phantom never produces these labels.
+LESION_HAEM, LESION_FATTY, LESION_ISLAND, LESION_ATYPICAL, BASIVERTEBRAL, MARROW_DIM = range(25, 31)
 TISSUES = (
     "air",
     "soft",
@@ -64,6 +67,12 @@ TISSUES = (
     "kidney",
     "nerve",
     "remnant",
+    "haemangioma",
+    "focal_fat",
+    "bone_island",
+    "atypical_lesion",
+    "basivertebral",
+    "marrow_dim",
 )
 
 #: Mean signal per tissue and contrast (arbitrary units, roughly 1.5 T FSE-like ordering).
@@ -87,6 +96,12 @@ INTENSITY = {
         SCHMORL: 360,
         BLOOM: 120,
         LIGAMENT: 260,  # dx09: intermediate-dark on T1
+        LESION_HAEM: 950,
+        LESION_FATTY: 950,
+        LESION_ISLAND: 60,
+        LESION_ATYPICAL: 200,
+        BASIVERTEBRAL: 260,
+        MARROW_DIM: 280,
     },
     "t2": {
         AIR: 0,
@@ -107,6 +122,12 @@ INTENSITY = {
         SCHMORL: 950,
         BLOOM: 150,
         LIGAMENT: 200,  # dx09: dark on T2 (between bright epidural fat and marrow)
+        LESION_HAEM: 900,
+        LESION_FATTY: 760,
+        LESION_ISLAND: 50,
+        LESION_ATYPICAL: 800,
+        BASIVERTEBRAL: 900,
+        MARROW_DIM: 470,
     },
     "stir": {
         AIR: 0,
@@ -127,6 +148,12 @@ INTENSITY = {
         SCHMORL: 760,
         BLOOM: 60,
         LIGAMENT: 90,  # dx09: dark on STIR
+        LESION_HAEM: 200,
+        LESION_FATTY: 50,
+        LESION_ISLAND: 40,
+        LESION_ATYPICAL: 700,
+        BASIVERTEBRAL: 600,
+        MARROW_DIM: 130,
     },
     # Proton density: fat and fluid are not suppressed or boosted much; nucleus is brighter than annulus.
     "pd": {
@@ -147,6 +174,12 @@ INTENSITY = {
         HARDWARE: 0,
         SCHMORL: 700,
         BLOOM: 150,
+        LESION_HAEM: 800,
+        LESION_FATTY: 800,
+        LESION_ISLAND: 40,
+        LESION_ATYPICAL: 600,
+        BASIVERTEBRAL: 500,
+        MARROW_DIM: 500,
     },
 }
 
@@ -159,6 +192,12 @@ ACQ: dict[str, dict[str, Any]] = {
 }
 
 LAT0 = np.array([1.0, 0.0, 0.0])  # lateral axis of an unrotated level
+_LESION_LABEL = {
+    "haemangioma": LESION_HAEM,
+    "focal_fat": LESION_FATTY,
+    "bone_island": LESION_ISLAND,
+    "atypical": LESION_ATYPICAL,
+}  # PhantomSpec.marrow_lesions kind -> tissue label
 SCOLIOSIS_SIGMA_MM = 60.0  # width of the thoracolumbar curve around its apex (L2)
 TRANSITIONAL = (None, "lumbarised_s1", "sacralised_l5")
 FIELD_STRENGTHS = (1.5, 3.0)
@@ -246,6 +285,15 @@ class PhantomSpec:
     # Filum terminale: radius (mm) of a tube from the conus to the bottom of the thecal sac; None = no filum drawn.
     filum_radius: float | None = None
     filum_fat: bool = False  # True: the filum is drawn as fat (bright on T1), else as cord-like tissue
+    # ---- marrow options (dx12, cartoon only). All off by default.
+    # Focal marrow lesions: (body, kind, (lat, ap, up) centre offset from the body centre in mm, diameter mm).
+    # kind: 'haemangioma' (T1 and T2 bright, STIR not dark), 'focal_fat' (T1 and T2 bright, STIR dark: fat),
+    # 'bone_island' (dark on T1, T2 and STIR), 'atypical' (T1 dark, T2 bright: marrow replacement).
+    marrow_lesions: list[tuple[str, str, tuple[float, float, float], float]] = field(default_factory=list)
+    # A normal basivertebral vein: a thin (about 3 mm) T2-bright horizontal channel in the posterior body midline.
+    basivertebral_vein: bool = False
+    # Bodies whose marrow is T1-dark throughout (diffuse marrow change; T2 and STIR unchanged).
+    diffuse_low_t1: tuple[str, ...] = ()
 
 
 def _segment_distance(pts: np.ndarray, a: np.ndarray, b: np.ndarray) -> np.ndarray:
@@ -282,6 +330,12 @@ class SpinePhantom:
             defaults = {"sacral_slope": CARTOON_SACRAL_SLOPE, "segment_lordosis": CARTOON_SEGMENT_LORDOSIS}
         resolved = {k: (getattr(spec, k) if getattr(spec, k) is not None else v) for k, v in defaults.items()}
         self.spec = replace(spec, **resolved)
+        marrow_opts = bool(spec.marrow_lesions or spec.basivertebral_vein or spec.diffuse_low_t1)
+        if marrow_opts and spec.realism == "realistic":
+            raise ValueError("marrow lesion, basivertebral and diffuse marrow options are cartoon-only")
+        for _body, kind, _off, _dia in spec.marrow_lesions:
+            if kind not in _LESION_LABEL:
+                raise ValueError(f"unknown marrow lesion kind {kind!r}: use one of {sorted(_LESION_LABEL)}")
         self._build()
 
     @property
@@ -453,6 +507,25 @@ class SpinePhantom:
             self.truth["facets"] = self._facet_truth()
         if self._slip_truth:
             self.truth["listhesis"] = {k: dict(v) for k, v in self._slip_truth.items()}
+        if sp.marrow_lesions or sp.basivertebral_vein or sp.diffuse_low_t1:
+            self.truth["marrow"] = {
+                "lesions": [
+                    {
+                        "body": body,
+                        "kind": kind,
+                        "centre_lps": (
+                            bodies[body]["center"]
+                            + bodies[body]["lat"] * ox
+                            + bodies[body]["ap"] * oy
+                            + bodies[body]["normal"] * oz
+                        ).tolist(),
+                        "diameter_mm": float(dia),
+                    }
+                    for body, kind, (ox, oy, oz), dia in sp.marrow_lesions
+                ],
+                "basivertebral_vein": bool(sp.basivertebral_vein),
+                "diffuse_low_t1": sorted(sp.diffuse_low_t1),
+            }
         if sp.transitional == "sacralised_l5":
             self.truth["discs"]["L5-S1"]["partial"] = True  # only one side of the L5-S1 disc is preserved
         if sp.transitional == "lumbarised_s1":
@@ -605,6 +678,23 @@ class SpinePhantom:
             lab[shell] = CORTEX
             if name in sp.fracture:  # STIR/T2 bright oedema fills the fractured body
                 lab[inside & ~shell] = OEDEMA
+            if name in sp.diffuse_low_t1:
+                lab[inside & ~shell] = MARROW_DIM
+            if sp.basivertebral_vein:  # thin posterior midline channel (a normal variant)
+                vein = (
+                    (np.abs(lr) <= 1.5)
+                    & (np.abs(up) <= 1.5)
+                    & (ap >= 0.10 * sp.body_half_depth)
+                    & (ap <= 0.60 * sp.body_half_depth)
+                )
+                lab[vein & inside & ~shell] = BASIVERTEBRAL
+            for body, kind, (ox, oy, oz), dia in sp.marrow_lesions:
+                if body != name:
+                    continue
+                c0 = v["center"] + v["lat"] * ox + v["ap"] * oy + v["normal"] * oz
+                d0 = pts - c0
+                ball = np.einsum("ij,ij->i", d0, d0) <= (dia / 2.0) ** 2
+                lab[ball & inside & ~shell] = _LESION_LABEL[kind]
         displaced: list[np.ndarray] = []
         for d, v in self.discs.items():
             q = pts - v["center"]

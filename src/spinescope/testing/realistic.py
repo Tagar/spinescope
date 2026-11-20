@@ -39,6 +39,7 @@ from scipy.spatial import cKDTree
 from .phantom import (
     AIR,
     ANNULUS,
+    BASIVERTEBRAL,
     BLOOM,
     BOWEL,
     CORD,
@@ -49,9 +50,14 @@ from .phantom import (
     FAT,
     HARDWARE,
     KIDNEY,
+    LESION_ATYPICAL,
+    LESION_FATTY,
+    LESION_HAEM,
+    LESION_ISLAND,
     LIGAMENT,
     LIVER,
     MARROW,
+    MARROW_DIM,
     MODIC1,
     MUSCLE,
     NERVE,
@@ -164,6 +170,14 @@ RELAXATION: dict[int, Relaxation] = {
     KIDNEY: Relaxation(0.8, (700.0, 1000.0), (80.0, 60.0)),  # renal parenchyma
     NERVE: Relaxation(0.7, (800.0, 1000.0), (80.0, 70.0)),  # cauda equina roots
     REMNANT: Relaxation(0.6, (800.0, 1000.0), (60.0, 50.0)),  # rudimentary S1-S2 disc
+    # Marrow lesion tissues of the cartoon option (PhantomSpec.marrow_lesions); the realistic path never draws them.
+    # Approximate entries, not literature values: they keep the table complete.
+    LESION_HAEM: Relaxation(0.85, (400.0, 450.0), (120.0, 100.0)),  # fat-rich, vascular focus
+    LESION_FATTY: Relaxation(0.9, (260.0, 370.0), (110.0, 100.0)),  # fatty focus (as subcutaneous fat)
+    LESION_ISLAND: Relaxation(0.15, (300.0, 400.0), (0.5, 0.4)),  # dense bone (as cortex)
+    LESION_ATYPICAL: Relaxation(0.85, (400.0, 500.0), (150.0, 120.0)),  # marrow replacement with water
+    BASIVERTEBRAL: Relaxation(0.5, (500.0, 600.0), (120.0, 100.0)),  # venous channel
+    MARROW_DIM: Relaxation(0.8, (300.0, 350.0), (80.0, 70.0)),  # diffusely T1-dark marrow
 }
 
 

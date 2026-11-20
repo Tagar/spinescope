@@ -846,5 +846,48 @@ class Config:
     # (T2, T1, STIR). Design choice for legibility on a laptop screen, not tuned on any data.
     reading_sheet_panels: int = 3
 
+    # ---- analysis: focal vertebral marrow lesions and diffuse marrow (spinescope.analysis.marrow; dx12).
+    # Ratios are focus / same body's mid-body marrow (same slice, smoothed), T1 and T2 separately (STIR when present).
+    # Focal foci sit beyond the endplate band (endplate_band_mm[1] = 8 mm; endplates.py) and inside the body core.
+    # Core margin from both endplates: the Modic band plus margin, as the endplate lesion search uses (lesion_endplate_mm).
+    # The Modic-type band reaches 9 mm in the phantom (endplates.py band 3-8 mm); 8 mm would let its edge in as a focus.
+    marrow_focal_endplate_mm: float = 10.0
+    # Cortical shell excluded from the core: 1.5 mm rim of the body outline (cortex is about 1 mm thick; partial volume).
+    marrow_cortex_rim_mm: float = 1.5
+    # Minimum focus size: 4 mm across (about one slice thickness). Judgement; a focus on one slice only gets lower confidence.
+    marrow_min_diameter_mm: float = 4.0
+    # Focal T1 bright / dark: 1.20 / 0.80 x marrow (judgement, uncalibrated).
+    marrow_focal_t1_bright: float = 1.20
+    marrow_focal_t1_dark: float = 0.80
+    # Focal T2 bright / dark: 1.20 / 0.85 x marrow (judgement, uncalibrated).
+    marrow_focal_t2_bright: float = 1.20
+    marrow_focal_t2_dark: float = 0.85
+    # STIR fat suppression: a T1- and T2-bright focus with STIR <= 0.60 x marrow is fat-like; STIR <= 0.85 x marrow counts
+    # as not bright (bone-island pattern). Judgement, uncalibrated.
+    marrow_stir_fat_ratio: float = 0.60
+    marrow_stir_not_bright_ratio: float = 0.85
+    # Dixon fat fraction inside a focus at or above this share (0-1) is fat-like. Judgement, uncalibrated.
+    marrow_fat_fraction_focal: float = 0.5
+    # Linear structures are not focal: a focus at most this wide (mm) and at least marrow_linear_aspect times longer is a
+    # vessel or channel (the basivertebral vein is a thin central posterior channel; Gaudino 2015, Baudrez 2001).
+    marrow_linear_max_width_mm: float = 4.0
+    marrow_linear_aspect: float = 2.5
+    # Diffuse marrow: marrow T1 below this share of the adjacent discs' T1 is called diffusely low. Vande Berg et al.,
+    # Radiol Clin N Am 2005;43:761-770: on non-fat-suppressed lumbar T1 the marrow normally sits above the disc (thoracic
+    # marrow can sit below it). The 0.90 margin is judgement.
+    marrow_diffuse_disc_ratio: float = 0.90
+    # Experimental cap: rules are not validated (docs/analysis/marrow.md). Flags carry at most this confidence.
+    # Marrow reference (two-pass): pixels deviating by more than this share in T1 or T2 from the first median are left out
+    # of the reference, so a focus does not set its own marrow level. Judgement, uncalibrated.
+    marrow_reference_exclude_ratio: float = 0.2
+    # Foci on neighbouring sagittal slices (5 mm apart) are one focus when their centres lie within this distance (mm).
+    marrow_focus_link_mm: float = 8.0
+    # Focal flags (atypical focal lesion) are OFF: on SPIDER validation the rule raised 16 atypical calls in 7 of 39 studies,
+    # and on Sudirman it called a level in 39 of 48 controls with no marrow terms (docs/analysis/marrow.md: negative result).
+    # The focus rows are still written, as descriptions only.
+    marrow_focal_flags: bool = False
+    marrow_focal_max_confidence: float = 0.4
+    marrow_diffuse_max_confidence: float = 0.4
+
 
 DEFAULT = Config()
