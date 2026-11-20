@@ -267,3 +267,95 @@ def test_realistic_phantom_records_facet_truth():
     assert ph.truth["facets"]["L4-L5"]["L"]["effusion_mm"] == pytest.approx(3.0)
     assert ph.truth["facets"]["L4-L5"]["R"]["effusion_mm"] == 0.0
     assert ph.truth["facets"]["L4-L5"]["L"]["center"][0] > 0 > ph.truth["facets"]["L4-L5"]["R"]["center"][0]
+
+
+# ------------------------------------------------------------------------ dx21: joint localisation, angle, tropism
+def _dark_line_roi(orientation: str, n: int = 48, px: float = 0.5) -> np.ndarray:
+    """Bright ROI with one dark line through the centre (horizontal in (u, v) if 'h', vertical if 'v')."""
+    img = np.full((n, n), 1000.0)
+    c = (n - 1) // 2
+    if orientation == "v":  # line along v (AP): a sagittal joint line
+        img[:, c - 1 : c + 2] = 100.0
+    else:  # line along u (lateral): a coronal joint line
+        img[c - 1 : c + 2, :] = 100.0
+    return img
+
+
+@pytest.mark.parametrize(
+    ("orientation", "expected_angle"),
+    [("v", 0.0), ("h", 90.0)],
+)
+def test_localise_finds_the_dark_line_and_its_angle(orientation: str, expected_angle: float):
+    loc = F.localise_joint(_dark_line_roi(orientation), 0.5)
+    assert loc.ok, loc.reason
+    assert loc.centre_uv is not None
+    assert abs(loc.centre_uv[0]) < 0.6 and abs(loc.centre_uv[1]) < 0.6  # centred on the line
+    assert F.joint_angle_deg(loc.direction) == pytest.approx(expected_angle, abs=3.0)
+
+
+def test_localise_reports_no_ridge_on_a_flat_image():
+    loc = F.localise_joint(np.full((48, 48), 500.0), 0.5)
+    assert not loc.ok
+    assert loc.centre_uv is None and loc.direction is None
+
+
+def test_localise_reports_no_data_on_an_empty_window():
+    loc = F.localise_joint(np.full((48, 48), np.nan), 0.5)
+    assert not loc.ok and "no image data" in loc.reason
+
+
+def test_joint_angle_convention():
+    assert F.joint_angle_deg((0.0, 1.0)) == pytest.approx(0.0)  # along AP: sagittal
+    assert F.joint_angle_deg((1.0, 0.0)) == pytest.approx(90.0)  # along lateral: coronal
+    assert F.joint_angle_deg((1.0, 1.0)) == pytest.approx(45.0)
+    assert F.joint_angle_deg((-1.0, -1.0)) == pytest.approx(45.0)  # sign-free
+    assert np.isnan(F.joint_angle_deg((0.0, 0.0)))
+
+
+def test_tropism_flags_report_both_thresholds():
+    small = F.tropism_flags(40.0, 44.0)
+    assert small["tropism_7deg"] is False and small["tropism_10deg"] is False
+    mid = F.tropism_flags(40.0, 48.0)
+    assert mid["tropism_7deg"] is True and mid["tropism_10deg"] is False
+    big = F.tropism_flags(40.0, 53.0)
+    assert big["tropism_7deg"] is True and big["tropism_10deg"] is True
+    assert big["difference_deg"] == pytest.approx(13.0)
+
+
+def test_sample_label_plane_addresses_the_patient_grid():
+    ph = _phantom()
+    st = from_stacks([_ax(ph)]).stacks["ax_stir"]
+    k = 3
+    label2d = np.arange(st.vol.shape[1] * st.vol.shape[2]).reshape(st.vol.shape[1:])
+    origin = st.pix_to_lps(float(k), 80.0, 80.0)
+    shape = (48, 48)
+    lab = F.sample_label_plane(
+        st, k, label2d, origin, np.array([1.0, 0, 0]), np.array([0, 1.0, 0]), shape, 0.5
+    )
+    pts = F.roi_grid_mm(origin, np.array([1.0, 0, 0]), np.array([0, 1.0, 0]), shape, 0.5)
+    for i, j in ((0, 0), (10, 30), (47, 47)):
+        _kk, r, c = st.lps_to_pix(pts[i, j])
+        assert lab[i, j] == label2d[round(r), round(c)]
+    assert (lab >= 0).all()
+
+
+def test_geometry_rows_are_capped_and_never_graded():
+    _, res = _run()
+    rows = [r for r in res.rows if r.get("scope") == "joint_geometry"]
+    assert rows, "no joint geometry rows on the phantom"
+    for r in rows:
+        assert r["grade_status"] == "not assessed"
+        assert r["weishaupt_grade"] is None
+        assert r["experimental"] is True
+        assert r["confidence"] <= DEFAULT.facets_morph_max_confidence + 1e-9
+        if r["loc_ok"]:
+            assert 0.0 <= r["joint_angle_deg"] <= 90.0
+            assert r["joint_line_width_mm"] <= r["joint_line_length_mm"] + 1e-6
+        else:
+            assert r["joint_angle_deg"] is None and r["joint_uv_mm"] is None
+
+
+def test_dx08_effusion_rows_still_present_with_geometry_added():
+    _, res = _run()
+    assert any(r.get("scope") == "joint" for r in res.rows)
+    assert all(r.get("scope") in ("joint", "joint_geometry") for r in res.rows)

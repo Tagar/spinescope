@@ -730,13 +730,36 @@ class Config:
     facets_cyst_roundness_min: float = 0.6
     # Minimum CSF-muscle contrast, as a fraction of the sampled slice's intensity range, below which no fluid call is made.
     facets_min_contrast: float = 0.2
-    # Facet orientation tropism: left-right difference of the joint plane angle (deg) above which asymmetry is noted.
-    # Noren et al. (1991, Spine) used 7 degrees; the 7 to 10 degree range is cited in the literature. Used only by
-    # spinescope.analysis.facets.tropism_flag: joint angles are not measured in this version.
+    # Facet orientation tropism: left-right difference of the joint angle (deg) above which asymmetry is noted.
+    # 7 deg is the value commonly quoted in the tropism literature (Kalichman and Hunter review). Noren et al. (1991,
+    # Spine 16:530) relates tropism to disc degeneration; its abstract does not give this cut-off (checked 2026-11-15),
+    # so the source of 7 deg is secondary, not verified. Used by spinescope.analysis.facets.tropism_flags.
     facets_tropism_deg: float = 7.0
+    # Second tropism threshold (deg), reported alongside the first. 10 deg is the other value quoted in the literature
+    # (secondary source, not verified against the primary paper). Both are reported; neither is validated here.
+    facets_tropism_strict_deg: float = 10.0
     # Confidence cap of the parasagittal fallback (analysis confidence in [0, 1]). Fluid is called only on fat-suppressed
     # images (STIR or fat-sat T2): on plain T2 fat is as bright as fluid. Judgement: single-slice sagittal sampling.
     facets_sagittal_max_confidence: float = 0.3
+    # Image-based joint localisation (dx21). The joint line is the dark cortical ridge between the superior and inferior
+    # articular processes. Ridge = Gaussian second derivative at this scale (mm; judgement, about the cortex thickness
+    # scale of the articular surface, not a literature value).
+    facets_loc_sigma_mm: float = 0.6
+    # The joint is searched within this radius (mm) of the geometric site (judgement: the site error on the phantom was
+    # 3.8 to 4.5 mm, see docs/analysis/facets.md; the radius covers that plus margin).
+    facets_loc_search_mm: float = 8.0
+    # The joint-line component is the connected set of ridge pixels above this fraction of the peak, within
+    # facets_loc_max_radius_mm of the site (judgement; fixed before the validation run, docs/analysis/facets.md).
+    facets_loc_component_frac: float = 0.5
+    facets_loc_max_radius_mm: float = 6.0
+    # Smallest joint-line component (pixels) accepted as a joint line; smaller means not localised.
+    facets_loc_min_pixels: int = 6
+    # Morphology proxy (dx21): a joint whose line length, relative to the study's median level length, reaches this
+    # ratio is a "hypertrophy-type" proxy. Pre-registered (docs/analysis/facets.md); judgement, not validated.
+    facets_morph_length_ratio: float = 1.25
+    # Confidence cap of the image-based joint localisation, angles and morphology proxies. None of them is validated
+    # against a grade, so they stay capped and marked experimental.
+    facets_morph_max_confidence: float = 0.2
 
     # ---- report synthesis (spinescope.report.synthesis; dx17). Presentation weights, not clinical thresholds.
     # Weight of each validation status in the pain-evidence ordering, in the order validated, weak labels only,
